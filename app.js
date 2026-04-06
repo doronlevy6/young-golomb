@@ -2266,7 +2266,7 @@ function renderViewerSearch(summary = getColumnSummary(viewerState.column)) {
     .join("")
 }
 
-function formatLocation(location) {
+function formatLocation(location, { showDetails = true } = {}) {
   const columnText =
     location.exact && Math.abs(location.columnFloat - location.column) < 0.001
       ? String(location.column)
@@ -2274,6 +2274,17 @@ function formatLocation(location) {
   const lineText = location.exact
     ? String(Math.round(location.lineFloat))
     : formatNumber(location.lineFloat, 1)
+
+  if (!showDetails) {
+    return `
+      <article class="location-card is-compact">
+        <div class="location-meta">
+          <div class="location-label">${location.label}</div>
+          <div class="location-column-only">עמודה ${columnText}</div>
+        </div>
+      </article>
+    `
+  }
 
   return `
     <article class="location-card">
@@ -2356,6 +2367,7 @@ function renderComparison(current, target, { sourceVisible = false } = {}) {
     current,
     target,
     sourceVisible,
+    showLocationDetails: false,
     activeSplitIndex: segmentDiffs.length ? preferredSplitIndex : null,
   }
   renderComparisonState()
@@ -2364,7 +2376,7 @@ function renderComparison(current, target, { sourceVisible = false } = {}) {
 function renderComparisonState() {
   if (!comparisonState) return
 
-  const { current, target, sourceVisible } = comparisonState
+  const { current, target, sourceVisible, showLocationDetails } = comparisonState
   const segmentDiffs = getLocationSegmentDiffs(current, target)
   const hasSplitScroll = segmentDiffs.length > 0
   const fallbackSplitIndex =
@@ -2415,15 +2427,23 @@ function renderComparisonState() {
         >
           ${sourceVisible ? "הסתר מקור" : "הצג מקור"}
         </button>
+        <label class="details-toggle">
+          <input
+            type="checkbox"
+            data-action="toggle-location-details"
+            ${showLocationDetails ? "checked" : ""}
+          />
+          <span>הצג פרטי עמודה</span>
+        </label>
       </div>
     </article>
     <div class="location-grid">
       ${
         sourceVisible
-          ? `<div class="location-slot location-slot-source">${formatLocation(sourceLocation)}</div>`
+          ? `<div class="location-slot location-slot-source">${formatLocation(sourceLocation, { showDetails: showLocationDetails })}</div>`
           : ""
       }
-      <div class="location-slot location-slot-target">${formatLocation(targetLocation)}</div>
+      <div class="location-slot location-slot-target">${formatLocation(targetLocation, { showDetails: showLocationDetails })}</div>
     </div>
   `
 
@@ -2874,6 +2894,16 @@ journalNextMonthButton?.addEventListener("click", () => {
 resultsEl?.addEventListener("click", (event) => {
   const actionTarget = event.target.closest("[data-action]")
   if (!actionTarget || !comparisonState) return
+
+  if (actionTarget.dataset.action === "toggle-location-details") {
+    const checked =
+      actionTarget instanceof HTMLInputElement
+        ? actionTarget.checked
+        : Boolean(comparisonState.showLocationDetails)
+    comparisonState.showLocationDetails = checked
+    renderComparisonState()
+    return
+  }
 
   if (actionTarget.dataset.action === "toggle-source") {
     comparisonState.sourceVisible = !comparisonState.sourceVisible
