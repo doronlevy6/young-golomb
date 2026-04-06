@@ -177,6 +177,84 @@ mark {
   border-color: rgba(126, 63, 40, 0.45);
 }
 
+.field input[readonly] {
+  background: rgba(246, 239, 224, 0.92);
+  color: var(--accent-strong);
+}
+
+.builder {
+  display: grid;
+  gap: 0.7rem;
+  margin-top: -0.2rem;
+  padding: 0.75rem;
+  border: 1px solid rgba(126, 63, 40, 0.12);
+  border-radius: 20px;
+  background: rgba(250, 245, 234, 0.76);
+}
+
+.builder-modes {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 0.5rem;
+  overflow-x: auto;
+  padding-bottom: 0.1rem;
+  -webkit-overflow-scrolling: touch;
+}
+
+.builder-chip {
+  flex: 0 0 auto;
+  border: 1px solid rgba(126, 63, 40, 0.16);
+  border-radius: 999px;
+  padding: 0.55rem 0.85rem;
+  background: rgba(255, 255, 255, 0.82);
+  color: var(--muted);
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.builder-chip.is-active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: white;
+}
+
+.builder-panel {
+  display: grid;
+  gap: 0.65rem;
+}
+
+.builder-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.picker-field {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.picker-field span {
+  color: var(--muted);
+  font-size: 0.92rem;
+  font-weight: 700;
+}
+
+.picker-field select,
+.picker-field input {
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 0.9rem 1rem;
+  background: #fffdfa;
+  color: var(--ink);
+  font: inherit;
+}
+
+.picker-field select:focus,
+.picker-field input:focus {
+  outline: 2px solid rgba(126, 63, 40, 0.18);
+  border-color: rgba(126, 63, 40, 0.45);
+}
+
 .actions,
 .examples {
   display: flex;
@@ -778,6 +856,10 @@ button {
   }
 
   .preview-info-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .builder-grid {
     grid-template-columns: 1fr;
   }
 

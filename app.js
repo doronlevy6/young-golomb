@@ -6,6 +6,7 @@ const currentInput = document.getElementById("current-query")
 const targetInput = document.getElementById("target-query")
 const resetButton = document.getElementById("reset-button")
 const suggestionsEl = document.getElementById("query-suggestions")
+const builderModeButtons = Array.from(document.querySelectorAll(".builder-chip"))
 
 const viewerModal = document.getElementById("viewer-modal")
 const viewerMeta = document.getElementById("viewer-meta")
@@ -20,6 +21,31 @@ const viewerNextButton = document.getElementById("viewer-next")
 const viewerCloseButton = document.getElementById("viewer-close")
 const viewerZoomInput = document.getElementById("viewer-zoom")
 const viewerColumnInput = document.getElementById("viewer-column-input")
+
+const builderFields = {
+  current: {
+    queryInput: currentInput,
+    parashahPanel: document.getElementById("current-parashah-panel"),
+    parashahSelect: document.getElementById("current-parashah-select"),
+    referencePanel: document.getElementById("current-reference-panel"),
+    bookSelect: document.getElementById("current-book-select"),
+    chapterSelect: document.getElementById("current-chapter-select"),
+    verseSelect: document.getElementById("current-verse-select"),
+    wordsPanel: document.getElementById("current-words-panel"),
+    wordsInput: document.getElementById("current-words-input"),
+  },
+  target: {
+    queryInput: targetInput,
+    parashahPanel: document.getElementById("target-parashah-panel"),
+    parashahSelect: document.getElementById("target-parashah-select"),
+    referencePanel: document.getElementById("target-reference-panel"),
+    bookSelect: document.getElementById("target-book-select"),
+    chapterSelect: document.getElementById("target-chapter-select"),
+    verseSelect: document.getElementById("target-verse-select"),
+    wordsPanel: document.getElementById("target-words-panel"),
+    wordsInput: document.getElementById("target-words-input"),
+  },
+}
 
 const bookAliases = {
   בראשית: "בראשית",
@@ -64,6 +90,10 @@ let viewerState = {
 let touchStartX = null
 let touchStartY = null
 let liveSearchTimer = null
+const builderState = {
+  current: { mode: "free" },
+  target: { mode: "free" },
+}
 
 function normalizeSpaces(text) {
   return text.replace(/\s+/g, " ").trim()
@@ -235,12 +265,153 @@ function buildSuggestions() {
   suggestionsEl.appendChild(fragment)
 }
 
+function renderSelectOptions(selectEl, items, { value = null, includeBlankLabel = null } = {}) {
+  const optionItems = includeBlankLabel === null ? [...items] : [{ value: "", label: includeBlankLabel }, ...items]
+  selectEl.innerHTML = optionItems
+    .map(
+      (item) =>
+        `<option value="${escapeHtml(String(item.value))}">${escapeHtml(String(item.label))}</option>`,
+    )
+    .join("")
+
+  const stringValue = value === null || value === undefined ? null : String(value)
+  const hasValue = stringValue !== null && optionItems.some((item) => String(item.value) === stringValue)
+  selectEl.value = hasValue ? stringValue : String(optionItems[0]?.value ?? "")
+}
+
+function chapterOptionsForBook(book) {
+  const chapterMap = navigatorData.bookChapters.get(book)
+  if (!chapterMap) return []
+
+  return [...chapterMap.keys()]
+    .sort((a, b) => a - b)
+    .map((chapter) => ({
+      value: chapter,
+      label: `פרק ${chapter}`,
+    }))
+}
+
+function verseOptionsForReference(book, chapter) {
+  if (!book || !chapter) return []
+  const chapterMap = navigatorData.bookChapters.get(book)
+  const maxVerse = chapterMap?.get(Number(chapter)) || 0
+
+  return Array.from({ length: maxVerse }, (_, index) => {
+    const verse = index + 1
+    return {
+      value: verse,
+      label: `פסוק ${verse}`,
+    }
+  })
+}
+
+function populateChapterSelect(side, preferredChapter = null) {
+  const fields = builderFields[side]
+  const book = fields.bookSelect.value || navigatorData.books[0] || ""
+  const chapters = chapterOptionsForBook(book)
+  renderSelectOptions(fields.chapterSelect, chapters, { value: preferredChapter })
+  return fields.chapterSelect.value
+}
+
+function populateVerseSelect(side, preferredVerse = null) {
+  const fields = builderFields[side]
+  const verses = verseOptionsForReference(fields.bookSelect.value, fields.chapterSelect.value)
+  renderSelectOptions(fields.verseSelect, verses, {
+    value: preferredVerse,
+    includeBlankLabel: "תחילת הפרק",
+  })
+}
+
+function composeStructuredQuery(side) {
+  const state = builderState[side]
+  const fields = builderFields[side]
+  const words = normalizeSpaces(fields.wordsInput.value)
+
+  if (state.mode === "free") {
+    return normalizeSpaces(fields.queryInput.value)
+  }
+
+  let anchor = ""
+  if (state.mode === "parashah") {
+    anchor = normalizeSpaces(fields.parashahSelect.value)
+  }
+
+  if (state.mode === "reference") {
+    const book = normalizeSpaces(fields.bookSelect.value)
+    const chapter = normalizeSpaces(fields.chapterSelect.value)
+    const verse = normalizeSpaces(fields.verseSelect.value)
+    if (book && chapter) {
+      anchor = verse ? `${book} ${chapter} ${verse}` : `${book} ${chapter}`
+    }
+  }
+
+  if (anchor && words) return `${anchor} + ${words}`
+  return anchor || words
+}
+
+function refreshBuilderUi(side) {
+  const mode = builderState[side].mode
+  const fields = builderFields[side]
+
+  fields.queryInput.readOnly = mode !== "free"
+  fields.queryInput.placeholder =
+    mode === "free" ? "פרשה / פרק / פסוק / מילים / עמודה" : "נבנה אוטומטית"
+  fields.parashahPanel.hidden = mode !== "parashah"
+  fields.referencePanel.hidden = mode !== "reference"
+  fields.wordsPanel.hidden = mode === "free"
+
+  builderModeButtons.forEach((button) => {
+    if (button.dataset.side !== side) return
+    button.classList.toggle("is-active", button.dataset.mode === mode)
+  })
+}
+
+function syncStructuredQuery(side, { live = true } = {}) {
+  if (builderState[side].mode === "free") return
+  builderFields[side].queryInput.value = composeStructuredQuery(side)
+  if (live) scheduleLiveSearch()
+}
+
+function setBuilderMode(side, mode, { live = true } = {}) {
+  builderState[side].mode = mode
+  refreshBuilderUi(side)
+  if (mode !== "free") {
+    syncStructuredQuery(side, { live })
+  } else if (live) {
+    scheduleLiveSearch()
+  }
+}
+
+function initializeBuilders() {
+  const parashahOptions = navigatorData.parashot.map((parashah) => ({
+    value: parashah.name_display,
+    label: `${parashah.order}. ${parashah.name_display}`,
+  }))
+  const bookOptions = navigatorData.books.map((book) => ({ value: book, label: book }))
+
+  ;["current", "target"].forEach((side) => {
+    const fields = builderFields[side]
+
+    renderSelectOptions(fields.parashahSelect, parashahOptions, {
+      value: navigatorData.parashot[0]?.name_display,
+    })
+    renderSelectOptions(fields.bookSelect, bookOptions, { value: navigatorData.books[0] })
+    const chapter = populateChapterSelect(side, 1)
+    populateVerseSelect(side, "")
+    if (chapter) fields.chapterSelect.value = String(chapter)
+    fields.wordsInput.value = ""
+    refreshBuilderUi(side)
+  })
+}
+
 function buildIndexes() {
   navigatorData.parashahByOrder = new Map()
   navigatorData.parashahByKey = new Map()
   navigatorData.verseByKey = new Map()
   navigatorData.columnsByNumber = new Map()
   navigatorData.verseItems = []
+  navigatorData.books = []
+  navigatorData.bookChapters = new Map()
 
   navigatorData.parashot.forEach((parashah) => {
     navigatorData.parashahByOrder.set(parashah.order, parashah)
@@ -269,8 +440,17 @@ function buildIndexes() {
     }
     item.key = `${item.book}:${item.chapter}:${item.verse}`
     item.searchText = normalizeKey(item.text)
+    item.parashahKey = normalizeKey(item.parashah)
     navigatorData.verseByKey.set(item.key, item)
     navigatorData.verseItems.push(item)
+
+    if (!navigatorData.bookChapters.has(item.book)) {
+      navigatorData.bookChapters.set(item.book, new Map())
+      navigatorData.books.push(item.book)
+    }
+
+    const chapterMap = navigatorData.bookChapters.get(item.book)
+    chapterMap.set(item.chapter, Math.max(chapterMap.get(item.chapter) || 0, item.verse))
   })
 
   navigatorData.columns.forEach((column) => {
@@ -303,7 +483,7 @@ function parseReference(query) {
   const chapter = parseHebrewNumber(parts[1])
   const verse = parts[2] ? parseHebrewNumber(parts[2]) : 1
   if (!chapter || !verse) return null
-  return { book, chapter, verse }
+  return { book, chapter, verse, explicitVerse: Boolean(parts[2]) }
 }
 
 function findTermsInOrder(text, terms) {
@@ -400,10 +580,31 @@ function findTextMatches(query, limit = 12) {
     .slice(0, limit)
 }
 
-function sortMatchesByAnchor(matches, anchorColumnFloat) {
+function anchorBucket(match, anchor) {
+  if (!anchor) return 0
+
+  if (anchor.chapter && anchor.book === match.book && anchor.chapter === match.chapter) {
+    return 4
+  }
+
+  if (anchor.parashahKey && anchor.parashahKey === match.parashahKey) {
+    return 3
+  }
+
+  if (anchor.book && anchor.book === match.book) {
+    return 2
+  }
+
+  return 1
+}
+
+function sortMatchesByAnchor(matches, anchor) {
+  if (!anchor || !Number.isFinite(anchor.columnFloat)) return [...matches]
+
   return [...matches].sort((a, b) => {
     return (
-      Math.abs(a.columnFloat - anchorColumnFloat) - Math.abs(b.columnFloat - anchorColumnFloat) ||
+      anchorBucket(b, anchor) - anchorBucket(a, anchor) ||
+      Math.abs(a.columnFloat - anchor.columnFloat) - Math.abs(b.columnFloat - anchor.columnFloat) ||
       b.bucket - a.bucket ||
       a.span - b.span ||
       a.firstPosition - b.firstPosition ||
@@ -487,6 +688,7 @@ function resolveStandardQuery(query) {
 
   const directColumn = findDirectColumn(value)
   if (directColumn !== null) {
+    const summary = getColumnSummary(directColumn)
     return {
       kind: "column",
       label: `עמודה ${directColumn}`,
@@ -495,11 +697,18 @@ function resolveStandardQuery(query) {
       lineFloat: 1,
       exact: true,
       detail: "עמודה ידנית",
+      anchorContext: {
+        columnFloat: directColumn,
+        parashahKey: summary?.parashot?.[0] ? normalizeKey(summary.parashot[0]) : null,
+        book: summary?.books?.[0] || null,
+        chapter: summary?.chapters?.length === 1 ? parseHebrewNumber(String(summary.chapters[0])) : null,
+      },
     }
   }
 
   const parashah = resolveParashah(value)
   if (parashah) {
+    const summary = getColumnSummary(parashah.column)
     return {
       kind: "parashah",
       label: `פרשת ${parashah.name_display}`,
@@ -508,6 +717,11 @@ function resolveStandardQuery(query) {
       lineFloat: parashah.line,
       exact: true,
       detail: `פרשה #${parashah.order}`,
+      anchorContext: {
+        columnFloat: parashah.column,
+        parashahKey: normalizeKey(parashah.name_display),
+        book: summary?.books?.[0] || null,
+      },
     }
   }
 
@@ -524,6 +738,12 @@ function resolveStandardQuery(query) {
       lineFloat: verse.lineFloat,
       exact: verse.exact,
       detail: `${verse.parashah} | ${verse.exact ? "מדויק" : "משוער"}`,
+      anchorContext: {
+        columnFloat: verse.columnFloat,
+        book: reference.book,
+        chapter: reference.chapter,
+        parashahKey: verse.parashahKey,
+      },
     }
   }
 
@@ -543,6 +763,12 @@ function resolveStandardQuery(query) {
     detail: `${best.parashah} | ${best.matchLabel}`,
     queryText: value,
     verseTextHtml: highlightMatchText(best.text, best, value),
+    anchorContext: {
+      columnFloat: best.columnFloat,
+      book: best.book,
+      chapter: best.chapter,
+      parashahKey: best.parashahKey,
+    },
   }
 }
 
@@ -553,7 +779,7 @@ function resolveQuery(query) {
     const anchor = resolveStandardQuery(plusQuery.anchorQuery)
     const matches = sortMatchesByAnchor(
       findTextMatches(plusQuery.textQuery, 12),
-      anchor.columnFloat,
+      anchor.anchorContext || anchor,
     )
 
     if (!matches.length) {
@@ -846,6 +1072,17 @@ function renderPreviewState() {
 function resetState() {
   currentInput.value = ""
   targetInput.value = ""
+  ;["current", "target"].forEach((side) => {
+    const fields = builderFields[side]
+    if (navigatorData) {
+      fields.parashahSelect.value = navigatorData.parashot[0]?.name_display || ""
+      fields.bookSelect.value = navigatorData.books[0] || ""
+      populateChapterSelect(side, 1)
+      populateVerseSelect(side, "")
+    }
+    fields.wordsInput.value = ""
+    setBuilderMode(side, "free", { live: false })
+  })
   resultsEl.className = "results empty-state"
   resultsEl.innerHTML = "<p>מלא שדה אחד או שניים.</p>"
   renderPreview()
@@ -1023,6 +1260,7 @@ async function init() {
     navigatorData = await response.json()
     buildIndexes()
     buildSuggestions()
+    initializeBuilders()
     setStatus("מוכן", "ready")
   } catch (error) {
     setStatus("שגיאה", "error")
@@ -1042,6 +1280,39 @@ currentInput.addEventListener("input", () => {
 
 targetInput.addEventListener("input", () => {
   scheduleLiveSearch()
+})
+
+builderModeButtons.forEach((button) => {
+  button.addEventListener("click", () => {
+    setBuilderMode(button.dataset.side, button.dataset.mode)
+  })
+})
+
+;["current", "target"].forEach((side) => {
+  const fields = builderFields[side]
+
+  fields.parashahSelect.addEventListener("change", () => {
+    syncStructuredQuery(side)
+  })
+
+  fields.bookSelect.addEventListener("change", () => {
+    populateChapterSelect(side)
+    populateVerseSelect(side, "")
+    syncStructuredQuery(side)
+  })
+
+  fields.chapterSelect.addEventListener("change", () => {
+    populateVerseSelect(side, "")
+    syncStructuredQuery(side)
+  })
+
+  fields.verseSelect.addEventListener("change", () => {
+    syncStructuredQuery(side)
+  })
+
+  fields.wordsInput.addEventListener("input", () => {
+    syncStructuredQuery(side)
+  })
 })
 
 resetButton.addEventListener("click", () => {

@@ -44,6 +44,53 @@
                 autocomplete="off"
               />
             </label>
+            <div class="builder" data-side="current">
+              <div class="builder-modes">
+                <button class="builder-chip is-active" type="button" data-side="current" data-mode="free">
+                  חופשי
+                </button>
+                <button class="builder-chip" type="button" data-side="current" data-mode="parashah">
+                  פרשה
+                </button>
+                <button class="builder-chip" type="button" data-side="current" data-mode="reference">
+                  חומש / פרק / פסוק
+                </button>
+              </div>
+
+              <div class="builder-panel" id="current-parashah-panel" hidden>
+                <label class="picker-field">
+                  <span>פרשה</span>
+                  <select id="current-parashah-select"></select>
+                </label>
+              </div>
+
+              <div class="builder-panel builder-grid" id="current-reference-panel" hidden>
+                <label class="picker-field">
+                  <span>חומש</span>
+                  <select id="current-book-select"></select>
+                </label>
+                <label class="picker-field">
+                  <span>פרק</span>
+                  <select id="current-chapter-select"></select>
+                </label>
+                <label class="picker-field">
+                  <span>פסוק</span>
+                  <select id="current-verse-select"></select>
+                </label>
+              </div>
+
+              <div class="builder-panel" id="current-words-panel" hidden>
+                <label class="picker-field">
+                  <span>מילים קרובות</span>
+                  <input
+                    id="current-words-input"
+                    type="text"
+                    placeholder="אופציונלי"
+                    autocomplete="off"
+                  />
+                </label>
+              </div>
+            </div>
 
             <label class="field">
               <span>רוצה להגיע ל</span>
@@ -55,6 +102,53 @@
                 autocomplete="off"
               />
             </label>
+            <div class="builder" data-side="target">
+              <div class="builder-modes">
+                <button class="builder-chip is-active" type="button" data-side="target" data-mode="free">
+                  חופשי
+                </button>
+                <button class="builder-chip" type="button" data-side="target" data-mode="parashah">
+                  פרשה
+                </button>
+                <button class="builder-chip" type="button" data-side="target" data-mode="reference">
+                  חומש / פרק / פסוק
+                </button>
+              </div>
+
+              <div class="builder-panel" id="target-parashah-panel" hidden>
+                <label class="picker-field">
+                  <span>פרשה</span>
+                  <select id="target-parashah-select"></select>
+                </label>
+              </div>
+
+              <div class="builder-panel builder-grid" id="target-reference-panel" hidden>
+                <label class="picker-field">
+                  <span>חומש</span>
+                  <select id="target-book-select"></select>
+                </label>
+                <label class="picker-field">
+                  <span>פרק</span>
+                  <select id="target-chapter-select"></select>
+                </label>
+                <label class="picker-field">
+                  <span>פסוק</span>
+                  <select id="target-verse-select"></select>
+                </label>
+              </div>
+
+              <div class="builder-panel" id="target-words-panel" hidden>
+                <label class="picker-field">
+                  <span>מילים קרובות</span>
+                  <input
+                    id="target-words-input"
+                    type="text"
+                    placeholder="אופציונלי"
+                    autocomplete="off"
+                  />
+                </label>
+              </div>
+            </div>
 
             <div class="actions compact-actions">
               <button class="primary-button" type="submit">חיפוש</button>
