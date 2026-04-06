@@ -941,6 +941,7 @@ function createScheduledReadingRecord(item) {
   return {
     date: item.date,
     displayDate: formatReadingDate(item.date),
+    hebrewDate: formatHebrewDate(item.date),
     name: getHebcalReadingName(item),
     calendarLabel: getCalendarReadingLabel(item),
     typeLabel: getHebcalReadingTypeLabel(item),
@@ -1451,6 +1452,7 @@ function createScheduledReadingLocation(reading, role, rawQuery = "", { fieldKey
     searchQuery: "",
     readingName: reading.name,
     readingDate: reading.displayDate,
+    readingHebrewDate: reading.hebrewDate,
     readingStartRef: reading.start.refLabel,
     readingStartColumn: reading.start.column,
     readingEndRef: reading.end.refLabel,
@@ -2166,7 +2168,11 @@ function formatLocation(location) {
         ${location.queryText ? `<div class="location-query">${location.queryText}</div>` : ""}
         <div class="location-label">${location.label}</div>
         ${location.readingName ? `<div>קריאה: ${location.readingName}</div>` : ""}
-        ${location.readingDate ? `<div>תאריך: ${location.readingDate}</div>` : ""}
+        ${
+          location.readingDate
+            ? `<div>תאריך: ${location.readingDate}${location.readingHebrewDate ? ` · ${location.readingHebrewDate}` : ""}</div>`
+            : ""
+        }
         ${
           location.readingStartRef
             ? `<div>תחילה: ${location.readingStartRef} · עמודה ${location.readingStartColumn}</div>`
