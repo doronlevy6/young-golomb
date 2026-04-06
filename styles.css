@@ -708,7 +708,7 @@ button {
   background: #120d09;
   padding:
     clamp(5rem, 11vh, 6.2rem)
-    clamp(0.35rem, 1.8vw, 1rem)
+    clamp(0.2rem, 1vw, 0.7rem)
     clamp(4.9rem, 10vh, 6.4rem);
   overscroll-behavior: contain;
   touch-action: pan-x pan-y pinch-zoom;
@@ -720,13 +720,13 @@ button {
   top: 50%;
   z-index: 4;
   transform: translateY(-50%);
-  width: clamp(2.9rem, 5vw, 4.1rem);
-  height: clamp(5rem, 18vh, 8rem);
+  width: clamp(3.8rem, 8vw, 6rem);
+  height: clamp(9rem, 34vh, 18rem);
   border: 1px solid rgba(255, 252, 245, 0.14);
-  border-radius: 999px;
-  background: rgba(15, 11, 8, 0.28);
+  border-radius: 30px;
+  background: rgba(15, 11, 8, 0.22);
   color: rgba(255, 247, 233, 0.92);
-  font-size: clamp(2rem, 4vw, 3rem);
+  font-size: clamp(2.2rem, 4.5vw, 3.2rem);
   line-height: 1;
   backdrop-filter: blur(10px);
   box-shadow: 0 18px 36px rgba(0, 0, 0, 0.18);
@@ -742,11 +742,11 @@ button {
 }
 
 .viewer-overlay-prev {
-  right: 0.75rem;
+  right: 0.4rem;
 }
 
 .viewer-overlay-next {
-  left: 0.75rem;
+  left: 0.4rem;
 }
 
 .viewer-search-panel[hidden] {
@@ -1031,17 +1031,17 @@ button {
   }
 
   .viewer-overlay-arrow {
-    width: 2.7rem;
-    height: 4.5rem;
-    font-size: 2rem;
+    width: 3.3rem;
+    height: 7.2rem;
+    font-size: 2.1rem;
   }
 
   .viewer-overlay-prev {
-    right: 0.35rem;
+    right: 0.15rem;
   }
 
   .viewer-overlay-next {
-    left: 0.35rem;
+    left: 0.15rem;
   }
 
   .viewer-search-panel {
@@ -1053,7 +1053,7 @@ button {
   .viewer-stage {
     padding:
       clamp(4.8rem, 9vh, 5.7rem)
-      0.3rem
+      0.1rem
       clamp(6rem, 13vh, 7.2rem);
   }
 
