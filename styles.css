@@ -414,7 +414,8 @@ mark {
 
 .journal-day,
 .journal-day-empty {
-  min-height: 94px;
+  min-height: 0;
+  aspect-ratio: 1 / 1;
   border-radius: 18px;
 }
 
@@ -425,8 +426,8 @@ mark {
 .journal-day {
   display: grid;
   align-content: start;
-  gap: 0.26rem;
-  padding: 0.65rem 0.52rem;
+  gap: 0.22rem;
+  padding: 0.48rem 0.4rem;
   border: 1px solid rgba(126, 63, 40, 0.08);
   background: rgba(255, 255, 255, 0.78);
   text-align: start;
@@ -437,8 +438,12 @@ mark {
 }
 
 .journal-day.is-reading {
-  border-color: rgba(126, 63, 40, 0.18);
+  border-color: rgba(126, 63, 40, 0.14);
   background: linear-gradient(180deg, rgba(250, 240, 223, 0.95), rgba(255, 252, 246, 0.96));
+}
+
+.journal-day.has-label {
+  border-color: rgba(126, 63, 40, 0.22);
 }
 
 .journal-day.is-selected {
@@ -452,23 +457,25 @@ mark {
 
 .journal-day-number {
   font-weight: 700;
-  font-size: 0.88rem;
+  font-size: 0.84rem;
 }
 
-.journal-day-name {
-  font-size: 0.78rem;
-  line-height: 1.35;
+.journal-day-label {
+  font-size: 0.68rem;
+  line-height: 1.25;
   color: var(--ink);
   display: -webkit-box;
-  -webkit-line-clamp: 2;
+  -webkit-line-clamp: 3;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
 
-.journal-day-scroll {
-  color: var(--accent-strong);
-  font-size: 0.74rem;
-  font-weight: 700;
+.journal-day-dot {
+  width: 0.42rem;
+  height: 0.42rem;
+  margin-top: auto;
+  border-radius: 999px;
+  background: rgba(126, 63, 40, 0.45);
 }
 
 .actions,
@@ -1341,20 +1348,16 @@ button {
 
   .journal-day,
   .journal-day-empty {
-    min-height: 78px;
+    aspect-ratio: 1 / 1;
   }
 
   .journal-day {
-    padding: 0.5rem 0.35rem;
+    padding: 0.42rem 0.3rem;
     border-radius: 15px;
   }
 
-  .journal-day-name {
-    font-size: 0.72rem;
-  }
-
-  .journal-day-scroll {
-    font-size: 0.68rem;
+  .journal-day-label {
+    font-size: 0.62rem;
   }
 
   .preview-toolbar {

@@ -536,6 +536,12 @@ function getHebcalReadingTypeLabel(item) {
   return "קריאת שבת"
 }
 
+function getCalendarReadingLabel(item) {
+  if (item.type === "holiday") return getHebcalReadingName(item)
+  if (getWeekdayIndex(item.date) === 6) return getHebcalReadingName(item)
+  return ""
+}
+
 function createReadingAnchor(verse) {
   return {
     refLabel: `${verse.book} ${verse.chapter}:${verse.verse}`,
@@ -605,6 +611,7 @@ function createScheduledReadingRecord(item) {
     date: item.date,
     displayDate: formatReadingDate(item.date),
     name: getHebcalReadingName(item),
+    calendarLabel: getCalendarReadingLabel(item),
     typeLabel: getHebcalReadingTypeLabel(item),
     summary: item.summary || "",
     rangeLabel: ranges.map((range) => formatRangeSegment(range)).join(" | "),
@@ -826,20 +833,17 @@ function renderJournalMonths() {
         const reading = readingMap.get(isoDate)
         const isSelected = journalState.selectedDate === isoDate
         const isToday = autoReadingsState.today === isoDate
-        const scrollLabel =
-          reading?.scrollFromPrevious === null || reading?.scrollFromPrevious === undefined
-            ? ""
-            : describeScrollDelta(reading.scrollFromPrevious)
+        const label = reading?.calendarLabel || ""
 
         cells.push(`
           <button
-            class="journal-day${reading ? " is-reading" : ""}${isSelected ? " is-selected" : ""}${isToday ? " is-today" : ""}"
+            class="journal-day${reading ? " is-reading" : ""}${label ? " has-label" : ""}${isSelected ? " is-selected" : ""}${isToday ? " is-today" : ""}"
             type="button"
             data-journal-date="${isoDate}"
           >
             <div class="journal-day-number">${day}</div>
-            ${reading ? `<div class="journal-day-name">${escapeHtml(reading.name)}</div>` : ""}
-            ${scrollLabel ? `<div class="journal-day-scroll">${escapeHtml(scrollLabel)}</div>` : ""}
+            ${label ? `<div class="journal-day-label">${escapeHtml(label)}</div>` : ""}
+            ${reading && !label ? `<div class="journal-day-dot"></div>` : ""}
           </button>
         `)
       }
