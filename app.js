@@ -6,48 +6,19 @@ const currentInput = document.getElementById("current-query")
 const targetInput = document.getElementById("target-query")
 const resetButton = document.getElementById("reset-button")
 const suggestionsEl = document.getElementById("query-suggestions")
-const builderModeButtons = Array.from(document.querySelectorAll(".builder-chip"))
 
 const viewerModal = document.getElementById("viewer-modal")
 const viewerMeta = document.getElementById("viewer-meta")
 const viewerImage = document.getElementById("viewer-image")
 const viewerStage = document.getElementById("viewer-stage")
-const viewerStageMeta = document.getElementById("viewer-stage-meta")
 const viewerWatermark = document.getElementById("viewer-watermark")
 const viewerTopbar = document.getElementById("viewer-topbar")
 const viewerControls = document.getElementById("viewer-controls")
 const viewerPrevButton = document.getElementById("viewer-prev")
 const viewerNextButton = document.getElementById("viewer-next")
 const viewerCloseButton = document.getElementById("viewer-close")
-const viewerSearchInput = document.getElementById("viewer-search-input")
-const viewerSearchResults = document.getElementById("viewer-search-results")
 const viewerZoomInput = document.getElementById("viewer-zoom")
 const viewerColumnInput = document.getElementById("viewer-column-input")
-
-const builderFields = {
-  current: {
-    queryInput: currentInput,
-    parashahPanel: document.getElementById("current-parashah-panel"),
-    parashahSelect: document.getElementById("current-parashah-select"),
-    referencePanel: document.getElementById("current-reference-panel"),
-    bookSelect: document.getElementById("current-book-select"),
-    chapterSelect: document.getElementById("current-chapter-select"),
-    verseSelect: document.getElementById("current-verse-select"),
-    wordsPanel: document.getElementById("current-words-panel"),
-    wordsInput: document.getElementById("current-words-input"),
-  },
-  target: {
-    queryInput: targetInput,
-    parashahPanel: document.getElementById("target-parashah-panel"),
-    parashahSelect: document.getElementById("target-parashah-select"),
-    referencePanel: document.getElementById("target-reference-panel"),
-    bookSelect: document.getElementById("target-book-select"),
-    chapterSelect: document.getElementById("target-chapter-select"),
-    verseSelect: document.getElementById("target-verse-select"),
-    wordsPanel: document.getElementById("target-words-panel"),
-    wordsInput: document.getElementById("target-words-input"),
-  },
-}
 
 const bookAliases = {
   בראשית: "בראשית",
@@ -86,17 +57,12 @@ let viewerState = {
   column: 1,
   title: "",
   subtitle: "",
-  searchQuery: "",
   zoomFactor: 1,
   fitScale: 1,
 }
 let touchStartX = null
 let touchStartY = null
 let liveSearchTimer = null
-const builderState = {
-  current: { mode: "free" },
-  target: { mode: "free" },
-}
 
 function normalizeSpaces(text) {
   return text.replace(/\s+/g, " ").trim()
@@ -266,145 +232,6 @@ function buildSuggestions() {
     fragment.appendChild(option)
   })
   suggestionsEl.appendChild(fragment)
-}
-
-function renderSelectOptions(selectEl, items, { value = null, includeBlankLabel = null } = {}) {
-  const optionItems = includeBlankLabel === null ? [...items] : [{ value: "", label: includeBlankLabel }, ...items]
-  selectEl.innerHTML = optionItems
-    .map(
-      (item) =>
-        `<option value="${escapeHtml(String(item.value))}">${escapeHtml(String(item.label))}</option>`,
-    )
-    .join("")
-
-  const stringValue = value === null || value === undefined ? null : String(value)
-  const hasValue = stringValue !== null && optionItems.some((item) => String(item.value) === stringValue)
-  selectEl.value = hasValue ? stringValue : String(optionItems[0]?.value ?? "")
-}
-
-function chapterOptionsForBook(book) {
-  const chapterMap = navigatorData.bookChapters.get(book)
-  if (!chapterMap) return []
-
-  return [...chapterMap.keys()]
-    .sort((a, b) => a - b)
-    .map((chapter) => ({
-      value: chapter,
-      label: `פרק ${chapter}`,
-    }))
-}
-
-function verseOptionsForReference(book, chapter) {
-  if (!book || !chapter) return []
-  const chapterMap = navigatorData.bookChapters.get(book)
-  const maxVerse = chapterMap?.get(Number(chapter)) || 0
-
-  return Array.from({ length: maxVerse }, (_, index) => {
-    const verse = index + 1
-    return {
-      value: verse,
-      label: `פסוק ${verse}`,
-    }
-  })
-}
-
-function populateChapterSelect(side, preferredChapter = null) {
-  const fields = builderFields[side]
-  const book = fields.bookSelect.value || navigatorData.books[0] || ""
-  const chapters = chapterOptionsForBook(book)
-  renderSelectOptions(fields.chapterSelect, chapters, { value: preferredChapter })
-  return fields.chapterSelect.value
-}
-
-function populateVerseSelect(side, preferredVerse = null) {
-  const fields = builderFields[side]
-  const verses = verseOptionsForReference(fields.bookSelect.value, fields.chapterSelect.value)
-  renderSelectOptions(fields.verseSelect, verses, {
-    value: preferredVerse,
-    includeBlankLabel: "תחילת הפרק",
-  })
-}
-
-function composeStructuredQuery(side) {
-  const state = builderState[side]
-  const fields = builderFields[side]
-  const words = normalizeSpaces(fields.wordsInput.value)
-
-  if (state.mode === "free") {
-    return normalizeSpaces(fields.queryInput.value)
-  }
-
-  let anchor = ""
-  if (state.mode === "parashah") {
-    anchor = normalizeSpaces(fields.parashahSelect.value)
-  }
-
-  if (state.mode === "reference") {
-    const book = normalizeSpaces(fields.bookSelect.value)
-    const chapter = normalizeSpaces(fields.chapterSelect.value)
-    const verse = normalizeSpaces(fields.verseSelect.value)
-    if (book && chapter) {
-      anchor = verse ? `${book} ${chapter} ${verse}` : `${book} ${chapter}`
-    }
-  }
-
-  if (anchor && words) return `${anchor} + ${words}`
-  return anchor || words
-}
-
-function refreshBuilderUi(side) {
-  const mode = builderState[side].mode
-  const fields = builderFields[side]
-
-  fields.queryInput.readOnly = mode !== "free"
-  fields.queryInput.placeholder =
-    mode === "free" ? "פרשה / פרק / פסוק / מילים / עמודה" : "נבנה אוטומטית"
-  fields.parashahPanel.hidden = mode !== "parashah"
-  fields.referencePanel.hidden = mode !== "reference"
-  fields.wordsPanel.hidden = mode === "free"
-
-  builderModeButtons.forEach((button) => {
-    if (button.dataset.side !== side) return
-    button.classList.toggle("is-active", button.dataset.mode === mode)
-  })
-}
-
-function syncStructuredQuery(side, { live = true } = {}) {
-  if (builderState[side].mode === "free") return
-  builderFields[side].queryInput.value = composeStructuredQuery(side)
-  if (live) scheduleLiveSearch()
-}
-
-function setBuilderMode(side, mode, { live = true } = {}) {
-  builderState[side].mode = mode
-  refreshBuilderUi(side)
-  if (mode !== "free") {
-    syncStructuredQuery(side, { live })
-  } else if (live) {
-    scheduleLiveSearch()
-  }
-}
-
-function initializeBuilders() {
-  const parashahOptions = navigatorData.parashot.map((parashah) => ({
-    value: parashah.name_display,
-    label: `${parashah.order}. ${parashah.name_display}`,
-  }))
-  const bookOptions = navigatorData.books.map((book) => ({ value: book, label: book }))
-
-  ;["current", "target"].forEach((side) => {
-    const fields = builderFields[side]
-
-    renderSelectOptions(fields.parashahSelect, parashahOptions, {
-      value: navigatorData.parashot[0]?.name_display,
-    })
-    renderSelectOptions(fields.bookSelect, bookOptions, { value: navigatorData.books[0] })
-    const chapter = populateChapterSelect(side, 1)
-    populateVerseSelect(side, "")
-    if (chapter) fields.chapterSelect.value = String(chapter)
-    fields.wordsInput.value = ""
-    refreshBuilderUi(side)
-  })
 }
 
 function buildIndexes() {
@@ -876,123 +703,13 @@ function summaryPills(summary) {
   `
 }
 
-function viewerStageMetaHtml(summary) {
-  if (!summary) return ""
-  return `
-    ${summaryPills(summary)}
-    <span class="meta-pill meta-pill-range">${viewerRangeText(summary)}</span>
-  `
-}
-
-function getColumnAnchorContext(summary, column = summary?.column || 1) {
-  if (!summary) return { columnFloat: column }
-
-  const chapter =
-    summary.chapters?.length === 1
-      ? Number(summary.chapters[0]) || parseHebrewNumber(String(summary.chapters[0]))
-      : null
-
-  return {
-    columnFloat: column,
-    book: summary.books?.[0] || null,
-    chapter,
-    parashahKey: summary.parashot?.[0] ? normalizeKey(summary.parashot[0]) : null,
-  }
-}
-
-function extractLocationSearchQuery(location) {
-  if (!location?.queryText) return ""
-  const plusQuery = parsePlusQuery(location.queryText)
-  return plusQuery ? plusQuery.textQuery : location.queryText
-}
-
-function getViewerSearchMatches(query, summary, limit = 6) {
-  const value = normalizeSpaces(query)
-  if (!value || !summary) return []
-
-  const anchor = getColumnAnchorContext(summary, viewerState.column)
-  const currentColumn = viewerState.column
-
-  return collectTextMatches(value)
-    .map((match) => ({
-      ...match,
-      inCurrentColumn: match.column === currentColumn,
-      columnDistance: Math.abs(match.column - currentColumn),
-    }))
-    .sort((a, b) => {
-      const proximityA =
-        a.columnDistance === 0 ? 3 : a.columnDistance <= 2 ? 2 : a.columnDistance <= 5 ? 1 : 0
-      const proximityB =
-        b.columnDistance === 0 ? 3 : b.columnDistance <= 2 ? 2 : b.columnDistance <= 5 ? 1 : 0
-
-      return (
-        proximityB - proximityA ||
-        a.columnDistance - b.columnDistance ||
-        anchorBucket(b, anchor) - anchorBucket(a, anchor) ||
-        b.bucket - a.bucket ||
-        a.span - b.span ||
-        a.firstPosition - b.firstPosition ||
-        a.columnFloat - b.columnFloat
-      )
-    })
-    .slice(0, limit)
-}
-
-function viewerWatermarkHtml(summary, searchQuery = "") {
+function viewerWatermarkHtml(summary) {
   if (!summary) return ""
   return `
     <div class="viewer-watermark-column">עמודה ${summary.column}</div>
     <div class="viewer-watermark-range">${viewerRangeText(summary)}</div>
     <div class="viewer-watermark-parashah">${summary.parashot.join(" · ")}</div>
-    ${
-      searchQuery
-        ? `<div class="viewer-watermark-search">${escapeHtml(searchQuery)}</div>`
-        : ""
-    }
   `
-}
-
-function renderViewerSearch(summary = getColumnSummary(viewerState.column)) {
-  viewerWatermark.innerHTML = viewerWatermarkHtml(summary, viewerState.searchQuery)
-
-  const value = normalizeSpaces(viewerState.searchQuery)
-  if (!value) {
-    viewerSearchResults.hidden = true
-    viewerSearchResults.innerHTML = ""
-    return
-  }
-
-  const matches = getViewerSearchMatches(value, summary)
-  viewerSearchResults.hidden = false
-
-  if (!matches.length) {
-    viewerSearchResults.innerHTML = `
-      <div class="viewer-search-empty">לא מצאתי בעמודה הזאת או בעמודות שלידה.</div>
-    `
-    return
-  }
-
-  viewerSearchResults.innerHTML = matches
-    .map((match) => {
-      const placeLabel = match.inCurrentColumn
-        ? "בעמודה הזאת"
-        : `עמודה ${match.column} · ${match.columnDistance} ${match.columnDistance === 1 ? "צעד" : "צעדים"}`
-
-      return `
-        <button
-          class="viewer-search-hit${match.inCurrentColumn ? " is-current" : ""}"
-          type="button"
-          data-column="${match.column}"
-        >
-          <div class="viewer-search-hit-head">
-            <strong>${match.book} ${match.chapter}:${match.verse}</strong>
-            <span>${placeLabel}</span>
-          </div>
-          <div class="viewer-search-hit-text">${highlightMatchText(match.text, match, value)}</div>
-        </button>
-      `
-    })
-    .join("")
 }
 
 function formatLocation(location) {
@@ -1180,17 +897,6 @@ function renderPreviewState() {
 function resetState() {
   currentInput.value = ""
   targetInput.value = ""
-  ;["current", "target"].forEach((side) => {
-    const fields = builderFields[side]
-    if (navigatorData) {
-      fields.parashahSelect.value = navigatorData.parashot[0]?.name_display || ""
-      fields.bookSelect.value = navigatorData.books[0] || ""
-      populateChapterSelect(side, 1)
-      populateVerseSelect(side, "")
-    }
-    fields.wordsInput.value = ""
-    setBuilderMode(side, "free", { live: false })
-  })
   resultsEl.className = "results empty-state"
   resultsEl.innerHTML = "<p>מלא שדה אחד או שניים.</p>"
   renderPreview()
@@ -1284,13 +990,7 @@ function getViewerFitScale() {
   const paddingY =
     parseFloat(computedStyle.paddingTop || "0") + parseFloat(computedStyle.paddingBottom || "0")
   const stageWidth = (viewerStage.clientWidth || 900) - paddingX
-  const stageHeight =
-    (viewerStage.clientHeight || 900) -
-    paddingY -
-    Number(viewerTopbar.offsetHeight || 0) -
-    Number(viewerControls.offsetHeight || 0) -
-    Number(viewerStageMeta.offsetHeight || 0) -
-    20
+  const stageHeight = (viewerStage.clientHeight || 900) - paddingY
 
   if (stageWidth <= 0 || stageHeight <= 0) return 1
 
@@ -1312,15 +1012,13 @@ function resetViewerPosition() {
   viewerStage.scrollLeft = 0
 }
 
-function openViewer({ title, column, subtitle = "", searchQuery = "" }) {
+function openViewer({ title, column, subtitle = "" }) {
   const summary = getColumnSummary(column)
   viewerState.open = true
   viewerState.column = clampColumn(column)
   viewerState.title = title
   viewerState.subtitle = subtitle
-  viewerState.searchQuery = normalizeSpaces(searchQuery)
   viewerState.zoomFactor = 1
-  viewerSearchInput.value = viewerState.searchQuery
   viewerZoomInput.value = "1"
 
   document.body.style.overflow = "hidden"
@@ -1331,10 +1029,6 @@ function openViewer({ title, column, subtitle = "", searchQuery = "" }) {
 
 function closeViewer() {
   viewerState.open = false
-  viewerState.searchQuery = ""
-  viewerSearchInput.value = ""
-  viewerSearchResults.hidden = true
-  viewerSearchResults.innerHTML = ""
   document.body.style.overflow = ""
   viewerModal.hidden = true
 }
@@ -1354,12 +1048,11 @@ function renderViewer(summary = getColumnSummary(viewerState.column)) {
       ${currentSummary.books.join(" · ")} | ${currentSummary.parashot.join(" · ")} | פרק ${chapterLabel(currentSummary)} | ${formatRange(currentSummary)}
     </div>
   `
-  viewerStageMeta.innerHTML = viewerStageMetaHtml(currentSummary)
+  viewerWatermark.innerHTML = viewerWatermarkHtml(currentSummary)
   viewerColumnInput.value = String(viewerState.column)
   const imagePath = columnImagePath(viewerState.column)
   viewerImage.src = imagePath
   viewerImage.alt = `${viewerState.title} - עמודה ${viewerState.column}`
-  renderViewerSearch(currentSummary)
   syncViewerScale()
   viewerPrevButton.disabled = viewerState.column <= 1
   viewerNextButton.disabled = viewerState.column >= navigatorData.layout.columns
@@ -1374,7 +1067,6 @@ async function init() {
     navigatorData = await response.json()
     buildIndexes()
     buildSuggestions()
-    initializeBuilders()
     setStatus("מוכן", "ready")
   } catch (error) {
     setStatus("שגיאה", "error")
@@ -1394,39 +1086,6 @@ currentInput.addEventListener("input", () => {
 
 targetInput.addEventListener("input", () => {
   scheduleLiveSearch()
-})
-
-builderModeButtons.forEach((button) => {
-  button.addEventListener("click", () => {
-    setBuilderMode(button.dataset.side, button.dataset.mode)
-  })
-})
-
-;["current", "target"].forEach((side) => {
-  const fields = builderFields[side]
-
-  fields.parashahSelect.addEventListener("change", () => {
-    syncStructuredQuery(side)
-  })
-
-  fields.bookSelect.addEventListener("change", () => {
-    populateChapterSelect(side)
-    populateVerseSelect(side, "")
-    syncStructuredQuery(side)
-  })
-
-  fields.chapterSelect.addEventListener("change", () => {
-    populateVerseSelect(side, "")
-    syncStructuredQuery(side)
-  })
-
-  fields.verseSelect.addEventListener("change", () => {
-    syncStructuredQuery(side)
-  })
-
-  fields.wordsInput.addEventListener("input", () => {
-    syncStructuredQuery(side)
-  })
 })
 
 resetButton.addEventListener("click", () => {
@@ -1462,7 +1121,6 @@ previewEl.addEventListener("click", (event) => {
       title: state.title,
       column: state.previewColumn,
       subtitle: state.location.label,
-      searchQuery: extractLocationSearchQuery(state.location),
     })
   }
 })
@@ -1477,20 +1135,6 @@ viewerNextButton.addEventListener("click", () => {
 
 viewerCloseButton.addEventListener("click", () => {
   closeViewer()
-})
-
-viewerSearchInput.addEventListener("input", () => {
-  viewerState.searchQuery = normalizeSpaces(viewerSearchInput.value)
-  renderViewerSearch()
-})
-
-viewerSearchResults.addEventListener("click", (event) => {
-  const target = event.target.closest("[data-column]")
-  if (!target) return
-  const nextColumn = Number(target.dataset.column)
-  if (!nextColumn) return
-  if (nextColumn === viewerState.column) return
-  setViewerColumn(nextColumn)
 })
 
 viewerZoomInput.addEventListener("input", () => {
