@@ -1173,11 +1173,17 @@ function getViewerFitScale() {
 
   const paddingX =
     parseFloat(computedStyle.paddingLeft || "0") + parseFloat(computedStyle.paddingRight || "0")
+  const paddingY =
+    parseFloat(computedStyle.paddingTop || "0") + parseFloat(computedStyle.paddingBottom || "0")
   const stageWidth = (viewerStage.clientWidth || 900) - paddingX
+  const stageHeight = (viewerStage.clientHeight || window.innerHeight || 900) - paddingY
 
-  if (stageWidth <= 0) return 1
+  if (stageWidth <= 0 || stageHeight <= 0) return 1
 
-  return Math.max(0.05, stageWidth / viewerImage.naturalWidth)
+  const widthScale = stageWidth / viewerImage.naturalWidth
+  const heightScale = stageHeight / viewerImage.naturalHeight
+
+  return Math.max(0.05, Math.min(widthScale, heightScale))
 }
 
 function syncViewerScale() {
