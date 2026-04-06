@@ -503,13 +503,16 @@ function formatVerseReferenceLabel(verse) {
 }
 
 function getCalendarRange(today) {
+  const monthsBack = 1
+  const monthsForward = 13
+
   const start = new Date(`${today}T00:00:00Z`)
   start.setUTCDate(1)
-  start.setUTCMonth(start.getUTCMonth() - 1)
+  start.setUTCMonth(start.getUTCMonth() - monthsBack)
 
   const end = new Date(`${today}T00:00:00Z`)
   end.setUTCDate(1)
-  end.setUTCMonth(end.getUTCMonth() + 3)
+  end.setUTCMonth(end.getUTCMonth() + monthsForward)
   end.setUTCDate(0)
 
   return {

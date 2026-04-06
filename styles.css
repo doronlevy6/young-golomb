@@ -658,9 +658,11 @@ mark {
 }
 
 .calendar-shell {
-  width: min(1100px, 100%);
-  max-height: min(92dvh, 900px);
-  overflow: auto;
+  width: min(1120px, 100%);
+  max-height: min(94dvh, 940px);
+  overflow: hidden;
+  display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr);
   padding: 1rem;
   border: 1px solid rgba(126, 63, 40, 0.14);
   border-radius: 32px;
@@ -728,8 +730,22 @@ mark {
 .calendar-layout {
   display: grid;
   gap: 1rem;
-  grid-template-columns: minmax(300px, 360px) minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr) minmax(300px, 360px);
   align-items: start;
+  min-height: 0;
+  overflow: auto;
+  padding-inline-end: 0.1rem;
+}
+
+.calendar-layout .journal-months-panel {
+  grid-column: 1;
+}
+
+.calendar-layout .journal-summary-panel {
+  grid-column: 2;
+  position: sticky;
+  top: 0;
+  align-self: start;
 }
 
 .actions,
@@ -1537,6 +1553,17 @@ button {
     grid-template-columns: 1fr;
   }
 
+  .calendar-layout .journal-months-panel {
+    order: 1;
+    grid-column: auto;
+  }
+
+  .calendar-layout .journal-summary-panel {
+    order: 2;
+    grid-column: auto;
+    position: static;
+  }
+
   .journal-months {
     grid-template-columns: 1fr;
   }
@@ -1673,13 +1700,14 @@ button {
   }
 
   .calendar-modal {
-    padding: 0.65rem;
+    padding: 0.5rem;
   }
 
   .calendar-shell {
-    max-height: 94dvh;
-    padding: 0.85rem;
-    border-radius: 26px;
+    width: min(100%, 680px);
+    max-height: 96dvh;
+    padding: 0.8rem;
+    border-radius: 24px;
   }
 
   .calendar-header {
@@ -1689,10 +1717,16 @@ button {
   .calendar-controls {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: stretch;
   }
 
   .calendar-select {
     min-width: 0;
+  }
+
+  .calendar-layout {
+    gap: 0.8rem;
+    padding-inline-end: 0;
   }
 
   .journal-month {
