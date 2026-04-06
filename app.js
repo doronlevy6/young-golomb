@@ -16,6 +16,7 @@ const navigatorViewEl = document.getElementById("navigator-view")
 const journalViewEl = document.getElementById("journal-view")
 const journalSummaryEl = document.getElementById("journal-summary")
 const journalMonthsEl = document.getElementById("journal-months")
+const todayInfoEl = document.getElementById("today-info")
 
 const viewerModal = document.getElementById("viewer-modal")
 const viewerMeta = document.getElementById("viewer-meta")
@@ -71,10 +72,29 @@ const scheduledReadingPrefixes = {
   previous: ["קריאה אחרונה", "קריאה קודמת", "הקריאה האחרונה"],
   next: ["קריאה הבאה", "הקריאה הבאה"],
 }
+const israelTimeZone = "Asia/Jerusalem"
+const bneiBrakGeoNameId = 295514
+const featuredZmanim = [
+  { key: "alotHaShachar", label: "עלות" },
+  { key: "sunrise", label: "נץ" },
+  { key: "sofZmanShma", label: "שמע" },
+  { key: "chatzot", label: "חצות" },
+  { key: "sunset", label: "שקיעה" },
+  { key: "tzeit7083deg", label: "צאת" },
+]
 
 let navigatorData = null
 let previewState = []
 let comparisonState = null
+let todayInfoState = {
+  isoDate: getIsraelDateString(),
+  hebrewDate: "",
+  gregorianDate: "",
+  locationLabel: "בני ברק",
+  zmanim: [],
+  loading: false,
+  error: "",
+}
 let autoReadingsState = {
   readings: [],
   previous: null,
@@ -262,7 +282,7 @@ function formatNumber(value, digits = 1) {
 
 function getIsraelDateString(date = new Date()) {
   const parts = new Intl.DateTimeFormat("en-CA", {
-    timeZone: "Asia/Jerusalem",
+    timeZone: israelTimeZone,
     year: "numeric",
     month: "2-digit",
     day: "2-digit",
@@ -276,6 +296,10 @@ function getIsraelDateString(date = new Date()) {
   return `${parts.year}-${parts.month}-${parts.day}`
 }
 
+function getIsraelDateObject(isoDate) {
+  return new Date(`${isoDate}T12:00:00Z`)
+}
+
 function addDaysToIsoDate(isoDate, days) {
   const date = new Date(`${isoDate}T00:00:00Z`)
   date.setUTCDate(date.getUTCDate() + days)
@@ -285,12 +309,133 @@ function addDaysToIsoDate(isoDate, days) {
 function formatReadingDate(dateString) {
   const date = new Date(`${dateString}T00:00:00Z`)
   return new Intl.DateTimeFormat("he-IL", {
-    timeZone: "Asia/Jerusalem",
+    timeZone: israelTimeZone,
     weekday: "short",
     day: "numeric",
     month: "numeric",
     year: "numeric",
   }).format(date)
+}
+
+function formatGregorianDate(isoDate) {
+  return new Intl.DateTimeFormat("he-IL", {
+    timeZone: israelTimeZone,
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  }).format(getIsraelDateObject(isoDate))
+}
+
+function formatHebrewDate(isoDate) {
+  try {
+    return new Intl.DateTimeFormat("he-IL-u-ca-hebrew", {
+      timeZone: israelTimeZone,
+      day: "numeric",
+      month: "long",
+      year: "numeric",
+    }).format(getIsraelDateObject(isoDate))
+  } catch {
+    return new Intl.DateTimeFormat("he-IL", {
+      timeZone: israelTimeZone,
+      day: "numeric",
+      month: "long",
+      year: "numeric",
+    }).format(getIsraelDateObject(isoDate))
+  }
+}
+
+function formatClockTime(dateTimeString) {
+  return new Intl.DateTimeFormat("he-IL", {
+    timeZone: israelTimeZone,
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  }).format(new Date(dateTimeString))
+}
+
+function renderTodayInfo() {
+  if (!todayInfoEl) return
+
+  const hebrewDate =
+    todayInfoState.hebrewDate || formatHebrewDate(todayInfoState.isoDate || getIsraelDateString())
+  const gregorianDate =
+    todayInfoState.gregorianDate || formatGregorianDate(todayInfoState.isoDate || getIsraelDateString())
+  const locationLabel = todayInfoState.locationLabel || "בני ברק"
+
+  let zmanimHtml = `
+    <div class="today-zman today-zman-placeholder is-message">
+      <span>שעות היום</span>
+      <strong>${todayInfoState.loading ? "טוען..." : "לא זמין כרגע"}</strong>
+    </div>
+  `
+
+  if (todayInfoState.zmanim.length) {
+    zmanimHtml = todayInfoState.zmanim
+      .map(
+        (zman) => `
+          <div class="today-zman">
+            <span>${zman.label}</span>
+            <strong>${zman.time}</strong>
+          </div>
+        `,
+      )
+      .join("")
+  } else if (todayInfoState.error) {
+    zmanimHtml = `
+      <div class="today-zman today-zman-placeholder is-message">
+        <span>שעות היום</span>
+        <strong>כרגע לא נטענו</strong>
+      </div>
+    `
+  }
+
+  todayInfoEl.innerHTML = `
+    <div class="today-copy">
+      <p class="today-kicker">היום בבני ברק</p>
+      <h2 class="today-title">${escapeHtml(hebrewDate)}</h2>
+      <div class="today-dates">
+        <span>${escapeHtml(gregorianDate)}</span>
+        <span>שעות היום לפי ${escapeHtml(locationLabel)}</span>
+      </div>
+    </div>
+    <div class="today-zmanim">${zmanimHtml}</div>
+  `
+}
+
+async function loadTodayInfo() {
+  todayInfoState.isoDate = getIsraelDateString()
+  todayInfoState.hebrewDate = formatHebrewDate(todayInfoState.isoDate)
+  todayInfoState.gregorianDate = formatGregorianDate(todayInfoState.isoDate)
+  todayInfoState.loading = true
+  todayInfoState.error = ""
+  renderTodayInfo()
+
+  try {
+    const response = await fetch(
+      `https://www.hebcal.com/zmanim?cfg=json&geonameid=${bneiBrakGeoNameId}&date=${todayInfoState.isoDate}`,
+    )
+    if (!response.ok) throw new Error(`Hebcal zmanim HTTP ${response.status}`)
+
+    const payload = await response.json()
+    const times = payload?.times || {}
+    todayInfoState.locationLabel =
+      payload?.location?.city === "Bnei Brak" ? "בני ברק" : payload?.location?.city || "בני ברק"
+    todayInfoState.zmanim = featuredZmanim
+      .map((item) => {
+        const value = times[item.key]
+        if (!value) return null
+        return { label: item.label, time: formatClockTime(value) }
+      })
+      .filter(Boolean)
+  } catch (error) {
+    todayInfoState.error = error.message
+    todayInfoState.zmanim = []
+    console.error(error)
+  } finally {
+    todayInfoState.loading = false
+    renderTodayInfo()
+  }
 }
 
 function normalizeHebcalBook(bookName) {
@@ -344,7 +489,7 @@ function addMonthsToDate(isoDate, months) {
 
 function getMonthTitle(isoDate) {
   return new Intl.DateTimeFormat("he-IL", {
-    timeZone: "Asia/Jerusalem",
+    timeZone: israelTimeZone,
     month: "long",
     year: "numeric",
   }).format(new Date(`${getMonthStart(isoDate)}T00:00:00Z`))
@@ -2113,6 +2258,8 @@ async function init() {
     setStatus("טוען...")
     setActiveTab(uiState.activeTab)
     renderJournal()
+    renderTodayInfo()
+    loadTodayInfo()
     const response = await fetch("./data/navigator_data.json")
     if (!response.ok) throw new Error(`HTTP ${response.status}`)
 
