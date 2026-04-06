@@ -910,16 +910,32 @@ function getViewerSearchMatches(query, summary, limit = 6) {
   const value = normalizeSpaces(query)
   if (!value || !summary) return []
 
-  return sortMatchesByAnchor(
-    collectTextMatches(value),
-    getColumnAnchorContext(summary, viewerState.column),
-  )
-    .slice(0, limit)
+  const anchor = getColumnAnchorContext(summary, viewerState.column)
+  const currentColumn = viewerState.column
+
+  return collectTextMatches(value)
     .map((match) => ({
       ...match,
-      inCurrentColumn: match.column === viewerState.column,
-      columnDistance: Math.abs(match.column - viewerState.column),
+      inCurrentColumn: match.column === currentColumn,
+      columnDistance: Math.abs(match.column - currentColumn),
     }))
+    .sort((a, b) => {
+      const proximityA =
+        a.columnDistance === 0 ? 3 : a.columnDistance <= 2 ? 2 : a.columnDistance <= 5 ? 1 : 0
+      const proximityB =
+        b.columnDistance === 0 ? 3 : b.columnDistance <= 2 ? 2 : b.columnDistance <= 5 ? 1 : 0
+
+      return (
+        proximityB - proximityA ||
+        a.columnDistance - b.columnDistance ||
+        anchorBucket(b, anchor) - anchorBucket(a, anchor) ||
+        b.bucket - a.bucket ||
+        a.span - b.span ||
+        a.firstPosition - b.firstPosition ||
+        a.columnFloat - b.columnFloat
+      )
+    })
+    .slice(0, limit)
 }
 
 function viewerWatermarkHtml(summary, searchQuery = "") {
@@ -951,7 +967,7 @@ function renderViewerSearch(summary = getColumnSummary(viewerState.column)) {
 
   if (!matches.length) {
     viewerSearchResults.innerHTML = `
-      <div class="viewer-search-empty">לא מצאתי התאמה קרובה לעמודה הזאת.</div>
+      <div class="viewer-search-empty">לא מצאתי בעמודה הזאת או בעמודות שלידה.</div>
     `
     return
   }
