@@ -6,8 +6,9 @@
     <title>ניווט ספר תורה</title>
     <meta
       name="description"
-      content="איתור פרשה או ספר/פרק/פסוק בפורמט תיקון קוראים של 245 עמודות ו־42 שורות."
+      content="ניווט ספר תורה לפי פרשה, פרק, פסוק, מילים או עמודה."
     />
+    <link rel="icon" href="./assets/golomb-icon.svg" type="image/svg+xml" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -19,100 +20,55 @@
   <body>
     <div class="page-shell">
       <header class="hero">
-        <p class="eyebrow">245 עמודות | 42 שורות | ווי העמודים</p>
-        <h1>ניווט ספר תורה</h1>
-        <p class="hero-copy">פרשה, ספר־פרק־פסוק או עמודה. מחשב גלילה ומראה את העמודות עצמן.</p>
+        <div class="brand">
+          <img class="brand-mark" src="./assets/golomb-icon.svg" alt="" />
+          <div class="brand-copy">
+            <h1>ניווט ספר תורה</h1>
+            <p class="eyebrow">245 / 42</p>
+          </div>
+          <span class="status-pill" id="data-status">טוען...</span>
+        </div>
       </header>
 
       <main class="layout">
         <section class="panel search-panel">
-          <div class="panel-heading">
-            <h2>חיפוש</h2>
-            <button class="ghost-button" id="swap-button" type="button">החלף כיוונים</button>
-          </div>
-
           <form id="navigator-form" class="search-form">
             <label class="field">
-              <span>מאיפה אני נמצא</span>
+              <span>אני נמצא ב</span>
               <input
                 id="current-query"
                 name="current"
                 list="query-suggestions"
-                placeholder="למשל: עמודה 44, בראשית ג, או יתרו"
+                placeholder="פרשה / פרק / פסוק / מילים / עמודה"
                 autocomplete="off"
               />
             </label>
 
             <label class="field">
-              <span>לאן אני רוצה להגיע</span>
+              <span>רוצה להגיע ל</span>
               <input
                 id="target-query"
                 name="target"
                 list="query-suggestions"
-                placeholder="למשל: במדבר כב, 17, או שמות כ"
+                placeholder="פרשה / פרק / פסוק / מילים / עמודה"
                 autocomplete="off"
               />
             </label>
 
-            <div class="actions">
-              <button class="primary-button" type="submit">חשב גלילה</button>
-              <button class="secondary-button" id="locate-button" type="button">אתר יעד בלבד</button>
-              <button class="ghost-button" id="reset-button" type="button">אפס</button>
+            <div class="actions compact-actions">
+              <button class="primary-button" type="submit">חיפוש</button>
+              <button class="ghost-button small-button" id="reset-button" type="button">איפוס</button>
             </div>
           </form>
-
-          <div class="examples">
-            <button class="example-chip" data-current="בראשית" data-target="יתרו" type="button">
-              בראשית → יתרו
-            </button>
-            <button class="example-chip" data-current="עמודה 44" data-target="יתרו" type="button">
-              עמודה 44 → יתרו
-            </button>
-            <button class="example-chip" data-current="בראשית ג" data-target="במדבר כב" type="button">
-              בראשית ג → במדבר כב
-            </button>
-            <button class="example-chip" data-current="" data-target="שמות כ" type="button">
-              אתר שמות כ
-            </button>
-          </div>
-
-          <p class="hint">
-            חיפוש:
-            <code>יתרו</code>,
-            <code>17</code>,
-            <code>בראשית ג</code>,
-            <code>במדבר כב ב</code>,
-            <code>עמודה 81</code>
-          </p>
-
-          <section class="word-search">
-            <div class="mini-heading">חיפוש לפי מילים</div>
-            <div class="word-search-row">
-              <input
-                id="word-query"
-                placeholder="למשל: והנחש היה ערום"
-                autocomplete="off"
-              />
-              <button class="secondary-button" id="word-search-button" type="button">חפש</button>
-            </div>
-            <div id="word-results" class="word-results empty-state">
-              <p>אפשר לכתוב כמה מילים ולקבל פסוקים מתאימים עם עמודה.</p>
-            </div>
-          </section>
         </section>
 
         <section class="panel results-panel">
-          <div class="panel-heading">
-            <h2>תוצאה</h2>
-            <span class="status-pill" id="data-status">טוען נתונים...</span>
-          </div>
-
           <div id="results" class="results empty-state">
-            <p>הכלי מוכן. הזן מיקום ויעד כדי לקבל גלילה משוערת בעמודות.</p>
+            <p>מלא שדה אחד או שניים.</p>
           </div>
 
           <div id="column-preview" class="column-preview empty-state">
-            <p>אחרי חישוב יוצגו כאן עמודת המקור ועמודת היעד כפי שהן מופיעות בתיקון קוראים.</p>
+            <p>כאן יופיעו העמודות.</p>
           </div>
         </section>
       </main>

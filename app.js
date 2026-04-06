@@ -4,12 +4,7 @@ const previewEl = document.getElementById("column-preview")
 const formEl = document.getElementById("navigator-form")
 const currentInput = document.getElementById("current-query")
 const targetInput = document.getElementById("target-query")
-const swapButton = document.getElementById("swap-button")
-const locateButton = document.getElementById("locate-button")
 const resetButton = document.getElementById("reset-button")
-const wordInput = document.getElementById("word-query")
-const wordSearchButton = document.getElementById("word-search-button")
-const wordResultsEl = document.getElementById("word-results")
 const suggestionsEl = document.getElementById("query-suggestions")
 
 const viewerModal = document.getElementById("viewer-modal")
@@ -174,6 +169,7 @@ function buildIndexes() {
   navigatorData.parashahByKey = new Map()
   navigatorData.verseByKey = new Map()
   navigatorData.columnsByNumber = new Map()
+  navigatorData.verseItems = []
 
   navigatorData.parashot.forEach((parashah) => {
     navigatorData.parashahByOrder.set(parashah.order, parashah)
@@ -203,6 +199,7 @@ function buildIndexes() {
     item.key = `${item.book}:${item.chapter}:${item.verse}`
     item.searchText = normalizeKey(item.text)
     navigatorData.verseByKey.set(item.key, item)
+    navigatorData.verseItems.push(item)
   })
 
   navigatorData.columns.forEach((column) => {
@@ -238,9 +235,103 @@ function parseReference(query) {
   return { book, chapter, verse }
 }
 
+function findTermsInOrder(text, terms) {
+  const positions = []
+  let fromIndex = 0
+
+  for (const term of terms) {
+    const position = text.indexOf(term, fromIndex)
+    if (position === -1) return null
+    positions.push(position)
+    fromIndex = position + term.length
+  }
+
+  return {
+    firstPosition: positions[0],
+    span: positions.at(-1) + terms.at(-1).length - positions[0],
+  }
+}
+
+function textMatchLabel(mode) {
+  if (mode === "exact_start") return "מילים ברצף בתחילת הפסוק"
+  if (mode === "exact_phrase") return "מילים ברצף"
+  if (mode === "ordered_terms") return "מילים באותו סדר"
+  return "כל המילים נמצאו"
+}
+
+function scoreTextMatch(verse, normalizedQuery, terms) {
+  const text = verse.searchText
+  const allTermsFound = terms.every((term) => text.includes(term))
+  if (!allTermsFound) return null
+
+  const exactStart = text.startsWith(normalizedQuery)
+  const exactPhrase = text.includes(normalizedQuery)
+  const ordered = terms.length > 1 ? findTermsInOrder(text, terms) : null
+  const firstTermPosition = terms
+    .map((term) => text.indexOf(term))
+    .filter((position) => position >= 0)
+    .sort((a, b) => a - b)[0]
+
+  let bucket = 1
+  let mode = "unordered_terms"
+  let span = 999
+  let firstPosition = firstTermPosition ?? 999
+
+  if (exactStart) {
+    bucket = 4
+    mode = "exact_start"
+    span = normalizedQuery.length
+    firstPosition = 0
+  } else if (exactPhrase) {
+    bucket = 3
+    mode = "exact_phrase"
+    span = normalizedQuery.length
+    firstPosition = text.indexOf(normalizedQuery)
+  } else if (ordered) {
+    bucket = 2
+    mode = "ordered_terms"
+    span = ordered.span
+    firstPosition = ordered.firstPosition
+  }
+
+  return {
+    bucket,
+    mode,
+    span,
+    firstPosition,
+  }
+}
+
+function findTextMatches(query, limit = 12) {
+  const normalizedQuery = normalizeKey(query)
+  if (!normalizedQuery) return []
+
+  const terms = normalizedQuery.split(" ").filter(Boolean)
+  return navigatorData.verseItems
+    .map((verse) => {
+      const score = scoreTextMatch(verse, normalizedQuery, terms)
+      if (!score) return null
+      return {
+        ...verse,
+        ...score,
+        matchLabel: textMatchLabel(score.mode),
+      }
+    })
+    .filter(Boolean)
+    .sort((a, b) => {
+      return (
+        b.bucket - a.bucket ||
+        a.span - b.span ||
+        a.firstPosition - b.firstPosition ||
+        a.columnFloat - b.columnFloat
+      )
+    })
+    .slice(0, limit)
+}
+
 function resolveQuery(query) {
   const value = normalizeSpaces(query)
-  if (!value) throw new Error("צריך להזין ערך לחיפוש.")
+  if (!value) throw new Error("צריך למלא לפחות שדה אחד.")
 
   const directColumn = findDirectColumn(value)
   if (directColumn !== null) {
@@ -269,21 +360,36 @@ function resolveQuery(query) {
   }
 
   const reference = parseReference(value)
-  if (!reference) {
-    throw new Error("לא הצלחתי להבין. נסה פרשה, ספר פרק פסוק או עמודה.")
+  if (reference) {
+    const verse = navigatorData.verseByKey.get(`${reference.book}:${reference.chapter}:${reference.verse}`)
+    if (!verse) throw new Error("ההפניה לא נמצאה.")
+
+    return {
+      kind: "verse",
+      label: `${reference.book} ${reference.chapter}:${reference.verse}`,
+      columnFloat: verse.columnFloat,
+      column: verse.column,
+      lineFloat: verse.lineFloat,
+      exact: verse.exact,
+      detail: `${verse.parashah} | ${verse.exact ? "מדויק" : "משוער"}`,
+    }
   }
 
-  const verse = navigatorData.verseByKey.get(`${reference.book}:${reference.chapter}:${reference.verse}`)
-  if (!verse) throw new Error("ההפניה לא נמצאה בדאטה של התורה.")
+  const matches = findTextMatches(value, 6)
+  if (!matches.length) {
+    throw new Error("לא מצאתי פרשה, פסוק, עמודה או מילים מתאימות.")
+  }
 
+  const best = matches[0]
   return {
-    kind: "verse",
-    label: `${reference.book} ${reference.chapter}:${reference.verse}`,
-    columnFloat: verse.columnFloat,
-    column: verse.column,
-    lineFloat: verse.lineFloat,
-    exact: verse.exact,
-    detail: `${verse.parashah} | ${verse.exact ? "מדויק" : "משוער"}`,
+    kind: "text",
+    label: `${best.book} ${best.chapter}:${best.verse}`,
+    columnFloat: best.columnFloat,
+    column: best.column,
+    lineFloat: best.lineFloat,
+    exact: best.exact,
+    detail: `${best.parashah} | ${best.matchLabel}`,
+    queryText: value,
   }
 }
 
@@ -356,12 +462,12 @@ function formatLocation(location) {
 
   return `
     <article class="location-card">
-      <h3>${location.kind === "column" ? "מיקום" : "איתור"}</h3>
       <div class="location-meta">
+        ${location.queryText ? `<div class="location-query">${location.queryText}</div>` : ""}
         <div class="location-label">${location.label}</div>
         <div>עמודה ${columnText}</div>
         <div>שורה ${lineText}</div>
-        <div>${location.exact ? "מדויק" : "משוער"} | ${location.detail}</div>
+        <div>${location.detail}</div>
       </div>
     </article>
   `
@@ -371,7 +477,7 @@ function renderError(message) {
   resultsEl.className = "results"
   resultsEl.innerHTML = `
     <article class="error-card">
-      <h3>יש בעיה</h3>
+      <h3>לא מצאתי</h3>
       <p>${message}</p>
     </article>
   `
@@ -381,23 +487,21 @@ function renderError(message) {
 function renderSingle(location) {
   resultsEl.className = "results"
   resultsEl.innerHTML = formatLocation(location)
-  renderPreview([{ title: "עמודת היעד", location }])
+  renderPreview([{ title: "היעד", location }])
 }
 
 function renderComparison(current, target) {
   const delta = target.columnFloat - current.columnFloat
   const absDelta = Math.abs(delta)
   const direction =
-    absDelta < 0.25 ? "כמעט באותו מקום" : delta > 0 ? "קדימה" : "אחורה"
+    absDelta < 0.25 ? "אותו מקום" : delta > 0 ? "קדימה" : "אחורה"
   const message =
-    absDelta < 0.25
-      ? "היעד כמעט באותה עמודה."
-      : `צריך לגלול בערך ${formatNumber(absDelta, 1)} עמודות ${direction}.`
+    absDelta < 0.25 ? "כמעט בלי גלילה" : `${formatNumber(absDelta, 1)} עמודות ${direction}`
 
   resultsEl.className = "results"
   resultsEl.innerHTML = `
     <article class="summary-card">
-      <h3>כמה לגלול</h3>
+      <h3>גלילה</h3>
       <div class="summary-main">
         <span class="summary-value">${formatNumber(absDelta, 1)}</span>
         <span class="summary-direction">${direction}</span>
@@ -420,8 +524,7 @@ function renderPreview(items = []) {
   if (!items.length) {
     previewState = []
     previewEl.className = "column-preview empty-state"
-    previewEl.innerHTML =
-      "<p>אחרי חישוב יוצגו כאן עמודת המקור ועמודת היעד, עם מעבר קל לעמודות סמוכות.</p>"
+    previewEl.innerHTML = "<p>כאן יופיעו העמודות.</p>"
     return
   }
 
@@ -447,8 +550,8 @@ function renderPreviewState() {
           const delta = previewColumn - location.column
           const note =
             delta === 0
-              ? `זו העמודה של ${location.label}.`
-              : `תצוגה זזה ${Math.abs(delta)} עמודות ${delta > 0 ? "קדימה" : "אחורה"}.`
+              ? location.label
+              : `${Math.abs(delta)} ${delta > 0 ? "קדימה" : "אחורה"}`
           const nearby = [-2, -1, 0, 1, 2]
             .map((step) => clampColumn(previewColumn + step))
             .filter((value, itemIndex, values) => values.indexOf(value) === itemIndex)
@@ -528,97 +631,28 @@ function renderPreviewState() {
   `
 }
 
-function renderWordResults(matches = [], query = "") {
-  if (!query) {
-    wordResultsEl.className = "word-results empty-state"
-    wordResultsEl.innerHTML = "<p>אפשר לכתוב כמה מילים ולקבל פסוקים מתאימים עם עמודה.</p>"
-    return
-  }
-
-  if (!matches.length) {
-    wordResultsEl.className = "word-results empty-state"
-    wordResultsEl.innerHTML = `<p>לא מצאתי תוצאות עבור <code>${query}</code>.</p>`
-    return
-  }
-
-  wordResultsEl.className = "word-results"
-  wordResultsEl.innerHTML = matches
-    .map(
-      (match) => `
-        <article class="word-result">
-          <div class="word-result-head">
-            <div>
-              <div class="word-result-title">${match.book} ${match.chapter}:${match.verse}</div>
-              <div class="word-result-meta">עמודה ${match.column} | ${match.parashah}</div>
-            </div>
-            <div class="word-result-actions">
-              <button
-                class="ghost-button"
-                type="button"
-                data-word-action="target"
-                data-ref="${match.book} ${match.chapter}:${match.verse}"
-              >
-                כיעד
-              </button>
-              <button
-                class="secondary-button"
-                type="button"
-                data-word-action="open"
-                data-ref="${match.book} ${match.chapter}:${match.verse}"
-              >
-                פתח
-              </button>
-            </div>
-          </div>
-          <p class="word-result-text">${match.text}</p>
-        </article>
-      `,
-    )
-    .join("")
-}
-
-function runWordSearch() {
-  if (!navigatorData) return
-  const query = normalizeSpaces(wordInput.value)
-  const normalized = normalizeKey(query)
-  if (!normalized) return renderWordResults([], "")
-
-  const terms = normalized.split(" ").filter(Boolean)
-  const matches = navigatorData.verses
-    .map((verse) => navigatorData.verseByKey.get(`${verse[0]}:${verse[1]}:${verse[2]}`))
-    .filter((verse) => terms.every((term) => verse.searchText.includes(term)))
-    .sort((a, b) => {
-      const aStarts = a.searchText.startsWith(normalized) ? 1 : 0
-      const bStarts = b.searchText.startsWith(normalized) ? 1 : 0
-      return bStarts - aStarts || a.columnFloat - b.columnFloat
-    })
-    .slice(0, 12)
-
-  renderWordResults(matches, query)
-}
-
 function resetState() {
   currentInput.value = ""
   targetInput.value = ""
-  wordInput.value = ""
   resultsEl.className = "results empty-state"
-  resultsEl.innerHTML = "<p>הזן מיקום ויעד כדי לקבל גלילה מהירה בעמודות.</p>"
+  resultsEl.innerHTML = "<p>מלא שדה אחד או שניים.</p>"
   renderPreview()
-  renderWordResults([], "")
 }
 
-function runSearch({ locateOnly = false } = {}) {
+function runSearch() {
   try {
-    const currentValue = currentInput.value
-    const targetValue = targetInput.value
+    const currentValue = normalizeSpaces(currentInput.value)
+    const targetValue = normalizeSpaces(targetInput.value)
 
-    if (locateOnly || !currentValue.trim()) {
-      if (!targetValue.trim()) throw new Error("חסר יעד לאיתור.")
-      renderSingle(resolveQuery(targetValue))
+    if (!currentValue && !targetValue) {
+      throw new Error("צריך למלא לפחות שדה אחד.")
+    }
+
+    if (!currentValue || !targetValue) {
+      renderSingle(resolveQuery(targetValue || currentValue))
       return
     }
 
-    if (!targetValue.trim()) throw new Error("חסר יעד לחישוב הגלילה.")
     renderComparison(resolveQuery(currentValue), resolveQuery(targetValue))
   } catch (error) {
     renderError(error.message)
@@ -663,7 +697,7 @@ function renderViewer(summary = getColumnSummary(viewerState.column)) {
 
 async function init() {
   try {
-    setStatus("טוען נתונים...")
+    setStatus("טוען...")
     const response = await fetch("./data/navigator_data.json")
     if (!response.ok) throw new Error(`HTTP ${response.status}`)
 
@@ -683,53 +717,8 @@ formEl.addEventListener("submit", (event) => {
   runSearch()
 })
 
-locateButton.addEventListener("click", () => {
-  runSearch({ locateOnly: true })
-})
-
-swapButton.addEventListener("click", () => {
-  const current = currentInput.value
-  currentInput.value = targetInput.value
-  targetInput.value = current
-})
-
 resetButton.addEventListener("click", () => {
   resetState()
-})
-
-wordSearchButton.addEventListener("click", () => {
-  runWordSearch()
-})
-
-wordInput.addEventListener("keydown", (event) => {
-  if (event.key === "Enter") {
-    event.preventDefault()
-    runWordSearch()
-  }
-})
-
-document.querySelectorAll(".example-chip").forEach((button) => {
-  button.addEventListener("click", () => {
-    currentInput.value = button.dataset.current || ""
-    targetInput.value = button.dataset.target || ""
-    runSearch({ locateOnly: !button.dataset.current })
-  })
-})
-
-wordResultsEl.addEventListener("click", (event) => {
-  const button = event.target.closest("button[data-word-action]")
-  if (!button) return
-
-  const reference = button.dataset.ref
-  if (!reference) return
-
-  if (button.dataset.wordAction === "target") {
-    targetInput.value = reference
-    return
-  }
-
-  targetInput.value = reference
-  runSearch({ locateOnly: !currentInput.value.trim() })
 })
 
 previewEl.addEventListener("click", (event) => {
