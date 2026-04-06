@@ -396,6 +396,27 @@ function findTextMatches(query, limit = 12) {
     .slice(0, limit)
 }
 
+function sortMatchesByAnchor(matches, anchorColumnFloat) {
+  return [...matches].sort((a, b) => {
+    return (
+      Math.abs(a.columnFloat - anchorColumnFloat) - Math.abs(b.columnFloat - anchorColumnFloat) ||
+      b.bucket - a.bucket ||
+      a.span - b.span ||
+      a.firstPosition - b.firstPosition ||
+      a.columnFloat - b.columnFloat
+    )
+  })
+}
+
+function parsePlusQuery(query) {
+  if (!query.includes("+")) return null
+  const [anchorRaw, ...rest] = query.split("+")
+  const anchorQuery = normalizeSpaces(anchorRaw)
+  const textQuery = normalizeSpaces(rest.join("+"))
+  if (!anchorQuery || !textQuery) return null
+  return { anchorQuery, textQuery }
+}
+
 function getMatchRanges(match, normalizedQuery, terms) {
   if (match.mode === "exact_start" || match.mode === "exact_phrase") {
     const start = match.searchText.indexOf(normalizedQuery)
@@ -456,7 +477,7 @@ function highlightMatchText(originalText, match, queryText) {
     .join("") + escapeHtml(originalText.slice(cursor))
 }
 
-function resolveQuery(query) {
+function resolveStandardQuery(query) {
   const value = normalizeSpaces(query)
   if (!value) throw new Error("צריך למלא לפחות שדה אחד.")
 
@@ -519,6 +540,39 @@ function resolveQuery(query) {
     queryText: value,
     verseTextHtml: highlightMatchText(best.text, best, value),
   }
+}
+
+function resolveQuery(query) {
+  const value = normalizeSpaces(query)
+  const plusQuery = parsePlusQuery(value)
+  if (plusQuery) {
+    const anchor = resolveStandardQuery(plusQuery.anchorQuery)
+    const matches = sortMatchesByAnchor(
+      findTextMatches(plusQuery.textQuery, 12),
+      anchor.columnFloat,
+    )
+
+    if (!matches.length) {
+      throw new Error("לא מצאתי מילים קרובות לעוגן שבחרת.")
+    }
+
+    const best = matches[0]
+    return {
+      kind: "nearText",
+      label: `${best.book} ${best.chapter}:${best.verse}`,
+      columnFloat: best.columnFloat,
+      column: best.column,
+      lineFloat: best.lineFloat,
+      exact: best.exact,
+      detail: `${best.parashah} | ${best.matchLabel} | קרוב ל${anchor.label}`,
+      queryText: value,
+      verseTextHtml: highlightMatchText(best.text, best, plusQuery.textQuery),
+      anchorLabel: anchor.label,
+      anchorColumn: anchor.column,
+    }
+  }
+
+  return resolveStandardQuery(value)
 }
 
 function getColumnSummary(column) {
@@ -593,6 +647,7 @@ function formatLocation(location) {
       <div class="location-meta">
         ${location.queryText ? `<div class="location-query">${location.queryText}</div>` : ""}
         <div class="location-label">${location.label}</div>
+        ${location.anchorLabel ? `<div>עוגן: ${location.anchorLabel}</div>` : ""}
         <div>עמודה ${columnText}</div>
         <div>שורה ${lineText}</div>
         <div>${location.detail}</div>
