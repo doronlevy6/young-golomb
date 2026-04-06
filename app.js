@@ -713,8 +713,8 @@ function createReadingAnchor(verse) {
 }
 
 function getSegmentLabel(index) {
-  const labels = ["Torah Portion ראשון", "Torah Portion שני", "Torah Portion שלישי", "Torah Portion רביעי"]
-  return labels[index] || `Torah Portion ${index + 1}`
+  const labels = ["ספר ראשון", "ספר שני", "ספר שלישי", "ספר רביעי"]
+  return labels[index] || `ספר ${index + 1}`
 }
 
 function buildSegmentLabels(segments) {
@@ -744,6 +744,7 @@ function createReadingSegment(range, index) {
 
   return {
     index,
+    shortLabel: getSegmentLabel(index),
     label: getSegmentLabel(index),
     book: range.book,
     rangeLabel: formatRangeSegment(range),
@@ -753,18 +754,37 @@ function createReadingSegment(range, index) {
   }
 }
 
-function getMatchingSegmentPairs(sourceSegments = [], targetSegments = []) {
-  const size = Math.min(sourceSegments.length, targetSegments.length)
-  const pairs = []
+function getSegmentScrollDiffs(sourceSegments = [], targetSegments = []) {
+  const diffs = []
+  const pairCount = Math.min(sourceSegments.length, targetSegments.length)
 
-  for (let index = 0; index < size; index += 1) {
+  for (let index = 0; index < pairCount; index += 1) {
     const source = sourceSegments[index]
     const target = targetSegments[index]
     if (!source || !target) continue
-    pairs.push({ index, source, target })
+
+    diffs.push({
+      label: target.label,
+      delta: target.start.columnFloat - source.end.columnFloat,
+      contextLabel: `מול ${source.shortLabel || source.label} הקודם`,
+    })
   }
 
-  return pairs
+  if (targetSegments.length > pairCount && targetSegments.length > 1) {
+    const baseTarget = targetSegments[0]
+    for (let index = pairCount; index < targetSegments.length; index += 1) {
+      const target = targetSegments[index]
+      if (!target || target.index === 0 || !baseTarget) continue
+
+      diffs.push({
+        label: target.label,
+        delta: target.start.columnFloat - baseTarget.end.columnFloat,
+        contextLabel: `אחרי ${baseTarget.shortLabel || baseTarget.label} הבא`,
+      })
+    }
+  }
+
+  return diffs
 }
 
 function createScheduledReadingRecord(item) {
@@ -816,12 +836,8 @@ function enrichReadingsWithScroll(readings) {
       previousReadingName: previousReading.name,
       scrollFromPrevious: reading.start.columnFloat - previousReading.end.columnFloat,
       segmentScrollsFromPrevious:
-        previousReading.segments.length > 1 && reading.segments.length > 1
-          ? getMatchingSegmentPairs(previousReading.segments, reading.segments).map(({ source, target }) => ({
-              label: target.label,
-              delta: target.start.columnFloat - source.end.columnFloat,
-              previousLabel: source.label,
-            }))
+        previousReading.segments.length > 1 || reading.segments.length > 1
+          ? getSegmentScrollDiffs(previousReading.segments, reading.segments)
           : [],
     }
   })
@@ -921,6 +937,7 @@ function renderReadingSegmentDiffs(segmentDiffs = []) {
           (segment) => `
             <div class="reading-segment-diff">
               <span>${segment.label}</span>
+              ${segment.contextLabel ? `<div class="reading-segment-context">${segment.contextLabel}</div>` : ""}
               <strong>${describeScrollDelta(segment.delta)}</strong>
             </div>
           `,
@@ -931,14 +948,10 @@ function renderReadingSegmentDiffs(segmentDiffs = []) {
 }
 
 function getLocationSegmentDiffs(current, target) {
-  if ((current?.readingSegments?.length || 0) <= 1 || (target?.readingSegments?.length || 0) <= 1) return []
-
-  return getMatchingSegmentPairs(current.readingSegments, target.readingSegments).map(
-    ({ source, target: nextTarget }) => ({
-      label: nextTarget.label,
-      delta: nextTarget.start.columnFloat - source.end.columnFloat,
-    }),
-  )
+  const currentSegments = current?.readingSegments || []
+  const targetSegments = target?.readingSegments || []
+  if (currentSegments.length <= 1 && targetSegments.length <= 1) return []
+  return getSegmentScrollDiffs(currentSegments, targetSegments)
 }
 
 function getNearestReadingsForDate(dateString) {

@@ -393,6 +393,12 @@ mark {
   font-weight: 700;
 }
 
+.reading-segment-context {
+  color: var(--muted);
+  font-size: 0.8rem;
+  line-height: 1.4;
+}
+
 .reading-segment strong,
 .reading-segment-diff strong {
   font-size: 0.94rem;
