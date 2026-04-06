@@ -377,7 +377,26 @@ function parseIsoDateFromQuery(query) {
 }
 
 function formatReadingDateInputValue(reading) {
-  return `${reading.date} · ${reading.name}`
+  return `${formatHebrewDay(reading.date)} · ${reading.name}`
+}
+
+function getReadingFromHebrewPrefixQuery(query) {
+  const value = normalizeSpaces(query)
+  if (!value || !value.includes("·")) return null
+
+  const [prefixRaw, ...nameParts] = value.split("·")
+  const prefixKey = normalizeKey(prefixRaw || "")
+  const nameKey = normalizeKey(nameParts.join("·"))
+  if (!prefixKey) return null
+
+  return (
+    autoReadingsState.readings.find((reading) => {
+      const readingPrefixKey = normalizeKey(formatHebrewDay(reading.date))
+      if (readingPrefixKey !== prefixKey) return false
+      if (!nameKey) return true
+      return normalizeKey(reading.name) === nameKey
+    }) || null
+  )
 }
 
 function renderTodayInfo() {
@@ -575,8 +594,8 @@ function getReadingOnOrAfterDate(dateString) {
 
 function getReadingFromDateQuery(query) {
   const isoDate = parseIsoDateFromQuery(query)
-  if (!isoDate) return null
-  return getReadingByDate(isoDate) || getReadingOnOrAfterDate(isoDate)
+  if (isoDate) return getReadingByDate(isoDate) || getReadingOnOrAfterDate(isoDate)
+  return getReadingFromHebrewPrefixQuery(query)
 }
 
 function columnImagePath(column) {
@@ -1338,8 +1357,7 @@ function applyJournalReading(dateString) {
   if (journalState.fieldKey === "current") {
     const nextReading = autoReadingsState.readings.find((reading) => reading.date > selectedReading.date) || null
 
-    currentInput.value =
-      selectedReading.date === dateString ? formatReadingDateInputValue(selectedReading) : `${dateString} · ${selectedReading.name}`
+    currentInput.value = formatReadingDateInputValue(selectedReading)
     querySegmentState.current = null
     renderSegmentPicker("current")
 
@@ -1354,8 +1372,7 @@ function applyJournalReading(dateString) {
     const previousReading =
       autoReadingsState.readings.filter((reading) => reading.date < selectedReading.date).at(-1) || null
 
-    targetInput.value =
-      selectedReading.date === dateString ? formatReadingDateInputValue(selectedReading) : `${dateString} · ${selectedReading.name}`
+    targetInput.value = formatReadingDateInputValue(selectedReading)
     querySegmentState.target = null
     renderSegmentPicker("target")
 
