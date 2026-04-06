@@ -74,7 +74,7 @@ const parashahAliases = {
 
 const torahBooks = new Set(["בראשית", "שמות", "ויקרא", "במדבר", "דברים"])
 const scheduledReadingPrefixes = {
-  previous: ["קריאה אחרונה", "קריאה קודמת", "הקריאה האחרונה"],
+  previous: ["קריאה קודמת", "הקריאה הקודמת", "קריאה אחרונה", "הקריאה האחרונה"],
   next: ["קריאה הבאה", "הקריאה הבאה"],
 }
 const israelTimeZone = "Asia/Jerusalem"
@@ -493,7 +493,7 @@ function isTorahBook(bookName) {
 }
 
 function formatReadingInputValue(role, reading) {
-  const prefix = role === "previous" ? "קריאה אחרונה" : "קריאה הבאה"
+  const prefix = role === "previous" ? "קריאה קודמת" : "קריאה הבאה"
   return `${prefix}: ${reading.name}`
 }
 
@@ -613,7 +613,7 @@ function buildSuggestions() {
     option.value = parashah.name_display
     fragment.appendChild(option)
   })
-  ;["קריאה אחרונה", "קריאה הבאה", "2026-04-11", "בראשית ג", "שמות כ", "במדבר כב ב", "עמודה 44", "והנחש היה ערום"].forEach((value) => {
+  ;["קריאה קודמת", "קריאה הבאה", "2026-04-11", "בראשית ג", "שמות כ", "במדבר כב ב", "עמודה 44", "והנחש היה ערום"].forEach((value) => {
     const option = document.createElement("option")
     option.value = value
     fragment.appendChild(option)
@@ -903,7 +903,17 @@ function getSegmentScrollDiffs(sourceSegments = [], targetSegments = []) {
     if (!source || !target) continue
 
     diffs.push({
+      index,
       label: target.label,
+      selectorLabel: getSegmentLabel(target.index),
+      sourceSegmentIndex: source.index,
+      targetSegmentIndex: target.index,
+      sourceLocationKey: "current",
+      targetLocationKey: "target",
+      sourceAnchor: source.end,
+      targetAnchor: target.start,
+      sourceAnchorLabel: `סוף ${source.label}`,
+      targetAnchorLabel: `תחילת ${target.label}`,
       delta: target.start.columnFloat - source.end.columnFloat,
       contextLabel: `מול ${source.label} הקודם`,
     })
@@ -916,7 +926,17 @@ function getSegmentScrollDiffs(sourceSegments = [], targetSegments = []) {
       if (!target || target.index === 0 || !baseTarget) continue
 
       diffs.push({
+        index,
         label: target.label,
+        selectorLabel: getSegmentLabel(target.index),
+        sourceSegmentIndex: baseTarget.index,
+        targetSegmentIndex: target.index,
+        sourceLocationKey: "target",
+        targetLocationKey: "target",
+        sourceAnchor: baseTarget.end,
+        targetAnchor: target.start,
+        sourceAnchorLabel: `סוף ${baseTarget.label}`,
+        targetAnchorLabel: `תחילת ${target.label}`,
         delta: target.start.columnFloat - baseTarget.end.columnFloat,
         contextLabel: `אחרי ${baseTarget.label} הבא`,
       })
@@ -1099,15 +1119,15 @@ function renderReadingSegments(segments = []) {
   `
 }
 
-function renderReadingSegmentDiffs(segmentDiffs = []) {
+function renderReadingSegmentDiffs(segmentDiffs = [], { activeIndex = -1 } = {}) {
   if (!segmentDiffs.length) return ""
 
   return `
     <div class="reading-segment-diffs">
       ${segmentDiffs
         .map(
-          (segment) => `
-            <div class="reading-segment-diff">
+          (segment, index) => `
+            <div class="reading-segment-diff${index === activeIndex ? " is-active" : ""}">
               <span>${segment.label}</span>
               ${segment.contextLabel ? `<div class="reading-segment-context">${segment.contextLabel}</div>` : ""}
               <strong>${describeScrollDelta(segment.delta)}</strong>
@@ -1124,6 +1144,98 @@ function getLocationSegmentDiffs(current, target) {
   const targetSegments = target?.readingSegments || []
   if (currentSegments.length <= 1 && targetSegments.length <= 1) return []
   return getSegmentScrollDiffs(currentSegments, targetSegments)
+}
+
+function renderSplitSegmentSelector(segmentDiffs = [], activeIndex = 0) {
+  if (segmentDiffs.length <= 1) return ""
+
+  return `
+    <div class="split-segment-selector" role="radiogroup" aria-label="בחירת ספר">
+      ${segmentDiffs
+        .map(
+          (segment, index) => `
+            <button
+              class="segment-chip${index === activeIndex ? " is-active" : ""}"
+              type="button"
+              role="radio"
+              aria-checked="${index === activeIndex ? "true" : "false"}"
+              data-action="select-split-segment"
+              data-split-index="${index}"
+            >
+              ${segment.selectorLabel || segment.label}
+            </button>
+          `,
+        )
+        .join("")}
+    </div>
+  `
+}
+
+function createAnchoredLocation(baseLocation, anchor, { label = "", segmentIndex = null } = {}) {
+  if (!baseLocation || !anchor) return baseLocation
+
+  const hasSegmentIndex = Number.isInteger(segmentIndex)
+  const selectedSegment =
+    hasSegmentIndex && Array.isArray(baseLocation.readingSegments)
+      ? baseLocation.readingSegments[segmentIndex] || null
+      : null
+
+  return {
+    ...baseLocation,
+    label: label || baseLocation.label,
+    columnFloat: anchor.columnFloat,
+    column: anchor.column,
+    lineFloat: anchor.lineFloat,
+    exact: anchor.exact,
+    anchorLabel: label || baseLocation.anchorLabel || "",
+    selectedSegmentIndex: hasSegmentIndex ? segmentIndex : baseLocation.selectedSegmentIndex,
+    selectedSegmentLabel: selectedSegment?.label || baseLocation.selectedSegmentLabel || "",
+    segmentRangeLabel: selectedSegment?.rangeLabel || baseLocation.segmentRangeLabel || "",
+    segmentStartRef: selectedSegment?.start?.refLabel || baseLocation.segmentStartRef,
+    segmentStartColumn: selectedSegment?.start?.column || baseLocation.segmentStartColumn,
+    segmentEndRef: selectedSegment?.end?.refLabel || baseLocation.segmentEndRef,
+    segmentEndColumn: selectedSegment?.end?.column || baseLocation.segmentEndColumn,
+    anchorContext: baseLocation.anchorContext
+      ? {
+          ...baseLocation.anchorContext,
+          columnFloat: anchor.columnFloat,
+          book: selectedSegment?.book || baseLocation.anchorContext.book,
+          chapter: selectedSegment?.start?.chapter || baseLocation.anchorContext.chapter,
+          parashahKey: selectedSegment?.start?.parashahKey || baseLocation.anchorContext.parashahKey,
+          restrictSearchToRange:
+            selectedSegment?.allowedRanges?.length > 0
+              ? true
+              : baseLocation.anchorContext.restrictSearchToRange,
+          allowedRanges:
+            selectedSegment?.allowedRanges?.length > 0
+              ? selectedSegment.allowedRanges
+              : baseLocation.anchorContext.allowedRanges,
+        }
+      : baseLocation.anchorContext,
+  }
+}
+
+function getComparisonLocationsForSegment(current, target, segmentDiff) {
+  if (!segmentDiff) {
+    return {
+      sourceLocation: current,
+      targetLocation: target,
+    }
+  }
+
+  const sourceBase = segmentDiff.sourceLocationKey === "target" ? target : current
+  const targetBase = segmentDiff.targetLocationKey === "current" ? current : target
+
+  return {
+    sourceLocation: createAnchoredLocation(sourceBase, segmentDiff.sourceAnchor, {
+      label: segmentDiff.sourceAnchorLabel,
+      segmentIndex: segmentDiff.sourceSegmentIndex,
+    }),
+    targetLocation: createAnchoredLocation(targetBase, segmentDiff.targetAnchor, {
+      label: segmentDiff.targetAnchorLabel,
+      segmentIndex: segmentDiff.targetSegmentIndex,
+    }),
+  }
 }
 
 function getNearestReadingsForDate(dateString) {
@@ -1492,7 +1604,7 @@ function renderReadingDefaults() {
   if (autoReadingsState.previous) {
     cards.push(`
       <button class="reading-pill" type="button" data-fill-reading="previous">
-        <strong>אחרונה: ${escapeHtml(autoReadingsState.previous.name)}</strong>
+        <strong>קודמת: ${escapeHtml(autoReadingsState.previous.name)}</strong>
         <span>${escapeHtml(autoReadingsState.previous.displayDate)} · ${escapeHtml(autoReadingsState.previous.start.refLabel)} → ${escapeHtml(autoReadingsState.previous.end.refLabel)}</span>
       </button>
     `)
@@ -2004,46 +2116,6 @@ function viewerRangeText(summary) {
     : `${summary.first_ref} עד ${summary.last_ref}`
 }
 
-function summaryInfoGrid(summary) {
-  if (!summary) return ""
-  return `
-    <div class="preview-info">
-      <div class="preview-info-grid">
-        <div class="preview-info-item">
-          <span>עמודה</span>
-          <strong>${summary.column}</strong>
-        </div>
-        <div class="preview-info-item">
-          <span>ספר</span>
-          <strong>${summary.books.join(" · ")}</strong>
-        </div>
-        <div class="preview-info-item">
-          <span>פרשה</span>
-          <strong>${summary.parashot.join(" · ")}</strong>
-        </div>
-        <div class="preview-info-item">
-          <span>פרק</span>
-          <strong>${chapterLabel(summary)}</strong>
-        </div>
-      </div>
-      <div class="preview-info-item">
-        <span>טווח</span>
-        <strong>${formatRange(summary)}</strong>
-      </div>
-    </div>
-  `
-}
-
-function summaryPills(summary) {
-  if (!summary) return ""
-  return `
-    <span class="meta-pill">עמודה ${summary.column}</span>
-    <span class="meta-pill">${summary.books.join(" · ")}</span>
-    <span class="meta-pill">${summary.parashot.join(" · ")}</span>
-    <span class="meta-pill">פרק ${chapterLabel(summary)}</span>
-  `
-}
-
 function viewerWatermarkHtml(summary) {
   if (!summary) return ""
   return `
@@ -2221,7 +2293,8 @@ function formatLocation(location) {
             ? `<div>סוף: ${location.readingEndRef} · עמודה ${location.readingEndColumn}</div>`
             : ""
         }
-        ${location.selectedSegmentLabel ? `<div>חיפוש בתוך: ${location.selectedSegmentLabel}</div>` : ""}
+        ${location.selectedSegmentLabel ? `<div>ספר נבחר: ${location.selectedSegmentLabel}</div>` : ""}
+        ${location.segmentRangeLabel ? `<div>טווח הספר: ${location.segmentRangeLabel}</div>` : ""}
         ${location.anchorLabel ? `<div>עוגן: ${location.anchorLabel}</div>` : ""}
         <div>עמודה ${columnText}</div>
         <div>שורה ${lineText}</div>
@@ -2264,7 +2337,24 @@ function renderSingle(location, title = "היעד") {
 }
 
 function renderComparison(current, target, { sourceVisible = false } = {}) {
-  comparisonState = { current, target, sourceVisible }
+  const segmentDiffs = getLocationSegmentDiffs(current, target)
+  const preferredTargetSegmentIndex = Number.isInteger(target?.selectedSegmentIndex)
+    ? target.selectedSegmentIndex
+    : null
+  const preferredSplitIndex =
+    preferredTargetSegmentIndex === null
+      ? 0
+      : Math.max(
+          segmentDiffs.findIndex((segment) => segment.targetSegmentIndex === preferredTargetSegmentIndex),
+          0,
+        )
+
+  comparisonState = {
+    current,
+    target,
+    sourceVisible,
+    activeSplitIndex: segmentDiffs.length ? preferredSplitIndex : null,
+  }
   renderComparisonState()
 }
 
@@ -2272,10 +2362,25 @@ function renderComparisonState() {
   if (!comparisonState) return
 
   const { current, target, sourceVisible } = comparisonState
-  const delta = target.columnFloat - current.columnFloat
-  const absDelta = Math.abs(delta)
   const segmentDiffs = getLocationSegmentDiffs(current, target)
   const hasSplitScroll = segmentDiffs.length > 0
+  const fallbackSplitIndex =
+    Number.isInteger(comparisonState.activeSplitIndex) && comparisonState.activeSplitIndex >= 0
+      ? comparisonState.activeSplitIndex
+      : 0
+  const activeSplitIndex = hasSplitScroll
+    ? Math.min(fallbackSplitIndex, segmentDiffs.length - 1)
+    : null
+  comparisonState.activeSplitIndex = activeSplitIndex
+
+  const activeSegmentDiff = hasSplitScroll ? segmentDiffs[activeSplitIndex] : null
+  const { sourceLocation, targetLocation } = getComparisonLocationsForSegment(
+    current,
+    target,
+    activeSegmentDiff,
+  )
+  const delta = hasSplitScroll ? activeSegmentDiff.delta : target.columnFloat - current.columnFloat
+  const absDelta = Math.abs(delta)
   const direction =
     absDelta < 0.25 ? "אותו מקום" : delta > 0 ? "קדימה" : "אחורה"
   const message =
@@ -2287,7 +2392,10 @@ function renderComparisonState() {
       <h3>כמה לגלול</h3>
       ${
         hasSplitScroll
-          ? renderReadingSegmentDiffs(segmentDiffs)
+          ? `
+            ${renderSplitSegmentSelector(segmentDiffs, activeSplitIndex)}
+            ${renderReadingSegmentDiffs(segmentDiffs, { activeIndex: activeSplitIndex })}
+          `
           : `
             <div class="summary-main">
               <span class="summary-value">${formatNumber(absDelta, 1)}</span>
@@ -2309,20 +2417,20 @@ function renderComparisonState() {
     <div class="location-grid">
       ${
         sourceVisible
-          ? `<div class="location-slot location-slot-source">${formatLocation(current)}</div>`
+          ? `<div class="location-slot location-slot-source">${formatLocation(sourceLocation)}</div>`
           : ""
       }
-      <div class="location-slot location-slot-target">${formatLocation(target)}</div>
+      <div class="location-slot location-slot-target">${formatLocation(targetLocation)}</div>
     </div>
   `
 
   renderPreview(
     sourceVisible
       ? [
-          { title: "עמודת המקור", location: current },
-          { title: "עמודת היעד", location: target },
+          { title: "עמודת המקור", location: sourceLocation },
+          { title: "עמודת היעד", location: targetLocation },
         ]
-      : [{ title: "עמודת היעד", location: target }],
+      : [{ title: "עמודת היעד", location: targetLocation }],
   )
 }
 
@@ -2352,12 +2460,6 @@ function renderPreviewState() {
       ${previewState
         .map((item, index) => {
           const { title, location, previewColumn } = item
-          const summary = getColumnSummary(previewColumn)
-          const delta = previewColumn - location.column
-          const note =
-            delta === 0
-              ? location.label
-              : `${Math.abs(delta)} ${delta > 0 ? "קדימה" : "אחורה"}`
           const nearby = [-2, -1, 0, 1, 2]
             .map((step) => clampColumn(previewColumn + step))
             .filter((value, itemIndex, values) => values.indexOf(value) === itemIndex)
@@ -2367,8 +2469,7 @@ function renderPreviewState() {
               <div class="preview-toolbar">
                 <div class="preview-meta">
                   <strong>${title}</strong>
-                  <div>עמודה ${previewColumn}</div>
-                  <div>${note}</div>
+                  <div class="preview-column-value">עמודה ${previewColumn}</div>
                 </div>
                 <div class="preview-stepper">
                   <button class="icon-button" type="button" data-action="next" data-preview-index="${index}" aria-label="עמודה הבאה">+</button>
@@ -2376,7 +2477,6 @@ function renderPreviewState() {
                 </div>
               </div>
 
-              ${summaryInfoGrid(summary)}
               ${formatLocationMatch(location)}
 
               <div class="preview-strip">
@@ -2427,7 +2527,7 @@ function renderPreviewState() {
                   data-action="open"
                   data-preview-index="${index}"
                 >
-                  ${summaryPills(summary)}
+                  <span class="meta-pill">עמודה ${previewColumn}</span>
                 </div>
               </div>
             </article>
@@ -2765,10 +2865,21 @@ journalNextMonthButton?.addEventListener("click", () => {
 })
 
 resultsEl?.addEventListener("click", (event) => {
-  const target = event.target.closest("[data-action='toggle-source']")
-  if (!target || !comparisonState) return
-  comparisonState.sourceVisible = !comparisonState.sourceVisible
-  renderComparisonState()
+  const actionTarget = event.target.closest("[data-action]")
+  if (!actionTarget || !comparisonState) return
+
+  if (actionTarget.dataset.action === "toggle-source") {
+    comparisonState.sourceVisible = !comparisonState.sourceVisible
+    renderComparisonState()
+    return
+  }
+
+  if (actionTarget.dataset.action === "select-split-segment") {
+    const splitIndex = Number(actionTarget.dataset.splitIndex)
+    if (!Number.isInteger(splitIndex) || splitIndex < 0) return
+    comparisonState.activeSplitIndex = splitIndex
+    renderComparisonState()
+  }
 })
 
 previewEl?.addEventListener("click", (event) => {

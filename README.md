@@ -5,7 +5,7 @@ standard `245`-column / `42`-line tikkun layout.
 
 Live site:
 
-- [https://doronlevy6.github.io/torah-scroll-navigator/](https://doronlevy6.github.io/torah-scroll-navigator/)
+- [https://doronlevy6.github.io/young-golomb/](https://doronlevy6.github.io/young-golomb/)
 
 ## What It Does
 

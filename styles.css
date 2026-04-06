@@ -358,6 +358,13 @@ mark {
   margin-top: -0.35rem;
 }
 
+.split-segment-selector {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  margin-bottom: 0.6rem;
+}
+
 .segment-chip {
   border: 1px solid rgba(126, 63, 40, 0.16);
   border-radius: 999px;
@@ -425,6 +432,12 @@ mark {
   border-radius: 18px;
   border: 1px solid rgba(126, 63, 40, 0.12);
   background: rgba(255, 255, 255, 0.72);
+}
+
+.reading-segment-diff.is-active {
+  border-color: rgba(126, 63, 40, 0.32);
+  background: linear-gradient(180deg, rgba(250, 240, 223, 0.96), rgba(255, 252, 246, 0.98));
+  box-shadow: 0 8px 20px rgba(71, 42, 21, 0.08);
 }
 
 .reading-segment span,
@@ -1027,6 +1040,13 @@ button {
   color: var(--muted);
 }
 
+.preview-column-value {
+  font-size: 1.3rem;
+  color: var(--ink);
+  font-weight: 800;
+  line-height: 1.1;
+}
+
 .preview-stepper {
   display: inline-flex;
   gap: 0.45rem;
@@ -1087,36 +1107,6 @@ button {
 .preview-caption {
   display: grid;
   gap: 0.2rem;
-}
-
-.preview-info {
-  display: grid;
-  gap: 0.45rem;
-  background: #faf6ed;
-  border: 1px solid rgba(126, 63, 40, 0.12);
-  border-radius: 16px;
-  padding: 0.8rem;
-}
-
-.preview-info-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0.55rem;
-}
-
-.preview-info-item {
-  display: grid;
-  gap: 0.15rem;
-}
-
-.preview-info-item span {
-  color: var(--muted);
-  font-size: 0.85rem;
-}
-
-.preview-info-item strong {
-  color: var(--ink);
-  font-size: 0.98rem;
 }
 
 .preview-open {
@@ -1779,10 +1769,6 @@ button {
 
   .preview-open {
     justify-self: stretch;
-  }
-
-  .preview-info-grid {
-    grid-template-columns: 1fr;
   }
 
   .viewer-modal {
