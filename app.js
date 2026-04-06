@@ -183,6 +183,7 @@ let timesState = {
   readingName: "",
   readingTypeLabel: "",
   seasonLabel: "",
+  fixedLineTemplate: [],
   baseSchedule: [],
   schedule: [],
   settings: {
@@ -193,6 +194,7 @@ let timesState = {
     greetingMode: "auto",
     greeting: defaultTimesGreeting,
     fixedLineOverrides: {},
+    hiddenFixedLineIds: [],
     extraLines: [],
   },
 }
@@ -672,6 +674,15 @@ function normalizeFixedLineOverrides(value) {
   }, {})
 }
 
+function normalizeHiddenFixedLineIds(items) {
+  if (!Array.isArray(items)) return []
+  const ids = items
+    .map((item) => normalizeSpaces(String(item || "")))
+    .filter(Boolean)
+    .slice(0, 40)
+  return [...new Set(ids)]
+}
+
 function normalizeExtraLine(item) {
   if (!item || typeof item !== "object") return null
   const text = normalizeSpaces(item.text || "")
@@ -699,6 +710,7 @@ function loadTimesSettings() {
     timesState.settings.greetingMode = normalizeGreetingMode(parsed?.greetingMode)
     timesState.settings.greeting = normalizeGreetingInput(parsed?.greeting || "")
     timesState.settings.fixedLineOverrides = normalizeFixedLineOverrides(parsed?.fixedLineOverrides)
+    timesState.settings.hiddenFixedLineIds = normalizeHiddenFixedLineIds(parsed?.hiddenFixedLineIds)
     timesState.settings.extraLines = normalizeExtraLines(parsed?.extraLines)
   } catch {
     timesState.settings = {
@@ -709,6 +721,7 @@ function loadTimesSettings() {
       greetingMode: "auto",
       greeting: defaultTimesGreeting,
       fixedLineOverrides: {},
+      hiddenFixedLineIds: [],
       extraLines: [],
     }
   }
@@ -941,18 +954,25 @@ function getEffectiveTimesHeading(occasionMeta = getTimesOccasionMeta()) {
   }
 }
 
-function applyFixedLineOverrides(schedule, overrides = timesState.settings.fixedLineOverrides) {
+function applyFixedLineOverrides(
+  schedule,
+  overrides = timesState.settings.fixedLineOverrides,
+  hiddenIds = timesState.settings.hiddenFixedLineIds,
+) {
   if (!Array.isArray(schedule) || !schedule.length) return []
   const normalizedOverrides = normalizeFixedLineOverrides(overrides)
-  return schedule.map((entry) => {
-    const override = normalizedOverrides[entry.id]
-    if (!override) return entry
-    return {
-      ...entry,
-      label: override.label || entry.label,
-      time: override.time || entry.time,
-    }
-  })
+  const hiddenSet = new Set(normalizeHiddenFixedLineIds(hiddenIds))
+  return schedule
+    .filter((entry) => !hiddenSet.has(entry.id))
+    .map((entry) => {
+      const override = normalizedOverrides[entry.id]
+      if (!override) return entry
+      return {
+        ...entry,
+        label: override.label || entry.label,
+        time: override.time || entry.time,
+      }
+    })
 }
 
 function updateFixedLineOverride(lineId, nextPatch = {}) {
@@ -970,6 +990,15 @@ function updateFixedLineOverride(lineId, nextPatch = {}) {
     overrides[id] = next
   }
   timesState.settings.fixedLineOverrides = overrides
+}
+
+function updateFixedLineVisibility(lineId, isVisible) {
+  const id = normalizeSpaces(lineId)
+  if (!id) return
+  const hiddenSet = new Set(normalizeHiddenFixedLineIds(timesState.settings.hiddenFixedLineIds))
+  if (isVisible) hiddenSet.delete(id)
+  else hiddenSet.add(id)
+  timesState.settings.hiddenFixedLineIds = [...hiddenSet].slice(0, 40)
 }
 
 function applyExtraLinesToSchedule(baseSchedule, extraLines = []) {
@@ -1023,7 +1052,7 @@ function buildHolidaySchedule(times, seasonLabel, occasionMeta = {}, calendarTim
   const baseSchedule = [
     { id: "candle_lighting", label: "הדלקת נרות", time: formatClockTime(candleLighting), primary: true },
     { id: "mincha_at_candle", label: "מנחה", time: formatClockTime(addMinutes(candleLighting, 10)) },
-    { id: "arvit_after_sunset", label: "ערבית", time: formatClockTime(addMinutes(sunset, 25)) },
+    { id: "arvit_after_sunset", label: "ערבית", time: "25 דק׳ לאחר השקיעה" },
     { id: "shacharit", label: "שחרית", time: shacharit, primary: true },
     { id: "sof_zman_shma", label: "זמן אחרון לקריאת שמע", time: sofZmanShma ? formatClockTime(sofZmanShma) : "—" },
     { id: "mincha_before_exit", label: "ערבית", time: formatClockTime(addMinutes(tzeit, -5)) },
@@ -1041,9 +1070,11 @@ function buildHolidaySchedule(times, seasonLabel, occasionMeta = {}, calendarTim
   return baseSchedule
 }
 
-function renderTimesFixedLinesEditor(baseSchedule = timesState.baseSchedule) {
+function renderTimesFixedLinesEditor(baseSchedule = timesState.fixedLineTemplate) {
   if (!timesFixedLinesList) return
   const rows = Array.isArray(baseSchedule) ? baseSchedule : []
+  const overrides = normalizeFixedLineOverrides(timesState.settings.fixedLineOverrides)
+  const hiddenSet = new Set(normalizeHiddenFixedLineIds(timesState.settings.hiddenFixedLineIds))
 
   if (!rows.length) {
     timesFixedLinesList.innerHTML = `<p class="compact-hint">לאחר טעינת זמני היום תוכל לערוך שורות קבועות.</p>`
@@ -1052,26 +1083,43 @@ function renderTimesFixedLinesEditor(baseSchedule = timesState.baseSchedule) {
 
   timesFixedLinesList.innerHTML = rows
     .map(
-      (entry) => `
-        <div class="times-fixed-row" data-fixed-id="${escapeHtml(entry.id)}">
+      (entry) => {
+        const override = overrides[entry.id] || {}
+        const labelValue = override.label || entry.label
+        const timeValue = override.time || entry.time || ""
+        const isVisible = !hiddenSet.has(entry.id)
+        return `
+        <div class="times-fixed-row${isVisible ? "" : " is-hidden"}" data-fixed-id="${escapeHtml(entry.id)}">
+          <label class="times-fixed-toggle">
+            <input
+              type="checkbox"
+              ${isVisible ? "checked" : ""}
+              data-action="fixed-visible"
+              data-fixed-id="${escapeHtml(entry.id)}"
+            />
+            <span>להציג</span>
+          </label>
           <input
             class="times-fixed-label"
             type="text"
-            value="${escapeHtml(entry.label)}"
+            value="${escapeHtml(labelValue)}"
             placeholder="טקסט שורה"
             data-action="fixed-label"
             data-fixed-id="${escapeHtml(entry.id)}"
+            ${isVisible ? "" : "disabled"}
           />
           <input
             class="times-fixed-time"
             type="text"
-            value="${escapeHtml(entry.time || "")}"
+            value="${escapeHtml(timeValue)}"
             placeholder="שעה"
             data-action="fixed-time"
             data-fixed-id="${escapeHtml(entry.id)}"
+            ${isVisible ? "" : "disabled"}
           />
         </div>
-      `,
+      `
+      },
     )
     .join("")
 }
@@ -1205,7 +1253,7 @@ function renderTimesSummary() {
       <p class="times-greeting">${escapeHtml(greeting)}</p>
     </article>
   `
-  renderTimesFixedLinesEditor(timesState.baseSchedule)
+  renderTimesFixedLinesEditor(timesState.fixedLineTemplate)
   renderTimesExtraLinesEditor(timesState.baseSchedule)
   renderTimesPosterImage()
 }
@@ -1364,6 +1412,28 @@ function getPosterBlob() {
   })
 }
 
+async function shareTimesPosterImage(blob) {
+  if (!blob || !navigator.share) return false
+  try {
+    const file = new File([blob], `zmanim-${timesState.selectedDate}.png`, { type: "image/png" })
+    if (navigator.canShare && !navigator.canShare({ files: [file] })) return false
+    await navigator.share({
+      title: "זמני שבת/חג",
+      files: [file],
+    })
+    return true
+  } catch {
+    return false
+  }
+}
+
+function openTimesPosterPreviewForManualCopy(blob) {
+  if (!blob) return
+  const url = URL.createObjectURL(blob)
+  window.open(url, "_blank", "noopener,noreferrer")
+  setTimeout(() => URL.revokeObjectURL(url), 45000)
+}
+
 async function copyTimesPosterImage() {
   if (!timesState.schedule.length) return
   await renderTimesPosterImage()
@@ -1371,7 +1441,13 @@ async function copyTimesPosterImage() {
   if (!blob) return
 
   if (!navigator.clipboard || typeof window.ClipboardItem === "undefined") {
-    setTimesCopyStatus("העתקה ישירה לא נתמכת כאן. אפשר להוריד PNG.", "error")
+    const shared = await shareTimesPosterImage(blob)
+    if (shared) {
+      setTimesCopyStatus("נפתח חלון שיתוף למכשיר.", "success")
+      return
+    }
+    openTimesPosterPreviewForManualCopy(blob)
+    setTimesCopyStatus("נפתחה תמונה ללחיצה ארוכה והעתקה.", "success")
     return
   }
 
@@ -1379,7 +1455,13 @@ async function copyTimesPosterImage() {
     await navigator.clipboard.write([new ClipboardItem({ "image/png": blob })])
     setTimesCopyStatus("התמונה הועתקה ללוח.", "success")
   } catch {
-    setTimesCopyStatus("לא הצלחתי להעתיק. אפשר להוריד PNG.", "error")
+    const shared = await shareTimesPosterImage(blob)
+    if (shared) {
+      setTimesCopyStatus("נפתח חלון שיתוף למכשיר.", "success")
+      return
+    }
+    openTimesPosterPreviewForManualCopy(blob)
+    setTimesCopyStatus("לא התאפשרה העתקה ישירה. נפתחה תמונה ללחיצה ארוכה.", "error")
   }
 }
 
@@ -1430,7 +1512,12 @@ async function loadHolidayTimes(dateString = timesState.selectedDate) {
     const calendarTimes = await fetchCalendarCandleTimes(timesState.selectedDate)
     timesState.calendarTimes = calendarTimes
     const generatedSchedule = buildHolidaySchedule(timesState.rawTimes, seasonLabel, occasionMeta, timesState.calendarTimes)
-    timesState.baseSchedule = applyFixedLineOverrides(generatedSchedule, timesState.settings.fixedLineOverrides)
+    timesState.fixedLineTemplate = generatedSchedule
+    timesState.baseSchedule = applyFixedLineOverrides(
+      timesState.fixedLineTemplate,
+      timesState.settings.fixedLineOverrides,
+      timesState.settings.hiddenFixedLineIds,
+    )
     if (!timesState.baseSchedule.length) throw new Error("חסר מידע זמנים לתאריך הזה.")
     const schedule = applyExtraLinesToSchedule(timesState.baseSchedule, timesState.settings.extraLines)
     timesState.seasonLabel = seasonLabel
@@ -1439,6 +1526,7 @@ async function loadHolidayTimes(dateString = timesState.selectedDate) {
     timesState.error = error.message || "לא הצלחתי לחשב זמני שבת/חג."
     timesState.rawTimes = null
     timesState.calendarTimes = { candleLighting: null, havdalah: null }
+    timesState.fixedLineTemplate = []
     timesState.baseSchedule = []
     timesState.schedule = []
   } finally {
@@ -1467,7 +1555,12 @@ function rebuildTimesScheduleLocally() {
     occasionMeta,
     timesState.calendarTimes,
   )
-  timesState.baseSchedule = applyFixedLineOverrides(generatedSchedule, timesState.settings.fixedLineOverrides)
+  timesState.fixedLineTemplate = generatedSchedule
+  timesState.baseSchedule = applyFixedLineOverrides(
+    timesState.fixedLineTemplate,
+    timesState.settings.fixedLineOverrides,
+    timesState.settings.hiddenFixedLineIds,
+  )
   refreshTimesScheduleFromBase()
   renderTimesSummary()
   return true
@@ -3851,6 +3944,7 @@ timesIncludeDafInput?.addEventListener("change", () => {
 
 timesResetFixedLinesButton?.addEventListener("click", () => {
   timesState.settings.fixedLineOverrides = {}
+  timesState.settings.hiddenFixedLineIds = []
   saveTimesSettings()
   if (!rebuildTimesScheduleLocally()) {
     loadHolidayTimes(timesState.selectedDate)
@@ -3867,6 +3961,8 @@ timesFixedLinesList?.addEventListener("input", (event) => {
     updateFixedLineOverride(fixedId, { label: target.value })
   } else if (action === "fixed-time") {
     updateFixedLineOverride(fixedId, { time: target.value })
+  } else if (action === "fixed-visible") {
+    updateFixedLineVisibility(fixedId, Boolean(target.checked))
   } else {
     return
   }

@@ -242,7 +242,7 @@ mark {
 .times-fixed-row {
   display: grid;
   gap: 0.45rem;
-  grid-template-columns: minmax(0, 1fr) minmax(116px, 0.42fr);
+  grid-template-columns: auto minmax(0, 1fr) minmax(116px, 0.42fr);
   align-items: center;
 }
 
@@ -254,6 +254,26 @@ mark {
   background: #fffdfa;
   color: var(--ink);
   font: inherit;
+}
+
+.times-fixed-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  color: var(--muted);
+  font-size: 0.9rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.times-fixed-toggle input {
+  inline-size: 1rem;
+  block-size: 1rem;
+  accent-color: var(--accent);
+}
+
+.times-fixed-row.is-hidden input[type="text"] {
+  opacity: 0.55;
 }
 
 .times-extra-head {
