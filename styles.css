@@ -1,0 +1,343 @@
+:root {
+  --bg: #f6f0e2;
+  --bg-strong: #e8ddc0;
+  --paper: rgba(255, 252, 245, 0.9);
+  --ink: #2e2418;
+  --muted: #6c5b47;
+  --accent: #7e3f28;
+  --accent-strong: #5f2817;
+  --accent-soft: rgba(126, 63, 40, 0.12);
+  --line: rgba(76, 54, 32, 0.18);
+  --success: #3d6a48;
+  --error: #992d22;
+  --shadow: 0 24px 60px rgba(69, 47, 30, 0.12);
+  --radius-lg: 28px;
+  --radius-md: 18px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  font-family: "Heebo", sans-serif;
+  color: var(--ink);
+  background:
+    radial-gradient(circle at top, rgba(126, 63, 40, 0.18), transparent 32%),
+    linear-gradient(180deg, #f8f4e8 0%, #efe4cc 100%);
+}
+
+code {
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+  background: rgba(46, 36, 24, 0.06);
+  border-radius: 999px;
+  padding: 0.18rem 0.55rem;
+}
+
+.page-shell {
+  width: min(1100px, calc(100% - 2rem));
+  margin: 0 auto;
+  padding: 3rem 0 4rem;
+}
+
+.hero {
+  padding: 2rem 2rem 1rem;
+}
+
+.eyebrow {
+  margin: 0 0 0.9rem;
+  color: var(--accent);
+  font-size: 0.95rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+}
+
+.hero h1 {
+  margin: 0;
+  font-family: "Frank Ruhl Libre", serif;
+  font-size: clamp(2.4rem, 6vw, 4.8rem);
+  line-height: 0.95;
+}
+
+.hero-copy {
+  max-width: 62ch;
+  margin: 1rem 0 0;
+  color: var(--muted);
+  font-size: 1.08rem;
+  line-height: 1.8;
+}
+
+.layout {
+  display: grid;
+  gap: 1.25rem;
+  grid-template-columns: 1.15fr 0.85fr;
+  align-items: start;
+}
+
+.panel {
+  background: var(--paper);
+  border: 1px solid rgba(126, 63, 40, 0.14);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(10px);
+}
+
+.search-panel,
+.results-panel,
+.notes-panel {
+  padding: 1.35rem;
+}
+
+.search-panel {
+  grid-row: span 2;
+}
+
+.panel-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.panel-heading h2 {
+  margin: 0;
+  font-size: 1.15rem;
+}
+
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  padding: 0.4rem 0.8rem;
+  background: var(--accent-soft);
+  color: var(--accent-strong);
+  font-size: 0.92rem;
+  font-weight: 700;
+}
+
+.status-pill.ready {
+  background: rgba(61, 106, 72, 0.12);
+  color: var(--success);
+}
+
+.status-pill.error {
+  background: rgba(153, 45, 34, 0.12);
+  color: var(--error);
+}
+
+.search-form {
+  display: grid;
+  gap: 1rem;
+}
+
+.field {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.field span {
+  color: var(--muted);
+  font-weight: 700;
+}
+
+.field input {
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  padding: 0.95rem 1rem;
+  background: #fffdfa;
+  color: var(--ink);
+  font: inherit;
+}
+
+.field input:focus {
+  outline: 2px solid rgba(126, 63, 40, 0.18);
+  border-color: rgba(126, 63, 40, 0.45);
+}
+
+.actions,
+.examples {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+button {
+  font: inherit;
+  cursor: pointer;
+}
+
+.primary-button,
+.secondary-button,
+.ghost-button,
+.example-chip {
+  border-radius: 999px;
+  transition: transform 140ms ease, opacity 140ms ease, background 140ms ease;
+}
+
+.primary-button:hover,
+.secondary-button:hover,
+.ghost-button:hover,
+.example-chip:hover {
+  transform: translateY(-1px);
+}
+
+.primary-button {
+  border: 0;
+  background: var(--accent);
+  color: white;
+  padding: 0.85rem 1.25rem;
+  font-weight: 700;
+}
+
+.secondary-button {
+  border: 1px solid rgba(126, 63, 40, 0.25);
+  background: transparent;
+  color: var(--accent-strong);
+  padding: 0.85rem 1.15rem;
+  font-weight: 700;
+}
+
+.ghost-button,
+.example-chip {
+  border: 1px solid rgba(126, 63, 40, 0.18);
+  background: rgba(255, 255, 255, 0.7);
+  color: var(--ink);
+}
+
+.ghost-button {
+  padding: 0.55rem 0.9rem;
+}
+
+.example-chip {
+  padding: 0.65rem 0.9rem;
+}
+
+.hint {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.8;
+}
+
+.results {
+  display: grid;
+  gap: 1rem;
+}
+
+.empty-state {
+  color: var(--muted);
+  line-height: 1.8;
+}
+
+.summary-card,
+.location-card,
+.error-card {
+  border-radius: 22px;
+  padding: 1rem 1.05rem;
+}
+
+.summary-card {
+  background:
+    linear-gradient(135deg, rgba(126, 63, 40, 0.12), rgba(126, 63, 40, 0.04)),
+    white;
+  border: 1px solid rgba(126, 63, 40, 0.14);
+}
+
+.summary-card h3,
+.location-card h3,
+.error-card h3 {
+  margin: 0 0 0.45rem;
+  font-size: 1rem;
+}
+
+.summary-main {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.8rem;
+  align-items: baseline;
+}
+
+.summary-value {
+  font-family: "Frank Ruhl Libre", serif;
+  font-size: clamp(1.8rem, 3vw, 2.4rem);
+  line-height: 1;
+}
+
+.summary-direction {
+  color: var(--accent-strong);
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.summary-note {
+  margin: 0.7rem 0 0;
+  color: var(--muted);
+  line-height: 1.75;
+}
+
+.location-grid {
+  display: grid;
+  gap: 0.9rem;
+}
+
+.location-card {
+  background: white;
+  border: 1px solid var(--line);
+}
+
+.location-meta {
+  display: grid;
+  gap: 0.35rem;
+  color: var(--muted);
+}
+
+.location-label {
+  font-size: 1.05rem;
+  color: var(--ink);
+  font-weight: 700;
+}
+
+.error-card {
+  background: rgba(153, 45, 34, 0.06);
+  border: 1px solid rgba(153, 45, 34, 0.12);
+  color: var(--error);
+}
+
+.notes-list {
+  margin: 0;
+  padding: 0 1.25rem 0 0;
+  line-height: 1.9;
+  color: var(--muted);
+}
+
+@media (max-width: 900px) {
+  .layout {
+    grid-template-columns: 1fr;
+  }
+
+  .search-panel {
+    grid-row: auto;
+  }
+}
+
+@media (max-width: 640px) {
+  .page-shell {
+    width: min(100% - 1rem, 100%);
+    padding-top: 1rem;
+  }
+
+  .hero,
+  .search-panel,
+  .results-panel,
+  .notes-panel {
+    padding: 1rem;
+  }
+
+  .panel-heading {
+    align-items: start;
+    flex-direction: column;
+  }
+}

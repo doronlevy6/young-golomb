@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ניווט ספר תורה</title>
+    <meta
+      name="description"
+      content="איתור פרשה או ספר/פרק/פסוק בפורמט תיקון קוראים של 245 עמודות ו־42 שורות."
+    />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Frank+Ruhl+Libre:wght@500;700&family=Heebo:wght@400;500;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="page-shell">
+      <header class="hero">
+        <p class="eyebrow">245 עמודות | 42 שורות | ווי העמודים</p>
+        <h1>ניווט ספר תורה</h1>
+        <p class="hero-copy">
+          מזינים מיקום נוכחי ויעד לפי פרשה, מספר פרשה, ספר־פרק־פסוק או עמודה,
+          ומקבלים כמה עמודות צריך לגלול קדימה או אחורה בפורמט תיקון קוראים.
+        </p>
+      </header>
+
+      <main class="layout">
+        <section class="panel search-panel">
+          <div class="panel-heading">
+            <h2>חיפוש</h2>
+            <button class="ghost-button" id="swap-button" type="button">החלף כיוונים</button>
+          </div>
+
+          <form id="navigator-form" class="search-form">
+            <label class="field">
+              <span>מאיפה אני נמצא</span>
+              <input
+                id="current-query"
+                name="current"
+                list="query-suggestions"
+                placeholder="למשל: עמודה 44, בראשית ג, או יתרו"
+                autocomplete="off"
+              />
+            </label>
+
+            <label class="field">
+              <span>לאן אני רוצה להגיע</span>
+              <input
+                id="target-query"
+                name="target"
+                list="query-suggestions"
+                placeholder="למשל: במדבר כב, 17, או שמות כ"
+                autocomplete="off"
+              />
+            </label>
+
+            <div class="actions">
+              <button class="primary-button" type="submit">חשב גלילה</button>
+              <button class="secondary-button" id="locate-button" type="button">אתר יעד בלבד</button>
+            </div>
+          </form>
+
+          <div class="examples">
+            <button class="example-chip" data-current="בראשית" data-target="יתרו" type="button">
+              בראשית → יתרו
+            </button>
+            <button class="example-chip" data-current="עמודה 44" data-target="יתרו" type="button">
+              עמודה 44 → יתרו
+            </button>
+            <button class="example-chip" data-current="בראשית ג" data-target="במדבר כב" type="button">
+              בראשית ג → במדבר כב
+            </button>
+            <button class="example-chip" data-current="" data-target="שמות כ" type="button">
+              אתר שמות כ
+            </button>
+          </div>
+
+          <p class="hint">
+            פורמטים נתמכים:
+            <code>יתרו</code>,
+            <code>17</code>,
+            <code>בראשית ג</code>,
+            <code>במדבר כב ב</code>,
+            <code>עמודה 81</code>
+          </p>
+        </section>
+
+        <section class="panel results-panel">
+          <div class="panel-heading">
+            <h2>תוצאה</h2>
+            <span class="status-pill" id="data-status">טוען נתונים...</span>
+          </div>
+
+          <div id="results" class="results empty-state">
+            <p>הכלי מוכן. הזן מיקום ויעד כדי לקבל גלילה משוערת בעמודות.</p>
+          </div>
+        </section>
+
+        <section class="panel notes-panel">
+          <div class="panel-heading">
+            <h2>איך זה עובד</h2>
+          </div>
+          <ul class="notes-list">
+            <li>תחילת פרשות ועליות הן נקודות עוגן מדויקות.</li>
+            <li>איתור של ספר־פרק־פסוק מחושב מול אותן נקודות עוגן ולכן מוצג כמשוער אם הוא לא נופל בדיוק על עוגן.</li>
+            <li>החישוב מבוסס על פורמט סטנדרטי של תיקון קוראים: 245 עמודות ו־42 שורות לעמודה.</li>
+          </ul>
+        </section>
+      </main>
+    </div>
+
+    <datalist id="query-suggestions"></datalist>
+
+    <script src="./app.js" type="module"></script>
+  </body>
+</html>
