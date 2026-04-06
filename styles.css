@@ -95,6 +95,42 @@ mark {
   align-items: start;
 }
 
+.main-shell {
+  display: grid;
+  gap: 1rem;
+}
+
+.tab-view[hidden] {
+  display: none;
+}
+
+.mode-tabs {
+  display: inline-flex;
+  gap: 0.5rem;
+  padding: 0.38rem;
+  width: max-content;
+  max-width: 100%;
+  border: 1px solid rgba(126, 63, 40, 0.14);
+  border-radius: 999px;
+  background: rgba(255, 252, 245, 0.78);
+  box-shadow: 0 12px 28px rgba(69, 47, 30, 0.08);
+  backdrop-filter: blur(10px);
+}
+
+.mode-tab {
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  padding: 0.72rem 1.1rem;
+  font-weight: 700;
+}
+
+.mode-tab.is-active {
+  background: var(--accent);
+  color: white;
+  box-shadow: 0 10px 18px rgba(126, 63, 40, 0.22);
+}
+
 .panel {
   background: var(--paper);
   border: 1px solid rgba(126, 63, 40, 0.14);
@@ -184,6 +220,12 @@ mark {
   line-height: 1.6;
 }
 
+.field-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+}
+
 .reading-defaults[hidden] {
   display: none;
 }
@@ -215,6 +257,185 @@ mark {
 .reading-pill span {
   color: var(--muted);
   font-size: 0.88rem;
+}
+
+.journal-view {
+  display: block;
+}
+
+.journal-layout {
+  display: grid;
+  gap: 1rem;
+}
+
+.journal-summary-panel,
+.journal-months-panel {
+  padding: 1.1rem;
+}
+
+.journal-summary {
+  display: grid;
+  gap: 0.9rem;
+}
+
+.journal-summary-card {
+  display: grid;
+  gap: 0.75rem;
+  padding: 1rem 1.05rem;
+  border: 1px solid rgba(126, 63, 40, 0.14);
+  border-radius: 24px;
+  background:
+    radial-gradient(circle at top left, rgba(126, 63, 40, 0.1), transparent 34%),
+    linear-gradient(180deg, rgba(255, 252, 246, 0.98), rgba(248, 240, 226, 0.95));
+}
+
+.journal-summary-head {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 0.7rem;
+  align-items: baseline;
+}
+
+.journal-summary-head h3 {
+  margin: 0;
+  font-size: clamp(1.15rem, 2.8vw, 1.5rem);
+  font-family: "Frank Ruhl Libre", serif;
+}
+
+.journal-summary-date {
+  color: var(--muted);
+  font-weight: 700;
+}
+
+.journal-summary-grid {
+  display: grid;
+  gap: 0.75rem;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+}
+
+.journal-stat {
+  display: grid;
+  gap: 0.25rem;
+  padding: 0.8rem 0.9rem;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.72);
+  border: 1px solid rgba(126, 63, 40, 0.12);
+}
+
+.journal-stat span {
+  color: var(--muted);
+  font-size: 0.84rem;
+}
+
+.journal-stat strong {
+  font-size: 1rem;
+  line-height: 1.45;
+}
+
+.journal-scroll {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  width: max-content;
+  padding: 0.46rem 0.8rem;
+  border-radius: 999px;
+  background: rgba(126, 63, 40, 0.1);
+  color: var(--accent-strong);
+  font-weight: 700;
+}
+
+.journal-months {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+}
+
+.journal-month {
+  display: grid;
+  gap: 0.8rem;
+  padding: 0.95rem;
+  border-radius: 24px;
+  border: 1px solid rgba(126, 63, 40, 0.12);
+  background: rgba(255, 255, 255, 0.62);
+}
+
+.journal-month h3 {
+  margin: 0;
+  font-size: 1.04rem;
+}
+
+.journal-weekdays,
+.journal-days {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 0.45rem;
+}
+
+.journal-weekdays span {
+  text-align: center;
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.journal-day,
+.journal-day-empty {
+  min-height: 94px;
+  border-radius: 18px;
+}
+
+.journal-day-empty {
+  background: rgba(126, 63, 40, 0.04);
+}
+
+.journal-day {
+  display: grid;
+  align-content: start;
+  gap: 0.26rem;
+  padding: 0.65rem 0.52rem;
+  border: 1px solid rgba(126, 63, 40, 0.08);
+  background: rgba(255, 255, 255, 0.78);
+  text-align: start;
+}
+
+.journal-day:hover {
+  transform: translateY(-1px);
+}
+
+.journal-day.is-reading {
+  border-color: rgba(126, 63, 40, 0.18);
+  background: linear-gradient(180deg, rgba(250, 240, 223, 0.95), rgba(255, 252, 246, 0.96));
+}
+
+.journal-day.is-selected {
+  border-color: rgba(95, 40, 23, 0.38);
+  box-shadow: 0 10px 22px rgba(126, 63, 40, 0.12);
+}
+
+.journal-day.is-today {
+  outline: 2px solid rgba(61, 106, 72, 0.18);
+}
+
+.journal-day-number {
+  font-weight: 700;
+  font-size: 0.88rem;
+}
+
+.journal-day-name {
+  font-size: 0.78rem;
+  line-height: 1.35;
+  color: var(--ink);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.journal-day-scroll {
+  color: var(--accent-strong);
+  font-size: 0.74rem;
+  font-weight: 700;
 }
 
 .actions,
@@ -984,6 +1205,10 @@ button {
     grid-template-columns: 1fr;
   }
 
+  .journal-months {
+    grid-template-columns: 1fr;
+  }
+
   .brand {
     grid-template-columns: auto 1fr;
   }
@@ -1041,6 +1266,60 @@ button {
     font-size: 0.84rem;
   }
 
+  .mode-tabs {
+    width: 100%;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .mode-tab {
+    width: 100%;
+    text-align: center;
+  }
+
+  .field-actions,
+  .compact-actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .compact-actions .primary-button,
+  .compact-actions .ghost-button,
+  .field-actions .ghost-button {
+    width: 100%;
+  }
+
+  .journal-summary-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .journal-month {
+    padding: 0.8rem;
+  }
+
+  .journal-weekdays,
+  .journal-days {
+    gap: 0.3rem;
+  }
+
+  .journal-day,
+  .journal-day-empty {
+    min-height: 78px;
+  }
+
+  .journal-day {
+    padding: 0.5rem 0.35rem;
+    border-radius: 15px;
+  }
+
+  .journal-day-name {
+    font-size: 0.72rem;
+  }
+
+  .journal-day-scroll {
+    font-size: 0.68rem;
+  }
+
   .preview-toolbar {
     flex-direction: column;
   }
@@ -1090,10 +1369,6 @@ button {
 
   .meta-pill {
     font-size: 0.78rem;
-  }
-
-  .compact-actions .primary-button {
-    flex: 1 1 auto;
   }
 
   .viewer-meta {

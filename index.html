@@ -31,47 +31,78 @@
         </div>
       </header>
 
-      <main class="layout">
-        <section class="panel search-panel">
-          <form id="navigator-form" class="search-form">
-            <label class="field">
-              <span>אני נמצא ב</span>
-              <input
-                id="current-query"
-                name="current"
-                list="query-suggestions"
-                placeholder="פרשה / שמות כ / במדבר כב ב / עמודה"
-                autocomplete="off"
-              />
-            </label>
+      <main class="main-shell">
+        <div class="mode-tabs" id="mode-tabs">
+          <button class="mode-tab is-active" type="button" data-tab="navigator">ניווט</button>
+          <button class="mode-tab" type="button" data-tab="journal">יומן</button>
+        </div>
 
-            <label class="field">
-              <span>רוצה להגיע ל</span>
-              <input
-                id="target-query"
-                name="target"
-                list="query-suggestions"
-                placeholder="פרשה / שמות כ / במדבר כב ב / עמודה"
-                autocomplete="off"
-              />
-            </label>
+        <section id="navigator-view" class="tab-view">
+          <div class="layout">
+            <section class="panel search-panel">
+              <form id="navigator-form" class="search-form">
+                <label class="field">
+                  <span>אני נמצא ב</span>
+                  <input
+                    id="current-query"
+                    name="current"
+                    list="query-suggestions"
+                    placeholder="פרשה / שמות כ / במדבר כב ב / עמודה"
+                    autocomplete="off"
+                  />
+                </label>
 
-            <div class="actions compact-actions">
-              <button class="primary-button" type="submit">חיפוש</button>
-              <button class="ghost-button small-button" id="reset-button" type="button">איפוס</button>
-            </div>
-            <p class="compact-hint">פרשה, ספר פרק פסוק, עמודה, או <code>יתרו + אנכי</code></p>
-            <div id="reading-defaults" class="reading-defaults" hidden></div>
-          </form>
+                <label class="field">
+                  <span>רוצה להגיע ל</span>
+                  <input
+                    id="target-query"
+                    name="target"
+                    list="query-suggestions"
+                    placeholder="פרשה / שמות כ / במדבר כב ב / עמודה"
+                    autocomplete="off"
+                  />
+                </label>
+
+                <div class="actions compact-actions">
+                  <button class="primary-button" type="submit">חיפוש</button>
+                  <button class="ghost-button small-button" id="reset-button" type="button">איפוס</button>
+                </div>
+
+                <div class="field-actions">
+                  <button class="ghost-button small-button" id="clear-current-button" type="button">נקה מקור</button>
+                  <button class="ghost-button small-button" id="clear-target-button" type="button">נקה יעד</button>
+                </div>
+
+                <p class="compact-hint">פרשה, ספר פרק פסוק, עמודה, או <code>יתרו + אנכי</code></p>
+                <div id="reading-defaults" class="reading-defaults" hidden></div>
+              </form>
+            </section>
+
+            <section class="panel results-panel">
+              <div id="results" class="results empty-state">
+                <p>מלא שדה אחד או שניים.</p>
+              </div>
+
+              <div id="column-preview" class="column-preview empty-state">
+                <p>כאן יופיעו העמודות.</p>
+              </div>
+            </section>
+          </div>
         </section>
 
-        <section class="panel results-panel">
-          <div id="results" class="results empty-state">
-            <p>מלא שדה אחד או שניים.</p>
-          </div>
+        <section id="journal-view" class="tab-view journal-view" hidden>
+          <div class="journal-layout">
+            <section class="panel journal-summary-panel">
+              <div id="journal-summary" class="journal-summary empty-state">
+                <p>טוען יומן...</p>
+              </div>
+            </section>
 
-          <div id="column-preview" class="column-preview empty-state">
-            <p>כאן יופיעו העמודות.</p>
+            <section class="panel journal-months-panel">
+              <div id="journal-months" class="journal-months empty-state">
+                <p>טוען חודשים...</p>
+              </div>
+            </section>
           </div>
         </section>
       </main>
