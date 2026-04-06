@@ -9,6 +9,8 @@ const suggestionsEl = document.getElementById("query-suggestions")
 
 const viewerModal = document.getElementById("viewer-modal")
 const viewerMeta = document.getElementById("viewer-meta")
+const viewerMedia = document.getElementById("viewer-media")
+const viewerHighlights = document.getElementById("viewer-highlights")
 const viewerImage = document.getElementById("viewer-image")
 const viewerStage = document.getElementById("viewer-stage")
 const viewerWatermark = document.getElementById("viewer-watermark")
@@ -774,6 +776,41 @@ function getViewerSearchMatches(query, summary, limit = 6) {
     .slice(0, limit)
 }
 
+function getViewerCurrentColumnMatches(query, limit = 4) {
+  const value = normalizeSpaces(query)
+  if (!value) return []
+
+  return collectTextMatches(value)
+    .filter((match) => match.column === viewerState.column)
+    .sort((a, b) => a.lineFloat - b.lineFloat || a.verse - b.verse)
+    .slice(0, limit)
+}
+
+function renderViewerHighlights() {
+  const query = normalizeSpaces(viewerState.searchQuery)
+  if (!query) {
+    viewerHighlights.innerHTML = ""
+    return
+  }
+
+  const matches = getViewerCurrentColumnMatches(query)
+  if (!matches.length) {
+    viewerHighlights.innerHTML = ""
+    return
+  }
+
+  viewerHighlights.innerHTML = matches
+    .map((match) => {
+      const top = Math.max(2, Math.min(98, ((match.lineFloat - 1) / 42) * 100))
+      return `
+        <div class="viewer-highlight" style="top:${top}%;">
+          <div class="viewer-highlight-label">${escapeHtml(query)} · ${match.book} ${match.chapter}:${match.verse}</div>
+        </div>
+      `
+    })
+    .join("")
+}
+
 function renderViewerSearch(summary = getColumnSummary(viewerState.column)) {
   viewerSearchPanel.hidden = !viewerState.searchOpen
   viewerSearchToggleButton.classList.toggle("is-active", viewerState.searchOpen)
@@ -1147,7 +1184,9 @@ function syncViewerScale() {
   if (!viewerState.open || !viewerImage.naturalWidth || !viewerImage.naturalHeight) return
   viewerState.fitScale = getViewerFitScale()
   const width = viewerImage.naturalWidth * viewerState.fitScale * viewerState.zoomFactor
-  viewerImage.style.width = `${Math.max(width, 80)}px`
+  const safeWidth = `${Math.max(width, 80)}px`
+  viewerMedia.style.width = safeWidth
+  viewerImage.style.width = safeWidth
 }
 
 function resetViewerPosition() {
@@ -1202,6 +1241,7 @@ function renderViewer(summary = getColumnSummary(viewerState.column)) {
   viewerImage.src = imagePath
   viewerImage.alt = `${viewerState.title} - עמודה ${viewerState.column}`
   renderViewerSearch(currentSummary)
+  renderViewerHighlights()
   syncViewerScale()
   viewerPrevButton.disabled = viewerState.column <= 1
   viewerNextButton.disabled = viewerState.column >= navigatorData.layout.columns
@@ -1305,6 +1345,7 @@ viewerSearchToggleButton.addEventListener("click", () => {
 viewerSearchInput.addEventListener("input", () => {
   viewerState.searchQuery = normalizeSpaces(viewerSearchInput.value)
   renderViewerSearch()
+  renderViewerHighlights()
 })
 
 viewerSearchResults.addEventListener("click", (event) => {
