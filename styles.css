@@ -448,7 +448,7 @@ mark {
 
 .journal-summary-panel,
 .journal-months-panel {
-  padding: 1.1rem;
+  padding: 0.9rem;
 }
 
 .journal-summary {
@@ -525,22 +525,22 @@ mark {
 
 .journal-months {
   display: grid;
-  gap: 1rem;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 0.75rem;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
 }
 
 .journal-month {
   display: grid;
-  gap: 0.8rem;
-  padding: 0.95rem;
-  border-radius: 24px;
+  gap: 0.55rem;
+  padding: 0.72rem;
+  border-radius: 20px;
   border: 1px solid rgba(126, 63, 40, 0.12);
   background: rgba(255, 255, 255, 0.62);
 }
 
 .journal-month h3 {
   margin: 0;
-  font-size: 1.04rem;
+  font-size: 0.98rem;
 }
 
 .journal-weekdays,
@@ -553,15 +553,15 @@ mark {
 .journal-weekdays span {
   text-align: center;
   color: var(--muted);
-  font-size: 0.78rem;
+  font-size: 0.72rem;
   font-weight: 700;
 }
 
 .journal-day,
 .journal-day-empty {
   min-height: 0;
-  aspect-ratio: 1 / 1;
-  border-radius: 18px;
+  aspect-ratio: 1.15 / 1;
+  border-radius: 14px;
 }
 
 .journal-day-empty {
@@ -572,7 +572,7 @@ mark {
   display: grid;
   align-content: start;
   gap: 0.18rem;
-  padding: 0.48rem 0.4rem;
+  padding: 0.34rem 0.3rem;
   border: 1px solid rgba(126, 63, 40, 0.08);
   background: rgba(255, 255, 255, 0.78);
   text-align: start;
@@ -611,13 +611,13 @@ mark {
 
 .journal-day-number {
   font-weight: 700;
-  font-size: 0.82rem;
+  font-size: 0.76rem;
   line-height: 1.1;
 }
 
 .journal-day-hebrew {
   color: var(--muted);
-  font-size: 0.58rem;
+  font-size: 0.52rem;
   line-height: 1.15;
   white-space: nowrap;
   overflow: hidden;
@@ -625,7 +625,7 @@ mark {
 }
 
 .journal-day-label {
-  font-size: 0.64rem;
+  font-size: 0.58rem;
   line-height: 1.2;
   color: var(--ink);
   display: -webkit-box;
@@ -658,14 +658,14 @@ mark {
 }
 
 .calendar-shell {
-  width: min(1120px, 100%);
-  max-height: min(94dvh, 940px);
-  overflow: hidden;
+  width: min(980px, 100%);
+  max-height: min(88dvh, 860px);
+  overflow: auto;
   display: grid;
   grid-template-rows: auto auto minmax(0, 1fr);
-  padding: 1rem;
+  padding: 0.85rem;
   border: 1px solid rgba(126, 63, 40, 0.14);
-  border-radius: 32px;
+  border-radius: 28px;
   background:
     radial-gradient(circle at top left, rgba(126, 63, 40, 0.1), transparent 34%),
     linear-gradient(180deg, rgba(255, 252, 246, 0.98), rgba(247, 239, 225, 0.97));
@@ -676,8 +676,8 @@ mark {
   display: flex;
   justify-content: space-between;
   align-items: start;
-  gap: 1rem;
-  margin-bottom: 0.9rem;
+  gap: 0.7rem;
+  margin-bottom: 0.65rem;
 }
 
 .calendar-copy {
@@ -694,15 +694,16 @@ mark {
 .calendar-copy p {
   margin: 0;
   color: var(--muted);
-  line-height: 1.7;
+  line-height: 1.55;
+  font-size: 0.92rem;
 }
 
 .calendar-controls {
   display: flex;
   flex-wrap: wrap;
   align-items: end;
-  gap: 0.65rem;
-  margin-bottom: 1rem;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
 }
 
 .calendar-select {
@@ -729,12 +730,12 @@ mark {
 
 .calendar-layout {
   display: grid;
-  gap: 1rem;
-  grid-template-columns: minmax(0, 1fr) minmax(300px, 360px);
+  gap: 0.8rem;
+  grid-template-columns: minmax(0, 1fr) minmax(250px, 300px);
   align-items: start;
   min-height: 0;
-  overflow: auto;
-  padding-inline-end: 0.1rem;
+  overflow: visible;
+  padding-inline-end: 0;
 }
 
 .calendar-layout .journal-months-panel {
@@ -743,9 +744,10 @@ mark {
 
 .calendar-layout .journal-summary-panel {
   grid-column: 2;
-  position: sticky;
-  top: 0;
+  position: static;
   align-self: start;
+  max-height: min(66dvh, 620px);
+  overflow: auto;
 }
 
 .actions,
@@ -1562,6 +1564,8 @@ button {
     order: 2;
     grid-column: auto;
     position: static;
+    max-height: none;
+    overflow: visible;
   }
 
   .journal-months {
@@ -1730,7 +1734,7 @@ button {
   }
 
   .journal-month {
-    padding: 0.8rem;
+    padding: 0.68rem;
   }
 
   .journal-weekdays,
@@ -1740,20 +1744,20 @@ button {
 
   .journal-day,
   .journal-day-empty {
-    aspect-ratio: 1 / 1;
+    aspect-ratio: 1.2 / 1;
   }
 
   .journal-day {
-    padding: 0.42rem 0.3rem;
-    border-radius: 15px;
+    padding: 0.3rem 0.25rem;
+    border-radius: 12px;
   }
 
   .journal-day-label {
-    font-size: 0.62rem;
+    font-size: 0.56rem;
   }
 
   .journal-day-hebrew {
-    font-size: 0.54rem;
+    font-size: 0.5rem;
   }
 
   .preview-toolbar {

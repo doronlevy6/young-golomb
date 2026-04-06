@@ -1527,6 +1527,46 @@ function applyAutoReadingDefaults() {
   if (changed) runSearch({ live: true })
 }
 
+function getHebcalItemKey(item) {
+  const nameToken =
+    typeof item?.name === "string"
+      ? item.name
+      : item?.name?.he || item?.name?.en || ""
+  return `${item?.date || ""}|${item?.type || ""}|${nameToken}|${item?.summary || ""}`
+}
+
+async function fetchLeyningItemsInChunks(start, end) {
+  const chunkDays = 170
+  const items = []
+  const sourceUrls = []
+  const seenKeys = new Set()
+  let cursor = start
+
+  while (cursor <= end) {
+    const nextChunkEnd = addDaysToIsoDate(cursor, chunkDays)
+    const chunkEnd = nextChunkEnd < end ? nextChunkEnd : end
+    const sourceUrl = `https://www.hebcal.com/leyning?cfg=json&start=${cursor}&end=${chunkEnd}&i=on&triennial=off`
+    sourceUrls.push(sourceUrl)
+
+    const response = await fetch(sourceUrl)
+    if (!response.ok) throw new Error(`Hebcal HTTP ${response.status}`)
+
+    const payload = await response.json()
+    const chunkItems = Array.isArray(payload.items) ? payload.items : []
+    chunkItems.forEach((item) => {
+      const key = getHebcalItemKey(item)
+      if (seenKeys.has(key)) return
+      seenKeys.add(key)
+      items.push(item)
+    })
+
+    if (chunkEnd >= end) break
+    cursor = addDaysToIsoDate(chunkEnd, 1)
+  }
+
+  return { items, sourceUrls }
+}
+
 async function loadAutoReadings() {
   autoReadingsState.loading = true
   autoReadingsState.error = ""
@@ -1536,12 +1576,7 @@ async function loadAutoReadings() {
   try {
     const today = getIsraelDateString()
     const { start, end } = getCalendarRange(today)
-    const sourceUrl = `https://www.hebcal.com/leyning?cfg=json&start=${start}&end=${end}&i=on&triennial=off`
-    const response = await fetch(sourceUrl)
-    if (!response.ok) throw new Error(`Hebcal HTTP ${response.status}`)
-
-    const payload = await response.json()
-    const items = Array.isArray(payload.items) ? payload.items : []
+    const { items, sourceUrls } = await fetchLeyningItemsInChunks(start, end)
     const readings = enrichReadingsWithScroll(
       items
       .map((item) => createScheduledReadingRecord(item))
@@ -1555,7 +1590,7 @@ async function loadAutoReadings() {
     autoReadingsState.today = today
     autoReadingsState.rangeStart = start
     autoReadingsState.rangeEnd = end
-    autoReadingsState.sourceUrl = sourceUrl
+    autoReadingsState.sourceUrl = sourceUrls[0] || ""
     journalState.selectedDate =
       getReadingByDate(journalState.selectedDate)?.date ||
       autoReadingsState.next?.date ||
