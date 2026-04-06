@@ -6,6 +6,7 @@ const currentInput = document.getElementById("current-query")
 const targetInput = document.getElementById("target-query")
 const resetButton = document.getElementById("reset-button")
 const suggestionsEl = document.getElementById("query-suggestions")
+const readingDefaultsEl = document.getElementById("reading-defaults")
 
 const viewerModal = document.getElementById("viewer-modal")
 const viewerMeta = document.getElementById("viewer-meta")
@@ -56,9 +57,23 @@ const parashahAliases = {
   ויקהלפקודי: "ויקהל",
 }
 
+const torahBooks = new Set(["בראשית", "שמות", "ויקרא", "במדבר", "דברים"])
+const scheduledReadingPrefixes = {
+  previous: ["קריאה אחרונה", "קריאה קודמת", "הקריאה האחרונה"],
+  next: ["קריאה הבאה", "הקריאה הבאה"],
+}
+
 let navigatorData = null
 let previewState = []
 let comparisonState = null
+let autoReadingsState = {
+  previous: null,
+  next: null,
+  today: "",
+  sourceUrl: "",
+  loading: false,
+  error: "",
+}
 let viewerState = {
   open: false,
   column: 1,
@@ -223,6 +238,53 @@ function formatNumber(value, digits = 1) {
   })
 }
 
+function getIsraelDateString(date = new Date()) {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Jerusalem",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  })
+    .formatToParts(date)
+    .reduce((result, part) => {
+      if (part.type !== "literal") result[part.type] = part.value
+      return result
+    }, {})
+
+  return `${parts.year}-${parts.month}-${parts.day}`
+}
+
+function addDaysToIsoDate(isoDate, days) {
+  const date = new Date(`${isoDate}T00:00:00Z`)
+  date.setUTCDate(date.getUTCDate() + days)
+  return date.toISOString().slice(0, 10)
+}
+
+function formatReadingDate(dateString) {
+  const date = new Date(`${dateString}T00:00:00Z`)
+  return new Intl.DateTimeFormat("he-IL", {
+    timeZone: "Asia/Jerusalem",
+    weekday: "short",
+    day: "numeric",
+    month: "numeric",
+    year: "numeric",
+  }).format(date)
+}
+
+function normalizeHebcalBook(bookName) {
+  return bookAliases[normalizeKey(bookName)] || null
+}
+
+function isTorahBook(bookName) {
+  const normalized = normalizeHebcalBook(bookName)
+  return normalized ? torahBooks.has(normalized) : false
+}
+
+function formatReadingInputValue(role, reading) {
+  const prefix = role === "previous" ? "קריאה אחרונה" : "קריאה הבאה"
+  return `${prefix}: ${reading.name}`
+}
+
 function columnImagePath(column) {
   const padded = String(column).padStart(3, "0")
   return `./columns/Torah_Scroll_Col_${padded}_of_245.jpg`
@@ -235,7 +297,7 @@ function buildSuggestions() {
     option.value = parashah.name_display
     fragment.appendChild(option)
   })
-  ;["בראשית ג", "שמות כ", "במדבר כב ב", "עמודה 44", "והנחש היה ערום"].forEach((value) => {
+  ;["קריאה אחרונה", "קריאה הבאה", "בראשית ג", "שמות כ", "במדבר כב ב", "עמודה 44", "והנחש היה ערום"].forEach((value) => {
     const option = document.createElement("option")
     option.value = value
     fragment.appendChild(option)
@@ -323,6 +385,247 @@ function parseReference(query) {
   const verse = parts[2] ? parseHebrewNumber(parts[2]) : 1
   if (!chapter || !verse) return null
   return { book, chapter, verse, explicitVerse: Boolean(parts[2]) }
+}
+
+function parseRefToken(refToken) {
+  const [chapterRaw, verseRaw] = String(refToken || "").split(":")
+  const chapter = parseHebrewNumber(chapterRaw)
+  const verse = parseHebrewNumber(verseRaw)
+  if (!chapter || !verse) return null
+  return { chapter, verse }
+}
+
+function parseHebcalRange(bookName, beginRef, endRef) {
+  const book = normalizeHebcalBook(bookName)
+  if (!book || !isTorahBook(book)) return null
+
+  const start = parseRefToken(beginRef)
+  const end = parseRefToken(endRef)
+  if (!start || !end) return null
+
+  return { book, start, end }
+}
+
+function getAliyahSortKey(key) {
+  if (/^\d+$/.test(String(key))) return Number(key)
+  return String(key).toUpperCase() === "M" ? 99 : 199
+}
+
+function getTorahRangesFromAliyot(aliyot = {}) {
+  return Object.entries(aliyot)
+    .sort((a, b) => getAliyahSortKey(a[0]) - getAliyahSortKey(b[0]))
+    .map(([, aliyah]) => parseHebcalRange(aliyah.k, aliyah.b, aliyah.e))
+    .filter(Boolean)
+}
+
+function getTorahRangesFromHebcalItem(item) {
+  if (Array.isArray(item.summaryParts) && item.summaryParts.length) {
+    const summaryRanges = item.summaryParts
+      .map((part) => parseHebcalRange(part.k, part.b, part.e))
+      .filter(Boolean)
+    if (summaryRanges.length) return summaryRanges
+  }
+
+  if (item.weekday) {
+    const weekdayRanges = getTorahRangesFromAliyot(item.weekday)
+    if (weekdayRanges.length) return weekdayRanges
+  }
+
+  return getTorahRangesFromAliyot(item.fullkriyah)
+}
+
+function formatRangeSegment(range) {
+  const endLabel =
+    range.start.chapter === range.end.chapter
+      ? String(range.end.verse)
+      : `${range.end.chapter}:${range.end.verse}`
+
+  return `${range.book} ${range.start.chapter}:${range.start.verse}-${endLabel}`
+}
+
+function getHebcalReadingName(item) {
+  if (typeof item.name === "string") return item.name
+  return item.name?.he || item.name?.en || item.summary || "קריאה"
+}
+
+function getHebcalReadingTypeLabel(item) {
+  if (item.type === "holiday") return "קריאת חג"
+  if (item.weekday) return "קריאת שני/חמישי"
+  return "קריאת שבת"
+}
+
+function createReadingAnchor(verse) {
+  return {
+    refLabel: `${verse.book} ${verse.chapter}:${verse.verse}`,
+    book: verse.book,
+    chapter: verse.chapter,
+    verse: verse.verse,
+    columnFloat: verse.columnFloat,
+    column: verse.column,
+    lineFloat: verse.lineFloat,
+    exact: verse.exact,
+    parashahKey: verse.parashahKey,
+  }
+}
+
+function createScheduledReadingRecord(item) {
+  const ranges = getTorahRangesFromHebcalItem(item)
+  if (!ranges.length) return null
+
+  const firstRange = ranges[0]
+  const lastRange = ranges.at(-1)
+  const startVerse = navigatorData.verseByKey.get(
+    `${firstRange.book}:${firstRange.start.chapter}:${firstRange.start.verse}`,
+  )
+  const endVerse = navigatorData.verseByKey.get(
+    `${lastRange.book}:${lastRange.end.chapter}:${lastRange.end.verse}`,
+  )
+
+  if (!startVerse || !endVerse) return null
+
+  return {
+    date: item.date,
+    displayDate: formatReadingDate(item.date),
+    name: getHebcalReadingName(item),
+    typeLabel: getHebcalReadingTypeLabel(item),
+    summary: item.summary || "",
+    rangeLabel: ranges.map((range) => formatRangeSegment(range)).join(" | "),
+    start: createReadingAnchor(startVerse),
+    end: createReadingAnchor(endVerse),
+  }
+}
+
+function getScheduledReadingKey(query) {
+  const value = normalizeKey(query)
+  if (!value) return null
+
+  for (const [readingKey, prefixes] of Object.entries(scheduledReadingPrefixes)) {
+    if (prefixes.some((prefix) => value.startsWith(normalizeKey(prefix)))) {
+      return readingKey
+    }
+  }
+
+  return null
+}
+
+function createScheduledReadingLocation(reading, role, rawQuery = "") {
+  const anchor = role === "previous" ? reading.end : reading.start
+  const anchorLabel = role === "previous" ? "סוף הקריאה" : "תחילת הקריאה"
+
+  return {
+    kind: "scheduledReading",
+    label: anchorLabel,
+    columnFloat: anchor.columnFloat,
+    column: anchor.column,
+    lineFloat: anchor.lineFloat,
+    exact: anchor.exact,
+    detail: `${reading.typeLabel} | ${reading.rangeLabel}`,
+    queryText: normalizeSpaces(rawQuery) || formatReadingInputValue(role, reading),
+    searchQuery: "",
+    readingName: reading.name,
+    readingDate: reading.displayDate,
+    readingStartRef: reading.start.refLabel,
+    readingStartColumn: reading.start.column,
+    readingEndRef: reading.end.refLabel,
+    readingEndColumn: reading.end.column,
+    anchorContext: {
+      columnFloat: anchor.columnFloat,
+      book: anchor.book,
+      chapter: anchor.chapter,
+      parashahKey: anchor.parashahKey,
+    },
+  }
+}
+
+function renderReadingDefaults() {
+  if (!readingDefaultsEl) return
+
+  if (autoReadingsState.loading) {
+    readingDefaultsEl.hidden = false
+    readingDefaultsEl.innerHTML = `
+      <div class="reading-pill">
+        <strong>טוען קריאות...</strong>
+      </div>
+    `
+    return
+  }
+
+  const cards = []
+  if (autoReadingsState.previous) {
+    cards.push(`
+      <button class="reading-pill" type="button" data-fill-reading="previous">
+        <strong>אחרונה: ${escapeHtml(autoReadingsState.previous.name)}</strong>
+        <span>${escapeHtml(autoReadingsState.previous.displayDate)} · ${escapeHtml(autoReadingsState.previous.start.refLabel)} → ${escapeHtml(autoReadingsState.previous.end.refLabel)}</span>
+      </button>
+    `)
+  }
+  if (autoReadingsState.next) {
+    cards.push(`
+      <button class="reading-pill" type="button" data-fill-reading="next">
+        <strong>הבאה: ${escapeHtml(autoReadingsState.next.name)}</strong>
+        <span>${escapeHtml(autoReadingsState.next.displayDate)} · ${escapeHtml(autoReadingsState.next.start.refLabel)} → ${escapeHtml(autoReadingsState.next.end.refLabel)}</span>
+      </button>
+    `)
+  }
+
+  readingDefaultsEl.hidden = cards.length === 0
+  readingDefaultsEl.innerHTML = cards.join("")
+}
+
+function applyAutoReadingDefaults() {
+  let changed = false
+
+  if (!normalizeSpaces(currentInput.value) && autoReadingsState.previous) {
+    currentInput.value = formatReadingInputValue("previous", autoReadingsState.previous)
+    changed = true
+  }
+
+  if (!normalizeSpaces(targetInput.value) && autoReadingsState.next) {
+    targetInput.value = formatReadingInputValue("next", autoReadingsState.next)
+    changed = true
+  }
+
+  if (changed) runSearch({ live: true })
+}
+
+async function loadAutoReadings() {
+  autoReadingsState.loading = true
+  autoReadingsState.error = ""
+  renderReadingDefaults()
+
+  try {
+    const today = getIsraelDateString()
+    const start = addDaysToIsoDate(today, -21)
+    const end = addDaysToIsoDate(today, 21)
+    const sourceUrl = `https://www.hebcal.com/leyning?cfg=json&start=${start}&end=${end}&i=on&triennial=off`
+    const response = await fetch(sourceUrl)
+    if (!response.ok) throw new Error(`Hebcal HTTP ${response.status}`)
+
+    const payload = await response.json()
+    const items = Array.isArray(payload.items) ? payload.items : []
+    const readings = items
+      .map((item) => createScheduledReadingRecord(item))
+      .filter(Boolean)
+      .sort((a, b) => a.date.localeCompare(b.date))
+
+    autoReadingsState.previous = readings.filter((reading) => reading.date <= today).at(-1) || null
+    autoReadingsState.next = readings.find((reading) => reading.date > today) || null
+    autoReadingsState.today = today
+    autoReadingsState.sourceUrl = sourceUrl
+  } catch (error) {
+    autoReadingsState.previous = null
+    autoReadingsState.next = null
+    autoReadingsState.error = error.message
+    console.error(error)
+  } finally {
+    autoReadingsState.loading = false
+    renderReadingDefaults()
+    if (getScheduledReadingKey(currentInput.value) || getScheduledReadingKey(targetInput.value)) {
+      runSearch({ live: true })
+    } else {
+      applyAutoReadingDefaults()
+    }
+  }
 }
 
 function findTermsInOrder(text, terms) {
@@ -527,6 +830,13 @@ function highlightMatchText(originalText, match, queryText) {
 function resolveStandardQuery(query) {
   const value = normalizeSpaces(query)
   if (!value) throw new Error("צריך למלא לפחות שדה אחד.")
+
+  const scheduledReadingKey = getScheduledReadingKey(value)
+  if (scheduledReadingKey) {
+    const reading = autoReadingsState[scheduledReadingKey]
+    if (!reading) throw new Error("הקריאות האוטומטיות עדיין לא נטענו.")
+    return createScheduledReadingLocation(reading, scheduledReadingKey, value)
+  }
 
   const directColumn = findDirectColumn(value)
   if (directColumn !== null) {
@@ -738,6 +1048,7 @@ function getColumnAnchorContext(summary, column = summary?.column || viewerState
 }
 
 function extractLocationSearchQuery(location) {
+  if (typeof location?.searchQuery === "string") return location.searchQuery
   if (!location?.queryText) return ""
   const plusQuery = parsePlusQuery(location.queryText)
   return plusQuery ? plusQuery.textQuery : location.queryText
@@ -872,6 +1183,18 @@ function formatLocation(location) {
       <div class="location-meta">
         ${location.queryText ? `<div class="location-query">${location.queryText}</div>` : ""}
         <div class="location-label">${location.label}</div>
+        ${location.readingName ? `<div>קריאה: ${location.readingName}</div>` : ""}
+        ${location.readingDate ? `<div>תאריך: ${location.readingDate}</div>` : ""}
+        ${
+          location.readingStartRef
+            ? `<div>תחילה: ${location.readingStartRef} · עמודה ${location.readingStartColumn}</div>`
+            : ""
+        }
+        ${
+          location.readingEndRef
+            ? `<div>סוף: ${location.readingEndRef} · עמודה ${location.readingEndColumn}</div>`
+            : ""
+        }
         ${location.anchorLabel ? `<div>עוגן: ${location.anchorLabel}</div>` : ""}
         <div>עמודה ${columnText}</div>
         <div>שורה ${lineText}</div>
@@ -1263,6 +1586,7 @@ async function init() {
     buildIndexes()
     buildSuggestions()
     setStatus("מוכן", "ready")
+    loadAutoReadings()
   } catch (error) {
     setStatus("שגיאה", "error")
     renderError("לא הצלחתי לטעון את הנתונים.")
@@ -1286,6 +1610,24 @@ targetInput.addEventListener("input", () => {
 resetButton.addEventListener("click", () => {
   clearTimeout(liveSearchTimer)
   resetState()
+  applyAutoReadingDefaults()
+})
+
+readingDefaultsEl.addEventListener("click", (event) => {
+  const target = event.target.closest("[data-fill-reading]")
+  if (!target) return
+
+  const readingKey = target.dataset.fillReading
+  const reading = autoReadingsState[readingKey]
+  if (!reading) return
+
+  if (readingKey === "previous") {
+    currentInput.value = formatReadingInputValue("previous", reading)
+  } else {
+    targetInput.value = formatReadingInputValue("next", reading)
+  }
+
+  runSearch({ live: true })
 })
 
 resultsEl.addEventListener("click", (event) => {

@@ -184,6 +184,39 @@ mark {
   line-height: 1.6;
 }
 
+.reading-defaults[hidden] {
+  display: none;
+}
+
+.reading-defaults {
+  display: grid;
+  gap: 0.65rem;
+}
+
+.reading-pill {
+  display: grid;
+  gap: 0.18rem;
+  width: 100%;
+  padding: 0.8rem 0.95rem;
+  border: 1px solid rgba(126, 63, 40, 0.14);
+  border-radius: 18px;
+  background:
+    linear-gradient(135deg, rgba(250, 240, 223, 0.95), rgba(255, 252, 246, 0.98));
+  color: var(--ink);
+  text-align: start;
+  box-shadow: 0 10px 24px rgba(71, 42, 21, 0.05);
+}
+
+.reading-pill strong {
+  font-size: 1rem;
+  line-height: 1.35;
+}
+
+.reading-pill span {
+  color: var(--muted);
+  font-size: 0.88rem;
+}
+
 .actions,
 .examples {
   display: flex;
