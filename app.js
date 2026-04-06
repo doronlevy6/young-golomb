@@ -568,34 +568,31 @@ function createReadingAnchor(verse) {
 }
 
 function getSegmentLabel(index) {
-  const labels = ["ספר ראשון", "ספר שני", "ספר שלישי", "ספר רביעי"]
-  return labels[index] || `ספר ${index + 1}`
+  const labels = ["Torah Portion ראשון", "Torah Portion שני", "Torah Portion שלישי", "Torah Portion רביעי"]
+  return labels[index] || `Torah Portion ${index + 1}`
 }
 
-function groupRangesByBook(ranges) {
-  return ranges.reduce((groups, range) => {
-    const previous = groups.at(-1)
-    if (previous && previous.book === range.book) {
-      previous.ranges.push(range)
-      return groups
-    }
+function buildSegmentLabels(segments) {
+  const countsByBook = segments.reduce((counts, segment) => {
+    counts.set(segment.book, (counts.get(segment.book) || 0) + 1)
+    return counts
+  }, new Map())
 
-    groups.push({
-      book: range.book,
-      ranges: [range],
-    })
-    return groups
-  }, [])
+  return segments.map((segment) => ({
+    ...segment,
+    label:
+      countsByBook.get(segment.book) > 1
+        ? `${getSegmentLabel(segment.index)} · ${segment.rangeLabel}`
+        : `${getSegmentLabel(segment.index)} · ${segment.book}`,
+  }))
 }
 
-function createReadingSegment(group, index) {
-  const firstRange = group.ranges[0]
-  const lastRange = group.ranges.at(-1)
+function createReadingSegment(range, index) {
   const startVerse = navigatorData.verseByKey.get(
-    `${firstRange.book}:${firstRange.start.chapter}:${firstRange.start.verse}`,
+    `${range.book}:${range.start.chapter}:${range.start.verse}`,
   )
   const endVerse = navigatorData.verseByKey.get(
-    `${lastRange.book}:${lastRange.end.chapter}:${lastRange.end.verse}`,
+    `${range.book}:${range.end.chapter}:${range.end.verse}`,
   )
 
   if (!startVerse || !endVerse) return null
@@ -603,9 +600,9 @@ function createReadingSegment(group, index) {
   return {
     index,
     label: getSegmentLabel(index),
-    book: group.book,
-    rangeLabel: group.ranges.map((range) => formatRangeSegment(range)).join(" | "),
-    allowedRanges: group.ranges,
+    book: range.book,
+    rangeLabel: formatRangeSegment(range),
+    allowedRanges: [range],
     start: createReadingAnchor(startVerse),
     end: createReadingAnchor(endVerse),
   }
@@ -629,9 +626,11 @@ function createScheduledReadingRecord(item) {
   const ranges = getTorahRangesFromHebcalItem(item)
   if (!ranges.length) return null
 
-  const segments = groupRangesByBook(ranges)
+  const segments = buildSegmentLabels(
+    ranges
     .map((group, index) => createReadingSegment(group, index))
-    .filter(Boolean)
+    .filter(Boolean),
+  )
 
   if (!segments.length) return null
 
