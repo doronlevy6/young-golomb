@@ -52,6 +52,28 @@
           <div class="layout">
             <section class="panel search-panel">
               <form id="navigator-form" class="search-form">
+                <label class="field field-secondary">
+                  <span>אני נמצא ב</span>
+                  <div class="field-inline">
+                    <input
+                      id="current-query"
+                      name="current"
+                      list="query-suggestions"
+                      placeholder="מיקום נוכחי או השאר אוטומטי"
+                      autocomplete="off"
+                    />
+                    <button
+                      class="ghost-button small-button calendar-trigger"
+                      id="current-calendar-button"
+                      type="button"
+                      aria-label="פתח יומן מקור"
+                    >
+                      יומן
+                    </button>
+                  </div>
+                </label>
+                <div id="current-segment-picker" class="segment-picker" hidden></div>
+
                 <label class="field field-target">
                   <span>רוצה להגיע ל</span>
                   <div class="field-inline">
@@ -74,18 +96,6 @@
                 </label>
                 <p class="target-hint">הכי פשוט: בוחרים יעד, ורואים כמה לגלול.</p>
                 <div id="target-segment-picker" class="segment-picker" hidden></div>
-
-                <label class="field field-secondary">
-                  <span>אני נמצא ב</span>
-                  <input
-                    id="current-query"
-                    name="current"
-                    list="query-suggestions"
-                    placeholder="מיקום נוכחי או השאר אוטומטי"
-                    autocomplete="off"
-                  />
-                </label>
-                <div id="current-segment-picker" class="segment-picker" hidden></div>
 
                 <div class="actions compact-actions">
                   <button class="primary-button" type="submit">חשב גלילה</button>

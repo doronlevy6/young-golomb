@@ -6,6 +6,7 @@ const currentInput = document.getElementById("current-query")
 const currentSegmentPicker = document.getElementById("current-segment-picker")
 const targetInput = document.getElementById("target-query")
 const targetSegmentPicker = document.getElementById("target-segment-picker")
+const currentCalendarButton = document.getElementById("current-calendar-button")
 const targetCalendarButton = document.getElementById("target-calendar-button")
 const resetButton = document.getElementById("reset-button")
 const clearCurrentButton = document.getElementById("clear-current-button")
@@ -114,6 +115,7 @@ let journalState = {
   selectedDate: "",
   visibleMonthKey: "",
   open: false,
+  fieldKey: "target",
 }
 let querySegmentState = {
   current: null,
@@ -1302,11 +1304,17 @@ function setJournalVisibleMonth(monthKey) {
   renderJournal()
 }
 
-function openCalendarModal() {
-  const targetReading = getScheduledReadingFromQuery(targetInput.value) || autoReadingsState.next || autoReadingsState.previous
+function openCalendarModal(fieldKey = "target") {
+  journalState.fieldKey = fieldKey === "current" ? "current" : "target"
+  const fieldInput = journalState.fieldKey === "current" ? currentInput : targetInput
+  const fallbackReading =
+    journalState.fieldKey === "current"
+      ? autoReadingsState.previous || autoReadingsState.next
+      : autoReadingsState.next || autoReadingsState.previous
+  const selectedReading = getScheduledReadingFromQuery(fieldInput.value) || fallbackReading
   const targetDate =
-    parseIsoDateFromQuery(targetInput.value) ||
-    targetReading?.date ||
+    parseIsoDateFromQuery(fieldInput.value) ||
+    selectedReading?.date ||
     journalState.selectedDate ||
     autoReadingsState.today
   journalState.selectedDate = targetDate
@@ -1324,24 +1332,41 @@ function closeCalendarModal() {
 }
 
 function applyJournalReading(dateString) {
-  const targetReading = getReadingFromDateQuery(dateString)
-  if (!targetReading) return
+  const selectedReading = getReadingFromDateQuery(dateString)
+  if (!selectedReading) return
 
-  const previousReading =
-    autoReadingsState.readings.filter((reading) => reading.date < targetReading.date).at(-1) || null
+  if (journalState.fieldKey === "current") {
+    const nextReading = autoReadingsState.readings.find((reading) => reading.date > selectedReading.date) || null
 
-  targetInput.value =
-    targetReading.date === dateString ? formatReadingDateInputValue(targetReading) : `${dateString} · ${targetReading.name}`
-  querySegmentState.target = null
-  renderSegmentPicker("target")
+    currentInput.value =
+      selectedReading.date === dateString ? formatReadingDateInputValue(selectedReading) : `${dateString} · ${selectedReading.name}`
+    querySegmentState.current = null
+    renderSegmentPicker("current")
 
-  if (previousReading) {
-    currentInput.value = formatReadingDateInputValue(previousReading)
+    if (nextReading) {
+      targetInput.value = formatReadingDateInputValue(nextReading)
+    } else {
+      targetInput.value = ""
+    }
+    querySegmentState.target = null
+    renderSegmentPicker("target")
   } else {
-    currentInput.value = ""
+    const previousReading =
+      autoReadingsState.readings.filter((reading) => reading.date < selectedReading.date).at(-1) || null
+
+    targetInput.value =
+      selectedReading.date === dateString ? formatReadingDateInputValue(selectedReading) : `${dateString} · ${selectedReading.name}`
+    querySegmentState.target = null
+    renderSegmentPicker("target")
+
+    if (previousReading) {
+      currentInput.value = formatReadingDateInputValue(previousReading)
+    } else {
+      currentInput.value = ""
+    }
+    querySegmentState.current = null
+    renderSegmentPicker("current")
   }
-  querySegmentState.current = null
-  renderSegmentPicker("current")
 
   closeCalendarModal()
   runSearch({ live: true })
@@ -2599,8 +2624,12 @@ clearTargetButton?.addEventListener("click", () => {
   runSearch({ live: true })
 })
 
+currentCalendarButton?.addEventListener("click", () => {
+  openCalendarModal("current")
+})
+
 targetCalendarButton?.addEventListener("click", () => {
-  openCalendarModal()
+  openCalendarModal("target")
 })
 
 calendarCloseButton?.addEventListener("click", () => {
