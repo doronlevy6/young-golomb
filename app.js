@@ -40,6 +40,7 @@ const parashahAliases = {
 }
 
 let navigatorData = null
+let previewState = []
 
 function normalizeSpaces(text) {
   return text.replace(/\s+/g, " ").trim()
@@ -276,6 +277,10 @@ function formatLocation(location) {
   `
 }
 
+function clampColumn(column) {
+  return Math.min(Math.max(column, 1), navigatorData.layout.columns)
+}
+
 function renderError(message) {
   resultsEl.className = "results"
   resultsEl.innerHTML = `
@@ -333,33 +338,80 @@ function columnImagePath(column) {
 
 function renderPreview(items = []) {
   if (!items.length) {
+    previewState = []
     previewEl.className = "column-preview empty-state"
     previewEl.innerHTML =
       "<p>אחרי חישוב יוצגו כאן עמודת המקור ועמודת היעד כפי שהן מופיעות בתיקון קוראים.</p>"
     return
   }
 
+  previewState = items.map((item, index) => ({
+    id: `${item.title}-${index}`,
+    title: item.title,
+    location: item.location,
+    previewColumn: item.location.column,
+  }))
+  renderPreviewState()
+}
+
+function renderPreviewState() {
+  if (!previewState.length) {
+    renderPreview()
+    return
+  }
+
   previewEl.className = "column-preview"
   previewEl.innerHTML = `
     <div class="preview-grid">
-      ${items
-        .map(({ title, location }) => {
+      ${previewState
+        .map((item, index) => {
+          const { title, location, previewColumn } = item
           const accuracy = location.exact ? "מדויק" : "משוער"
+          const delta = previewColumn - location.column
           const note =
-            location.kind === "column"
-              ? "זו העמודה שנבחרה ידנית."
-              : `העמודה שמכילה את ${location.label}.`
+            delta === 0
+              ? location.kind === "column"
+                ? "זו העמודה שנבחרה ידנית."
+                : `זו העמודה שמכילה את ${location.label}.`
+              : `תצוגה זזה ${Math.abs(delta)} עמודות ${delta > 0 ? "קדימה" : "אחורה"} מהמיקום המחושב.`
+          const nearby = [-2, -1, 0, 1, 2]
+            .map((step) => clampColumn(previewColumn + step))
+            .filter((value, itemIndex, values) => values.indexOf(value) === itemIndex)
           return `
-            <article class="preview-card">
-              <div>
-                <h3>${title}</h3>
-                <p>עמודה ${location.column} | ${accuracy}</p>
-                <p>${note}</p>
+            <article class="preview-card" data-preview-index="${index}">
+              <div class="preview-toolbar">
+                <div class="preview-caption">
+                  <h3>${title}</h3>
+                  <p>מיקום מחושב: עמודה ${location.column} | ${accuracy}</p>
+                  <p>תצוגה נוכחית: עמודה ${previewColumn}</p>
+                </div>
+                <div class="preview-stepper">
+                  <button class="icon-button" type="button" data-action="next" data-preview-index="${index}" aria-label="עמודה הבאה">+</button>
+                  <button class="icon-button" type="button" data-action="prev" data-preview-index="${index}" aria-label="עמודה קודמת">−</button>
+                </div>
               </div>
+              <div class="preview-strip">
+                ${nearby
+                  .map(
+                    (column) => `
+                      <button
+                        class="preview-chip${column === previewColumn ? " is-active" : ""}"
+                        type="button"
+                        data-action="jump"
+                        data-preview-index="${index}"
+                        data-column="${column}"
+                      >
+                        ${column}
+                      </button>
+                    `,
+                  )
+                  .join("")}
+              </div>
+              <p>${note}</p>
               <img
                 class="preview-image"
-                src="${columnImagePath(location.column)}"
-                alt="${title} - עמודה ${location.column}"
+                src="${columnImagePath(previewColumn)}"
+                alt="${title} - עמודה ${previewColumn}"
                 loading="lazy"
               />
             </article>
@@ -377,6 +429,29 @@ function resetState() {
   resultsEl.innerHTML = "<p>הכלי מוכן. הזן מיקום ויעד כדי לקבל גלילה משוערת בעמודות.</p>"
   renderPreview()
 }
+
+previewEl.addEventListener("click", (event) => {
+  const button = event.target.closest("button[data-action]")
+  if (!button || !previewState.length) return
+
+  const index = Number(button.dataset.previewIndex)
+  const state = previewState[index]
+  if (!state) return
+
+  if (button.dataset.action === "jump") {
+    state.previewColumn = clampColumn(Number(button.dataset.column))
+  }
+
+  if (button.dataset.action === "prev") {
+    state.previewColumn = clampColumn(state.previewColumn - 1)
+  }
+
+  if (button.dataset.action === "next") {
+    state.previewColumn = clampColumn(state.previewColumn + 1)
+  }
+
+  renderPreviewState()
+})
 
 function runSearch({ locateOnly = false } = {}) {
   try {
