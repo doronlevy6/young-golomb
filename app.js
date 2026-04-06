@@ -12,6 +12,9 @@ const viewerMeta = document.getElementById("viewer-meta")
 const viewerImage = document.getElementById("viewer-image")
 const viewerStage = document.getElementById("viewer-stage")
 const viewerStageMeta = document.getElementById("viewer-stage-meta")
+const viewerWatermark = document.getElementById("viewer-watermark")
+const viewerTopbar = document.getElementById("viewer-topbar")
+const viewerControls = document.getElementById("viewer-controls")
 const viewerPrevButton = document.getElementById("viewer-prev")
 const viewerNextButton = document.getElementById("viewer-next")
 const viewerCloseButton = document.getElementById("viewer-close")
@@ -59,6 +62,7 @@ let viewerState = {
   fitScale: 1,
 }
 let touchStartX = null
+let touchStartY = null
 let liveSearchTimer = null
 
 function normalizeSpaces(text) {
@@ -593,6 +597,13 @@ function formatRange(summary) {
     : `${summary.first_ref} – ${summary.last_ref}`
 }
 
+function viewerRangeText(summary) {
+  if (!summary) return "לא זמין"
+  return summary.first_ref === summary.last_ref
+    ? summary.first_ref
+    : `${summary.first_ref} עד ${summary.last_ref}`
+}
+
 function summaryInfoGrid(summary) {
   if (!summary) return ""
   return `
@@ -630,6 +641,23 @@ function summaryPills(summary) {
     <span class="meta-pill">${summary.books.join(" · ")}</span>
     <span class="meta-pill">${summary.parashot.join(" · ")}</span>
     <span class="meta-pill">פרק ${chapterLabel(summary)}</span>
+  `
+}
+
+function viewerStageMetaHtml(summary) {
+  if (!summary) return ""
+  return `
+    ${summaryPills(summary)}
+    <span class="meta-pill meta-pill-range">${viewerRangeText(summary)}</span>
+  `
+}
+
+function viewerWatermarkHtml(summary) {
+  if (!summary) return ""
+  return `
+    <div class="viewer-watermark-column">עמודה ${summary.column}</div>
+    <div class="viewer-watermark-range">${viewerRangeText(summary)}</div>
+    <div class="viewer-watermark-parashah">${summary.parashot.join(" · ")}</div>
   `
 }
 
@@ -912,7 +940,12 @@ function getViewerFitScale() {
     parseFloat(computedStyle.paddingTop || "0") + parseFloat(computedStyle.paddingBottom || "0")
   const stageWidth = (viewerStage.clientWidth || 900) - paddingX
   const stageHeight =
-    (viewerStage.clientHeight || 900) - paddingY - Number(viewerStageMeta.offsetHeight || 0) - 12
+    (viewerStage.clientHeight || 900) -
+    paddingY -
+    Number(viewerTopbar.offsetHeight || 0) -
+    Number(viewerControls.offsetHeight || 0) -
+    Number(viewerStageMeta.offsetHeight || 0) -
+    20
 
   if (stageWidth <= 0 || stageHeight <= 0) return 1
 
@@ -970,7 +1003,8 @@ function renderViewer(summary = getColumnSummary(viewerState.column)) {
       ${currentSummary.books.join(" · ")} | ${currentSummary.parashot.join(" · ")} | פרק ${chapterLabel(currentSummary)} | ${formatRange(currentSummary)}
     </div>
   `
-  viewerStageMeta.innerHTML = summaryPills(currentSummary)
+  viewerStageMeta.innerHTML = viewerStageMetaHtml(currentSummary)
+  viewerWatermark.innerHTML = viewerWatermarkHtml(currentSummary)
   viewerColumnInput.value = String(viewerState.column)
   const imagePath = columnImagePath(viewerState.column)
   viewerImage.src = imagePath
@@ -1095,15 +1129,21 @@ document.addEventListener("keydown", (event) => {
 
 viewerStage.addEventListener("touchstart", (event) => {
   touchStartX = event.changedTouches[0]?.clientX ?? null
+  touchStartY = event.changedTouches[0]?.clientY ?? null
 })
 
 viewerStage.addEventListener("touchend", (event) => {
   if (touchStartX === null) return
   const endX = event.changedTouches[0]?.clientX ?? null
+  const endY = event.changedTouches[0]?.clientY ?? null
   if (endX === null) return
   const delta = endX - touchStartX
+  const deltaY = endY === null || touchStartY === null ? 0 : endY - touchStartY
   touchStartX = null
-  if (Math.abs(delta) < 50) return
+  touchStartY = null
+  if (viewerState.zoomFactor > 1.05) return
+  if (Math.abs(delta) < 28) return
+  if (Math.abs(delta) < Math.abs(deltaY) * 1.15) return
   setViewerColumn(viewerState.column + (delta < 0 ? 1 : -1))
 })
 

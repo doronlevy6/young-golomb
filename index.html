@@ -79,12 +79,12 @@
 
     <div id="viewer-modal" class="viewer-modal" hidden>
       <div class="viewer-shell">
-        <div class="viewer-top">
+        <div class="viewer-top" id="viewer-topbar">
           <div id="viewer-meta" class="viewer-meta"></div>
           <button class="ghost-button" id="viewer-close" type="button">סגור</button>
         </div>
 
-        <div class="viewer-toolbar">
+        <div class="viewer-toolbar" id="viewer-controls">
           <div class="viewer-nav">
             <button class="secondary-button" id="viewer-prev" type="button">הקודם</button>
             <button class="secondary-button" id="viewer-next" type="button">הבא</button>
@@ -110,6 +110,7 @@
 
         <div id="viewer-stage" class="viewer-stage">
           <div id="viewer-stage-meta" class="viewer-stage-meta"></div>
+          <div id="viewer-watermark" class="viewer-watermark"></div>
           <img id="viewer-image" class="viewer-image" alt="" />
         </div>
       </div>
