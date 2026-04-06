@@ -3,7 +3,9 @@ const resultsEl = document.getElementById("results")
 const previewEl = document.getElementById("column-preview")
 const formEl = document.getElementById("navigator-form")
 const currentInput = document.getElementById("current-query")
+const currentSegmentPicker = document.getElementById("current-segment-picker")
 const targetInput = document.getElementById("target-query")
+const targetSegmentPicker = document.getElementById("target-segment-picker")
 const resetButton = document.getElementById("reset-button")
 const clearCurrentButton = document.getElementById("clear-current-button")
 const clearTargetButton = document.getElementById("clear-target-button")
@@ -89,6 +91,10 @@ let uiState = {
 }
 let journalState = {
   selectedDate: "",
+}
+let querySegmentState = {
+  current: null,
+  target: null,
 }
 let viewerState = {
   open: false,
@@ -299,6 +305,11 @@ function isTorahBook(bookName) {
 function formatReadingInputValue(role, reading) {
   const prefix = role === "previous" ? "קריאה אחרונה" : "קריאה הבאה"
   return `${prefix}: ${reading.name}`
+}
+
+function formatVerseReferenceLabel(verse) {
+  const parashahLabel = verse.parashah ? ` (${verse.parashah})` : ""
+  return `${verse.book} ${verse.chapter}:${verse.verse}${parashahLabel}`
 }
 
 function getCalendarRange(today) {
@@ -544,7 +555,7 @@ function getCalendarReadingLabel(item) {
 
 function createReadingAnchor(verse) {
   return {
-    refLabel: `${verse.book} ${verse.chapter}:${verse.verse}`,
+    refLabel: formatVerseReferenceLabel(verse),
     book: verse.book,
     chapter: verse.chapter,
     verse: verse.verse,
@@ -657,6 +668,62 @@ function getReadingByDate(dateString) {
 
 function getSelectedJournalReading() {
   return getReadingByDate(journalState.selectedDate)
+}
+
+function getScheduledReadingFromQuery(query) {
+  const value = normalizeSpaces(query)
+  if (!value) return null
+  const plusQuery = parsePlusQuery(value)
+  const anchorQuery = plusQuery ? plusQuery.anchorQuery : value
+  const scheduledReadingKey = getScheduledReadingKey(anchorQuery)
+  if (!scheduledReadingKey) return null
+  return autoReadingsState[scheduledReadingKey] || null
+}
+
+function getSegmentPickerOptions(query) {
+  const value = normalizeSpaces(query)
+  if (!value || !value.includes("+")) return []
+  const reading = getScheduledReadingFromQuery(value)
+  return reading?.segments?.length > 1 ? reading.segments : []
+}
+
+function renderSegmentPicker(fieldKey) {
+  const picker = fieldKey === "current" ? currentSegmentPicker : targetSegmentPicker
+  const input = fieldKey === "current" ? currentInput : targetInput
+  if (!picker || !input) return
+
+  const options = getSegmentPickerOptions(input.value)
+  if (!options.length) {
+    picker.hidden = true
+    picker.innerHTML = ""
+    querySegmentState[fieldKey] = null
+    return
+  }
+
+  if (!Number.isInteger(querySegmentState[fieldKey]) || querySegmentState[fieldKey] >= options.length) {
+    querySegmentState[fieldKey] = 0
+  }
+
+  picker.hidden = false
+  picker.innerHTML = options
+    .map(
+      (segment, index) => `
+        <button
+          class="segment-chip${querySegmentState[fieldKey] === index ? " is-active" : ""}"
+          type="button"
+          data-segment-field="${fieldKey}"
+          data-segment-index="${index}"
+        >
+          ${segment.label}
+        </button>
+      `,
+    )
+    .join("")
+}
+
+function renderAllSegmentPickers() {
+  renderSegmentPicker("current")
+  renderSegmentPicker("target")
 }
 
 function renderReadingSegments(segments = []) {
@@ -895,9 +962,14 @@ function getScheduledReadingKey(query) {
   return null
 }
 
-function createScheduledReadingLocation(reading, role, rawQuery = "") {
+function createScheduledReadingLocation(reading, role, rawQuery = "", { fieldKey = "" } = {}) {
+  const selectedSegmentIndex = Number.isInteger(querySegmentState[fieldKey]) ? querySegmentState[fieldKey] : null
   const anchor = role === "previous" ? reading.end : reading.start
   const anchorLabel = role === "previous" ? "סוף הקריאה" : "תחילת הקריאה"
+  const selectedSegment =
+    selectedSegmentIndex !== null && reading.segments?.[selectedSegmentIndex]
+      ? reading.segments[selectedSegmentIndex]
+      : null
 
   return {
     kind: "scheduledReading",
@@ -917,11 +989,16 @@ function createScheduledReadingLocation(reading, role, rawQuery = "") {
     readingEndColumn: reading.end.column,
     readingSegments: reading.segments,
     readingSegmentScrollsFromPrevious: reading.segmentScrollsFromPrevious,
+    selectedSegmentIndex,
+    selectedSegmentLabel: selectedSegment?.label || "",
     anchorContext: {
-      columnFloat: anchor.columnFloat,
-      book: anchor.book,
-      chapter: anchor.chapter,
-      parashahKey: anchor.parashahKey,
+      columnFloat: selectedSegment ? (role === "previous" ? selectedSegment.end.columnFloat : selectedSegment.start.columnFloat) : anchor.columnFloat,
+      book: selectedSegment ? selectedSegment.start.book : anchor.book,
+      chapter: selectedSegment ? selectedSegment.start.chapter : anchor.chapter,
+      parashahKey: selectedSegment ? selectedSegment.start.parashahKey : anchor.parashahKey,
+      restrictSearchToRange: Boolean(selectedSegment),
+      minColumnFloat: selectedSegment ? selectedSegment.start.columnFloat : null,
+      maxColumnFloat: selectedSegment ? selectedSegment.end.columnFloat : null,
     },
   }
 }
@@ -974,6 +1051,7 @@ function applyAutoReadingDefaults() {
     changed = true
   }
 
+  renderAllSegmentPickers()
   if (changed) runSearch({ live: true })
 }
 
@@ -1149,16 +1227,23 @@ function anchorBucket(match, anchor) {
 function sortMatchesByAnchor(matches, anchor) {
   if (!anchor || !Number.isFinite(anchor.columnFloat)) return [...matches]
 
-  return [...matches].sort((a, b) => {
-    return (
-      anchorBucket(b, anchor) - anchorBucket(a, anchor) ||
-      Math.abs(a.columnFloat - anchor.columnFloat) - Math.abs(b.columnFloat - anchor.columnFloat) ||
-      b.bucket - a.bucket ||
-      a.span - b.span ||
-      a.firstPosition - b.firstPosition ||
-      a.columnFloat - b.columnFloat
-    )
-  })
+  return [...matches]
+    .filter((match) => {
+      if (!anchor.restrictSearchToRange) return true
+      if (!anchor.book || match.book !== anchor.book) return false
+      if (!Number.isFinite(anchor.minColumnFloat) || !Number.isFinite(anchor.maxColumnFloat)) return true
+      return match.columnFloat >= anchor.minColumnFloat && match.columnFloat <= anchor.maxColumnFloat
+    })
+    .sort((a, b) => {
+      return (
+        anchorBucket(b, anchor) - anchorBucket(a, anchor) ||
+        Math.abs(a.columnFloat - anchor.columnFloat) - Math.abs(b.columnFloat - anchor.columnFloat) ||
+        b.bucket - a.bucket ||
+        a.span - b.span ||
+        a.firstPosition - b.firstPosition ||
+        a.columnFloat - b.columnFloat
+      )
+    })
 }
 
 function parsePlusQuery(query) {
@@ -1230,7 +1315,7 @@ function highlightMatchText(originalText, match, queryText) {
     .join("") + escapeHtml(originalText.slice(cursor))
 }
 
-function resolveStandardQuery(query) {
+function resolveStandardQuery(query, options = {}) {
   const value = normalizeSpaces(query)
   if (!value) throw new Error("צריך למלא לפחות שדה אחד.")
 
@@ -1238,7 +1323,7 @@ function resolveStandardQuery(query) {
   if (scheduledReadingKey) {
     const reading = autoReadingsState[scheduledReadingKey]
     if (!reading) throw new Error("הקריאות האוטומטיות עדיין לא נטענו.")
-    return createScheduledReadingLocation(reading, scheduledReadingKey, value)
+    return createScheduledReadingLocation(reading, scheduledReadingKey, value, options)
   }
 
   const directColumn = findDirectColumn(value)
@@ -1287,7 +1372,7 @@ function resolveStandardQuery(query) {
 
     return {
       kind: "verse",
-      label: `${reference.book} ${reference.chapter}:${reference.verse}`,
+      label: formatVerseReferenceLabel(verse),
       columnFloat: verse.columnFloat,
       column: verse.column,
       lineFloat: verse.lineFloat,
@@ -1310,7 +1395,7 @@ function resolveStandardQuery(query) {
   const best = matches[0]
   return {
     kind: "text",
-    label: `${best.book} ${best.chapter}:${best.verse}`,
+    label: formatVerseReferenceLabel(best),
     columnFloat: best.columnFloat,
     column: best.column,
     lineFloat: best.lineFloat,
@@ -1327,11 +1412,11 @@ function resolveStandardQuery(query) {
   }
 }
 
-function resolveQuery(query) {
+function resolveQuery(query, options = {}) {
   const value = normalizeSpaces(query)
   const plusQuery = parsePlusQuery(value)
   if (plusQuery) {
-    const anchor = resolveStandardQuery(plusQuery.anchorQuery)
+    const anchor = resolveStandardQuery(plusQuery.anchorQuery, options)
     const matches = sortMatchesByAnchor(
       findTextMatches(plusQuery.textQuery, 12),
       anchor.anchorContext || anchor,
@@ -1344,12 +1429,12 @@ function resolveQuery(query) {
     const best = matches[0]
     return {
       kind: "nearText",
-      label: `${best.book} ${best.chapter}:${best.verse}`,
+      label: formatVerseReferenceLabel(best),
       columnFloat: best.columnFloat,
       column: best.column,
       lineFloat: best.lineFloat,
       exact: best.exact,
-      detail: `${best.parashah} | ${best.matchLabel} | קרוב ל${anchor.label}`,
+      detail: `${best.parashah} | ${best.matchLabel} | קרוב ל${anchor.label}${anchor.selectedSegmentLabel ? ` · ${anchor.selectedSegmentLabel}` : ""}`,
       queryText: value,
       verseTextHtml: highlightMatchText(best.text, best, plusQuery.textQuery),
       anchorLabel: anchor.label,
@@ -1357,7 +1442,7 @@ function resolveQuery(query) {
     }
   }
 
-  return resolveStandardQuery(value)
+  return resolveStandardQuery(value, options)
 }
 
 function getColumnSummary(column) {
@@ -1598,6 +1683,7 @@ function formatLocation(location) {
             ? `<div>סוף: ${location.readingEndRef} · עמודה ${location.readingEndColumn}</div>`
             : ""
         }
+        ${location.selectedSegmentLabel ? `<div>חיפוש בתוך: ${location.selectedSegmentLabel}</div>` : ""}
         ${location.anchorLabel ? `<div>עוגן: ${location.anchorLabel}</div>` : ""}
         <div>עמודה ${columnText}</div>
         <div>שורה ${lineText}</div>
@@ -1812,14 +1898,17 @@ function resetState() {
   comparisonState = null
   currentInput.value = ""
   targetInput.value = ""
+  querySegmentState.current = null
+  querySegmentState.target = null
+  renderAllSegmentPickers()
   resultsEl.className = "results empty-state"
   resultsEl.innerHTML = "<p>מלא שדה אחד או שניים.</p>"
   renderPreview()
 }
 
-function tryResolveQuery(value) {
+function tryResolveQuery(value, options = {}) {
   try {
-    return value ? resolveQuery(value) : null
+    return value ? resolveQuery(value, options) : null
   } catch {
     return null
   }
@@ -1845,8 +1934,8 @@ function runSearch({ live = false } = {}) {
     }
 
     if (live) {
-      const currentLocation = tryResolveQuery(currentValue)
-      const targetLocation = tryResolveQuery(targetValue)
+      const currentLocation = tryResolveQuery(currentValue, { fieldKey: "current" })
+      const targetLocation = tryResolveQuery(targetValue, { fieldKey: "target" })
 
       if (currentLocation && targetLocation) {
         renderComparison(currentLocation, targetLocation)
@@ -1870,11 +1959,14 @@ function runSearch({ live = false } = {}) {
     if (!currentValue || !targetValue) {
       const singleValue = targetValue || currentValue
       const title = targetValue ? "היעד" : "המיקום"
-      renderSingle(resolveQuery(singleValue), title)
+      renderSingle(resolveQuery(singleValue, { fieldKey: targetValue ? "target" : "current" }), title)
       return
     }
 
-    renderComparison(resolveQuery(currentValue), resolveQuery(targetValue))
+    renderComparison(
+      resolveQuery(currentValue, { fieldKey: "current" }),
+      resolveQuery(targetValue, { fieldKey: "target" }),
+    )
   } catch (error) {
     renderError(error.message)
   }
@@ -2008,10 +2100,12 @@ formEl.addEventListener("submit", (event) => {
 })
 
 currentInput.addEventListener("input", () => {
+  renderSegmentPicker("current")
   scheduleLiveSearch()
 })
 
 targetInput.addEventListener("input", () => {
+  renderSegmentPicker("target")
   scheduleLiveSearch()
 })
 
@@ -2030,20 +2124,44 @@ readingDefaultsEl.addEventListener("click", (event) => {
 
   if (readingKey === "previous") {
     currentInput.value = formatReadingInputValue("previous", reading)
+    querySegmentState.current = null
+    renderSegmentPicker("current")
   } else {
     targetInput.value = formatReadingInputValue("next", reading)
+    querySegmentState.target = null
+    renderSegmentPicker("target")
   }
 
   runSearch({ live: true })
 })
 
+currentSegmentPicker.addEventListener("click", (event) => {
+  const target = event.target.closest("[data-segment-index]")
+  if (!target) return
+  querySegmentState.current = Number(target.dataset.segmentIndex)
+  renderSegmentPicker("current")
+  runSearch({ live: true })
+})
+
+targetSegmentPicker.addEventListener("click", (event) => {
+  const target = event.target.closest("[data-segment-index]")
+  if (!target) return
+  querySegmentState.target = Number(target.dataset.segmentIndex)
+  renderSegmentPicker("target")
+  runSearch({ live: true })
+})
+
 clearCurrentButton.addEventListener("click", () => {
   currentInput.value = ""
+  querySegmentState.current = null
+  renderSegmentPicker("current")
   runSearch({ live: true })
 })
 
 clearTargetButton.addEventListener("click", () => {
   targetInput.value = ""
+  querySegmentState.target = null
+  renderSegmentPicker("target")
   runSearch({ live: true })
 })
 
