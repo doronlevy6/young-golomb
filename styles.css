@@ -576,7 +576,7 @@ mark {
 
 .field-inline {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr) auto auto auto;
   gap: 0.55rem;
   align-items: center;
 }
@@ -608,6 +608,18 @@ mark {
 .calendar-trigger,
 .camera-trigger {
   white-space: nowrap;
+}
+
+.inline-clear-button {
+  min-width: 2.5rem;
+  padding-inline: 0.7rem;
+  font-size: 1.2rem;
+  line-height: 1;
+}
+
+.inline-clear-button:disabled {
+  opacity: 0.45;
+  cursor: default;
 }
 
 .target-hint {
@@ -644,12 +656,6 @@ mark {
 
 .photo-status.is-error {
   color: var(--error);
-}
-
-.field-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.55rem;
 }
 
 .segment-picker[hidden] {
@@ -2050,11 +2056,11 @@ button {
   }
 
   .calendar-trigger,
-  .camera-trigger {
+  .camera-trigger,
+  .inline-clear-button {
     width: 100%;
   }
 
-  .field-actions,
   .compact-actions {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -2065,8 +2071,7 @@ button {
   }
 
   .compact-actions .primary-button,
-  .compact-actions .ghost-button,
-  .field-actions .ghost-button {
+  .compact-actions .ghost-button {
     width: 100%;
   }
 

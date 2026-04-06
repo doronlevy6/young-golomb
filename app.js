@@ -11,9 +11,9 @@ const targetCalendarButton = document.getElementById("target-calendar-button")
 const currentPhotoButton = document.getElementById("current-photo-button")
 const currentPhotoInput = document.getElementById("current-photo-input")
 const currentPhotoStatusEl = document.getElementById("current-photo-status")
+const clearCurrentInlineButton = document.getElementById("clear-current-inline")
+const clearTargetInlineButton = document.getElementById("clear-target-inline")
 const resetButton = document.getElementById("reset-button")
-const clearCurrentButton = document.getElementById("clear-current-button")
-const clearTargetButton = document.getElementById("clear-target-button")
 const suggestionsEl = document.getElementById("query-suggestions")
 const readingDefaultsEl = document.getElementById("reading-defaults")
 const journalSummaryEl = document.getElementById("journal-summary")
@@ -153,6 +153,7 @@ const ocrStopWords = new Set([
 let navigatorData = null
 let previewState = []
 let comparisonState = null
+let preferredSplitTargetSegmentIndex = null
 let appState = {
   mode: appModes.times,
 }
@@ -291,6 +292,33 @@ function setCurrentPhotoBusyState(isBusy) {
   currentPhotoButton.textContent = isBusy ? "מזהה..." : "צלם/העלה"
 }
 
+function syncInlineClearButtons() {
+  if (clearCurrentInlineButton) {
+    clearCurrentInlineButton.disabled = !normalizeSpaces(currentInput?.value || "")
+  }
+  if (clearTargetInlineButton) {
+    clearTargetInlineButton.disabled = !normalizeSpaces(targetInput?.value || "")
+  }
+}
+
+function clearCurrentQuery({ clearPhotoStatus = true } = {}) {
+  currentInput.value = ""
+  querySegmentState.current = null
+  if (clearPhotoStatus) setCurrentPhotoStatus("")
+  renderSegmentPicker("current")
+  syncInlineClearButtons()
+  runSearch({ live: true })
+}
+
+function clearTargetQuery() {
+  targetInput.value = ""
+  querySegmentState.target = null
+  preferredSplitTargetSegmentIndex = null
+  renderSegmentPicker("target")
+  syncInlineClearButtons()
+  runSearch({ live: true })
+}
+
 function updateOcrLoggerStatus(message) {
   if (!ocrRecognizingNow || !message || typeof message.status !== "string") return
   const status = normalizeSpaces(message.status.toLowerCase())
@@ -367,6 +395,7 @@ function applyDetectedCurrentColumn(detection) {
   currentInput.value = `עמודה ${detection.column}`
   querySegmentState.current = null
   renderSegmentPicker("current")
+  syncInlineClearButtons()
   runSearch({ live: true })
 }
 
@@ -2446,10 +2475,50 @@ function renderReadingSegmentDiffs(segmentDiffs = [], { activeIndex = -1 } = {})
   `
 }
 
+function createAnchorFromLocation(location, fallbackLabel = "עמודה") {
+  const columnFloat = Number(location?.columnFloat || location?.column || 0)
+  const roundedColumn = Number.isFinite(columnFloat) ? Math.round(columnFloat) : 1
+  return {
+    refLabel: location?.label || `${fallbackLabel} ${roundedColumn}`,
+    book: location?.anchorContext?.book || null,
+    chapter: location?.anchorContext?.chapter || null,
+    verse: null,
+    columnFloat: Number.isFinite(columnFloat) ? columnFloat : roundedColumn,
+    column: Number(location?.column || roundedColumn),
+    lineFloat: Number(location?.lineFloat || 1),
+    exact: Boolean(location?.exact),
+    parashahKey: location?.anchorContext?.parashahKey || null,
+  }
+}
+
+function getManualSourceToTargetSegmentDiffs(sourceLocation, targetSegments = []) {
+  const sourceAnchor = createAnchorFromLocation(sourceLocation, "מקור")
+  return targetSegments
+    .filter(Boolean)
+    .map((targetSegment, index) => ({
+      index,
+      label: targetSegment.label,
+      selectorLabel: getSegmentLabel(targetSegment.index),
+      sourceSegmentIndex: null,
+      targetSegmentIndex: targetSegment.index,
+      sourceLocationKey: "current",
+      targetLocationKey: "target",
+      sourceAnchor,
+      targetAnchor: targetSegment.start,
+      sourceAnchorLabel: sourceLocation?.label || `עמודה ${sourceAnchor.column}`,
+      targetAnchorLabel: `תחילת ${targetSegment.label}`,
+      delta: targetSegment.start.columnFloat - sourceAnchor.columnFloat,
+      contextLabel: "מול המקור שבחרת",
+    }))
+}
+
 function getLocationSegmentDiffs(current, target) {
   const currentSegments = current?.readingSegments || []
   const targetSegments = target?.readingSegments || []
   if (currentSegments.length <= 1 && targetSegments.length <= 1) return []
+  if (!currentSegments.length && targetSegments.length > 1) {
+    return getManualSourceToTargetSegmentDiffs(current, targetSegments)
+  }
   return getSegmentScrollDiffs(currentSegments, targetSegments)
 }
 
@@ -2846,12 +2915,14 @@ function applyJournalReading(dateString) {
     } else {
       targetInput.value = ""
     }
+    preferredSplitTargetSegmentIndex = null
     querySegmentState.target = null
     renderSegmentPicker("target")
   } else {
     const previousReading = getDefaultSourceForTarget(selectedReading)
 
     targetInput.value = formatReadingDateInputValue(selectedReading)
+    preferredSplitTargetSegmentIndex = null
     querySegmentState.target = null
     renderSegmentPicker("target")
 
@@ -2864,6 +2935,7 @@ function applyJournalReading(dateString) {
     renderSegmentPicker("current")
   }
 
+  syncInlineClearButtons()
   closeCalendarModal()
   runSearch({ live: true })
 }
@@ -2962,6 +3034,7 @@ function renderReadingDefaults() {
 
 function applyAutoReadingDefaults() {
   let changed = false
+  let targetChanged = false
 
   if (!normalizeSpaces(currentInput.value) && autoReadingsState.previous) {
     currentInput.value = formatReadingInputValue("previous", autoReadingsState.previous)
@@ -2971,9 +3044,12 @@ function applyAutoReadingDefaults() {
   if (!normalizeSpaces(targetInput.value) && autoReadingsState.next) {
     targetInput.value = formatReadingInputValue("next", autoReadingsState.next)
     changed = true
+    targetChanged = true
   }
 
+  if (targetChanged) preferredSplitTargetSegmentIndex = null
   renderAllSegmentPickers()
+  syncInlineClearButtons()
   if (changed) runSearch({ live: true })
 }
 
@@ -3867,7 +3943,9 @@ function renderComparison(current, target, { sourceVisible = false } = {}) {
   const segmentDiffs = getLocationSegmentDiffs(current, target)
   const preferredTargetSegmentIndex = Number.isInteger(target?.selectedSegmentIndex)
     ? target.selectedSegmentIndex
-    : null
+    : Number.isInteger(preferredSplitTargetSegmentIndex)
+      ? preferredSplitTargetSegmentIndex
+      : null
   const preferredSplitIndex =
     preferredTargetSegmentIndex === null
       ? 0
@@ -3902,6 +3980,9 @@ function renderComparisonState() {
   comparisonState.activeSplitIndex = activeSplitIndex
 
   const activeSegmentDiff = hasSplitScroll ? segmentDiffs[activeSplitIndex] : null
+  if (activeSegmentDiff && Number.isInteger(activeSegmentDiff.targetSegmentIndex)) {
+    preferredSplitTargetSegmentIndex = activeSegmentDiff.targetSegmentIndex
+  }
   const { sourceLocation, targetLocation } = getComparisonLocationsForSegment(
     current,
     target,
@@ -4076,12 +4157,14 @@ function renderPreviewState() {
 
 function resetState() {
   comparisonState = null
+  preferredSplitTargetSegmentIndex = null
   currentInput.value = ""
   targetInput.value = ""
   querySegmentState.current = null
   querySegmentState.target = null
   setCurrentPhotoStatus("")
   renderAllSegmentPickers()
+  syncInlineClearButtons()
   resultsEl.className = "results empty-state results-placeholder"
   resultsEl.innerHTML = "<p>בחר יעד כדי לדעת כמה לגלול.</p><p>אפשר גם לפתוח יומן.</p>"
   renderPreview()
@@ -4263,6 +4346,7 @@ async function init() {
     renderTimesSummary()
     renderJournal()
     renderTodayInfo()
+    syncInlineClearButtons()
     loadTodayInfo()
     loadHolidayTimes(timesState.selectedDate)
     const response = await fetch("./data/navigator_data.json")
@@ -4435,12 +4519,23 @@ formEl?.addEventListener("submit", (event) => {
 
 currentInput?.addEventListener("input", () => {
   renderSegmentPicker("current")
+  syncInlineClearButtons()
   scheduleLiveSearch()
 })
 
 targetInput?.addEventListener("input", () => {
+  preferredSplitTargetSegmentIndex = null
   renderSegmentPicker("target")
+  syncInlineClearButtons()
   scheduleLiveSearch()
+})
+
+clearCurrentInlineButton?.addEventListener("click", () => {
+  clearCurrentQuery()
+})
+
+clearTargetInlineButton?.addEventListener("click", () => {
+  clearTargetQuery()
 })
 
 currentPhotoButton?.addEventListener("click", () => {
@@ -4482,10 +4577,12 @@ readingDefaultsEl?.addEventListener("click", (event) => {
     renderSegmentPicker("current")
   } else {
     targetInput.value = formatReadingInputValue("next", reading)
+    preferredSplitTargetSegmentIndex = null
     querySegmentState.target = null
     renderSegmentPicker("target")
   }
 
+  syncInlineClearButtons()
   runSearch({ live: true })
 })
 
@@ -4500,22 +4597,11 @@ currentSegmentPicker?.addEventListener("click", (event) => {
 targetSegmentPicker?.addEventListener("click", (event) => {
   const target = event.target.closest("[data-segment-index]")
   if (!target) return
-  querySegmentState.target = Number(target.dataset.segmentIndex)
-  renderSegmentPicker("target")
-  runSearch({ live: true })
-})
-
-clearCurrentButton?.addEventListener("click", () => {
-  currentInput.value = ""
-  querySegmentState.current = null
-  setCurrentPhotoStatus("")
-  renderSegmentPicker("current")
-  runSearch({ live: true })
-})
-
-clearTargetButton?.addEventListener("click", () => {
-  targetInput.value = ""
-  querySegmentState.target = null
+  const segmentIndex = Number(target.dataset.segmentIndex)
+  querySegmentState.target = segmentIndex
+  if (Number.isInteger(segmentIndex) && segmentIndex >= 0) {
+    preferredSplitTargetSegmentIndex = segmentIndex
+  }
   renderSegmentPicker("target")
   runSearch({ live: true })
 })
@@ -4605,6 +4691,11 @@ resultsEl?.addEventListener("click", (event) => {
   if (actionTarget.dataset.action === "select-split-segment") {
     const splitIndex = Number(actionTarget.dataset.splitIndex)
     if (!Number.isInteger(splitIndex) || splitIndex < 0) return
+    const segmentDiffs = getLocationSegmentDiffs(comparisonState.current, comparisonState.target)
+    const selectedDiff = segmentDiffs[splitIndex]
+    if (selectedDiff && Number.isInteger(selectedDiff.targetSegmentIndex)) {
+      preferredSplitTargetSegmentIndex = selectedDiff.targetSegmentIndex
+    }
     comparisonState.activeSplitIndex = splitIndex
     renderComparisonState()
   }
