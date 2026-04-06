@@ -227,6 +227,10 @@ button {
   gap: 1rem;
 }
 
+.column-preview {
+  margin-top: 1rem;
+}
+
 .empty-state {
   color: var(--muted);
   line-height: 1.8;
@@ -313,6 +317,42 @@ button {
   color: var(--muted);
 }
 
+.preview-grid {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.preview-card {
+  background: white;
+  border: 1px solid var(--line);
+  border-radius: 22px;
+  padding: 1rem;
+  display: grid;
+  gap: 0.8rem;
+}
+
+.preview-card h3 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.preview-card p {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.7;
+}
+
+.preview-image {
+  width: 100%;
+  border-radius: 16px;
+  border: 1px solid rgba(126, 63, 40, 0.14);
+  background: linear-gradient(180deg, #f1ead8, #e4d8bb);
+  aspect-ratio: 0.6;
+  object-fit: cover;
+  object-position: top;
+}
+
 @media (max-width: 900px) {
   .layout {
     grid-template-columns: 1fr;
@@ -320,6 +360,10 @@ button {
 
   .search-panel {
     grid-row: auto;
+  }
+
+  .preview-grid {
+    grid-template-columns: 1fr;
   }
 }
 

@@ -5,7 +5,9 @@ const currentInput = document.getElementById("current-query")
 const targetInput = document.getElementById("target-query")
 const swapButton = document.getElementById("swap-button")
 const locateButton = document.getElementById("locate-button")
+const resetButton = document.getElementById("reset-button")
 const suggestionsEl = document.getElementById("query-suggestions")
+const previewEl = document.getElementById("column-preview")
 
 const bookAliases = {
   בראשית: "בראשית",
@@ -282,11 +284,13 @@ function renderError(message) {
       <p>${message}</p>
     </article>
   `
+  renderPreview()
 }
 
 function renderSingle(location) {
   resultsEl.className = "results"
   resultsEl.innerHTML = formatLocation(location)
+  renderPreview([{ title: "עמודת היעד", location }])
 }
 
 function renderComparison(current, target) {
@@ -316,6 +320,62 @@ function renderComparison(current, target) {
       ${formatLocation(target)}
     </div>
   `
+  renderPreview([
+    { title: "עמודת המקור", location: current },
+    { title: "עמודת היעד", location: target },
+  ])
+}
+
+function columnImagePath(column) {
+  const padded = String(column).padStart(3, "0")
+  return `./columns/Torah_Scroll_Col_${padded}_of_245.jpg`
+}
+
+function renderPreview(items = []) {
+  if (!items.length) {
+    previewEl.className = "column-preview empty-state"
+    previewEl.innerHTML =
+      "<p>אחרי חישוב יוצגו כאן עמודת המקור ועמודת היעד כפי שהן מופיעות בתיקון קוראים.</p>"
+    return
+  }
+
+  previewEl.className = "column-preview"
+  previewEl.innerHTML = `
+    <div class="preview-grid">
+      ${items
+        .map(({ title, location }) => {
+          const accuracy = location.exact ? "מדויק" : "משוער"
+          const note =
+            location.kind === "column"
+              ? "זו העמודה שנבחרה ידנית."
+              : `העמודה שמכילה את ${location.label}.`
+          return `
+            <article class="preview-card">
+              <div>
+                <h3>${title}</h3>
+                <p>עמודה ${location.column} | ${accuracy}</p>
+                <p>${note}</p>
+              </div>
+              <img
+                class="preview-image"
+                src="${columnImagePath(location.column)}"
+                alt="${title} - עמודה ${location.column}"
+                loading="lazy"
+              />
+            </article>
+          `
+        })
+        .join("")}
+    </div>
+  `
+}
+
+function resetState() {
+  currentInput.value = ""
+  targetInput.value = ""
+  resultsEl.className = "results empty-state"
+  resultsEl.innerHTML = "<p>הכלי מוכן. הזן מיקום ויעד כדי לקבל גלילה משוערת בעמודות.</p>"
+  renderPreview()
 }
 
 function runSearch({ locateOnly = false } = {}) {
@@ -374,6 +434,10 @@ swapButton.addEventListener("click", () => {
   const current = currentInput.value
   currentInput.value = targetInput.value
   targetInput.value = current
+})
+
+resetButton.addEventListener("click", () => {
+  resetState()
 })
 
 document.querySelectorAll(".example-chip").forEach((button) => {
