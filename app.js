@@ -735,6 +735,12 @@ function getColumnAnchorContext(summary, column = summary?.column || viewerState
   }
 }
 
+function extractLocationSearchQuery(location) {
+  if (!location?.queryText) return ""
+  const plusQuery = parsePlusQuery(location.queryText)
+  return plusQuery ? plusQuery.textQuery : location.queryText
+}
+
 function getViewerSearchMatches(query, summary, limit = 6) {
   const value = normalizeSpaces(query)
   if (!value || !summary) return []
@@ -839,6 +845,17 @@ function formatLocation(location) {
   `
 }
 
+function formatLocationMatch(location) {
+  if (!location?.verseTextHtml) return ""
+  const queryLabel = extractLocationSearchQuery(location)
+  return `
+    <div class="location-match">
+      <div class="location-match-label">${queryLabel ? `מילים: ${escapeHtml(queryLabel)}` : "התאמה"}</div>
+      <div class="location-match-text">${location.verseTextHtml}</div>
+    </div>
+  `
+}
+
 function renderError(message) {
   comparisonState = null
   resultsEl.className = "results"
@@ -894,20 +911,20 @@ function renderComparisonState() {
       </div>
     </article>
     <div class="location-grid">
-      <div class="location-slot location-slot-target">${formatLocation(target)}</div>
       ${
         sourceVisible
           ? `<div class="location-slot location-slot-source">${formatLocation(current)}</div>`
           : ""
       }
+      <div class="location-slot location-slot-target">${formatLocation(target)}</div>
     </div>
   `
 
   renderPreview(
     sourceVisible
       ? [
-          { title: "עמודת היעד", location: target },
           { title: "עמודת המקור", location: current },
+          { title: "עמודת היעד", location: target },
         ]
       : [{ title: "עמודת היעד", location: target }],
   )
@@ -964,6 +981,7 @@ function renderPreviewState() {
               </div>
 
               ${summaryInfoGrid(summary)}
+              ${formatLocationMatch(location)}
 
               <div class="preview-strip">
                 ${nearby
@@ -1143,15 +1161,16 @@ function resetViewerPosition() {
   viewerStage.scrollLeft = 0
 }
 
-function openViewer({ title, column, subtitle = "" }) {
+function openViewer({ title, column, subtitle = "", searchQuery = "" }) {
   const summary = getColumnSummary(column)
   viewerState.open = true
   viewerState.column = clampColumn(column)
   viewerState.title = title
   viewerState.subtitle = subtitle
   viewerState.searchOpen = false
-  viewerState.searchQuery = ""
+  viewerState.searchQuery = normalizeSpaces(searchQuery)
   viewerState.zoomFactor = 1
+  viewerSearchInput.value = viewerState.searchQuery
   viewerZoomInput.value = "1"
 
   document.body.style.overflow = "hidden"
@@ -1264,6 +1283,7 @@ previewEl.addEventListener("click", (event) => {
       title: state.title,
       column: state.previewColumn,
       subtitle: state.location.label,
+      searchQuery: extractLocationSearchQuery(state.location),
     })
   }
 })
