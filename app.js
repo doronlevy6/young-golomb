@@ -2528,27 +2528,27 @@ async function init() {
   }
 }
 
-formEl.addEventListener("submit", (event) => {
+formEl?.addEventListener("submit", (event) => {
   event.preventDefault()
   runSearch()
 })
 
-currentInput.addEventListener("input", () => {
+currentInput?.addEventListener("input", () => {
   renderSegmentPicker("current")
   scheduleLiveSearch()
 })
 
-targetInput.addEventListener("input", () => {
+targetInput?.addEventListener("input", () => {
   renderSegmentPicker("target")
   scheduleLiveSearch()
 })
 
-resetButton.addEventListener("click", () => {
+resetButton?.addEventListener("click", () => {
   clearTimeout(liveSearchTimer)
   resetState()
 })
 
-readingDefaultsEl.addEventListener("click", (event) => {
+readingDefaultsEl?.addEventListener("click", (event) => {
   const target = event.target.closest("[data-fill-reading]")
   if (!target) return
 
@@ -2569,7 +2569,7 @@ readingDefaultsEl.addEventListener("click", (event) => {
   runSearch({ live: true })
 })
 
-currentSegmentPicker.addEventListener("click", (event) => {
+currentSegmentPicker?.addEventListener("click", (event) => {
   const target = event.target.closest("[data-segment-index]")
   if (!target) return
   querySegmentState.current = Number(target.dataset.segmentIndex)
@@ -2577,7 +2577,7 @@ currentSegmentPicker.addEventListener("click", (event) => {
   runSearch({ live: true })
 })
 
-targetSegmentPicker.addEventListener("click", (event) => {
+targetSegmentPicker?.addEventListener("click", (event) => {
   const target = event.target.closest("[data-segment-index]")
   if (!target) return
   querySegmentState.target = Number(target.dataset.segmentIndex)
@@ -2585,29 +2585,29 @@ targetSegmentPicker.addEventListener("click", (event) => {
   runSearch({ live: true })
 })
 
-clearCurrentButton.addEventListener("click", () => {
+clearCurrentButton?.addEventListener("click", () => {
   currentInput.value = ""
   querySegmentState.current = null
   renderSegmentPicker("current")
   runSearch({ live: true })
 })
 
-clearTargetButton.addEventListener("click", () => {
+clearTargetButton?.addEventListener("click", () => {
   targetInput.value = ""
   querySegmentState.target = null
   renderSegmentPicker("target")
   runSearch({ live: true })
 })
 
-targetCalendarButton.addEventListener("click", () => {
+targetCalendarButton?.addEventListener("click", () => {
   openCalendarModal()
 })
 
-calendarCloseButton.addEventListener("click", () => {
+calendarCloseButton?.addEventListener("click", () => {
   closeCalendarModal()
 })
 
-journalMonthsEl.addEventListener("click", (event) => {
+journalMonthsEl?.addEventListener("click", (event) => {
   const target = event.target.closest("[data-journal-date]")
   if (!target) return
   const dateString = target.dataset.journalDate
@@ -2615,20 +2615,20 @@ journalMonthsEl.addEventListener("click", (event) => {
   applyJournalReading(dateString)
 })
 
-journalMonthsEl.addEventListener("mouseover", (event) => {
+journalMonthsEl?.addEventListener("mouseover", (event) => {
   const target = event.target.closest("[data-journal-date]")
   if (!target) return
   setJournalDate(target.dataset.journalDate)
 })
 
-journalMonthSelect.addEventListener("change", () => {
+journalMonthSelect?.addEventListener("change", () => {
   const selectedYear = journalYearSelect.value
   const selectedMonth = journalMonthSelect.value
   if (!selectedYear || !selectedMonth) return
   setJournalVisibleMonth(`${selectedYear}-${selectedMonth}`)
 })
 
-journalYearSelect.addEventListener("change", () => {
+journalYearSelect?.addEventListener("change", () => {
   const year = journalYearSelect.value
   if (!year) return
   const monthsForYear = getJournalMonthKeysForYear(year)
@@ -2637,26 +2637,26 @@ journalYearSelect.addEventListener("change", () => {
   setJournalVisibleMonth(monthsForYear.includes(currentMonthKey) ? currentMonthKey : monthsForYear[0])
 })
 
-journalPrevMonthButton.addEventListener("click", () => {
+journalPrevMonthButton?.addEventListener("click", () => {
   const monthKeys = getJournalMonthKeys()
   const index = monthKeys.indexOf(journalState.visibleMonthKey)
   if (index > 0) setJournalVisibleMonth(monthKeys[index - 1])
 })
 
-journalNextMonthButton.addEventListener("click", () => {
+journalNextMonthButton?.addEventListener("click", () => {
   const monthKeys = getJournalMonthKeys()
   const index = monthKeys.indexOf(journalState.visibleMonthKey)
   if (index >= 0 && index < monthKeys.length - 1) setJournalVisibleMonth(monthKeys[index + 1])
 })
 
-resultsEl.addEventListener("click", (event) => {
+resultsEl?.addEventListener("click", (event) => {
   const target = event.target.closest("[data-action='toggle-source']")
   if (!target || !comparisonState) return
   comparisonState.sourceVisible = !comparisonState.sourceVisible
   renderComparisonState()
 })
 
-previewEl.addEventListener("click", (event) => {
+previewEl?.addEventListener("click", (event) => {
   const target = event.target.closest("[data-action]")
   if (!target || !previewState.length) return
 
@@ -2689,19 +2689,19 @@ previewEl.addEventListener("click", (event) => {
   }
 })
 
-viewerPrevButton.addEventListener("click", () => {
+viewerPrevButton?.addEventListener("click", () => {
   setViewerColumn(viewerState.column - 1)
 })
 
-viewerNextButton.addEventListener("click", () => {
+viewerNextButton?.addEventListener("click", () => {
   setViewerColumn(viewerState.column + 1)
 })
 
-viewerCloseButton.addEventListener("click", () => {
+viewerCloseButton?.addEventListener("click", () => {
   closeViewer()
 })
 
-viewerSearchToggleButton.addEventListener("click", () => {
+viewerSearchToggleButton?.addEventListener("click", () => {
   viewerState.searchOpen = !viewerState.searchOpen
   renderViewerSearch()
   if (viewerState.searchOpen && typeof viewerSearchInput.focus === "function") {
@@ -2709,13 +2709,13 @@ viewerSearchToggleButton.addEventListener("click", () => {
   }
 })
 
-viewerSearchInput.addEventListener("input", () => {
+viewerSearchInput?.addEventListener("input", () => {
   viewerState.searchQuery = normalizeSpaces(viewerSearchInput.value)
   renderViewerSearch()
   renderViewerHighlights()
 })
 
-viewerSearchResults.addEventListener("click", (event) => {
+viewerSearchResults?.addEventListener("click", (event) => {
   const target = event.target.closest("[data-column]")
   if (!target) return
   const nextColumn = Number(target.dataset.column)
@@ -2723,18 +2723,18 @@ viewerSearchResults.addEventListener("click", (event) => {
   setViewerColumn(nextColumn)
 })
 
-viewerZoomInput.addEventListener("input", () => {
+viewerZoomInput?.addEventListener("input", () => {
   viewerState.zoomFactor = Number(viewerZoomInput.value)
   syncViewerScale()
 })
 
-viewerColumnInput.addEventListener("change", () => {
+viewerColumnInput?.addEventListener("change", () => {
   const nextColumn = Number(viewerColumnInput.value)
   if (!nextColumn) return
   setViewerColumn(nextColumn)
 })
 
-viewerColumnInput.addEventListener("keydown", (event) => {
+viewerColumnInput?.addEventListener("keydown", (event) => {
   if (event.key !== "Enter") return
   event.preventDefault()
   const nextColumn = Number(viewerColumnInput.value)
@@ -2742,11 +2742,11 @@ viewerColumnInput.addEventListener("keydown", (event) => {
   setViewerColumn(nextColumn)
 })
 
-viewerModal.addEventListener("click", (event) => {
+viewerModal?.addEventListener("click", (event) => {
   if (event.target === viewerModal) closeViewer()
 })
 
-calendarModal.addEventListener("click", (event) => {
+calendarModal?.addEventListener("click", (event) => {
   if (event.target === calendarModal) closeCalendarModal()
 })
 
@@ -2776,12 +2776,12 @@ document.addEventListener("keydown", (event) => {
   }
 })
 
-viewerStage.addEventListener("touchstart", (event) => {
+viewerStage?.addEventListener("touchstart", (event) => {
   touchStartX = event.changedTouches[0]?.clientX ?? null
   touchStartY = event.changedTouches[0]?.clientY ?? null
 })
 
-viewerStage.addEventListener("touchend", (event) => {
+viewerStage?.addEventListener("touchend", (event) => {
   if (touchStartX === null) return
   const endX = event.changedTouches[0]?.clientX ?? null
   const endY = event.changedTouches[0]?.clientY ?? null
@@ -2796,7 +2796,7 @@ viewerStage.addEventListener("touchend", (event) => {
   setViewerColumn(viewerState.column + (delta < 0 ? 1 : -1))
 })
 
-viewerImage.addEventListener("load", () => {
+viewerImage?.addEventListener("load", () => {
   syncViewerScale()
 })
 
