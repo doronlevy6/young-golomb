@@ -698,8 +698,16 @@ button {
   font-weight: 700;
 }
 
+.viewer-search-box {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.7rem;
+  color: rgba(255, 247, 233, 0.88);
+  font-weight: 700;
+}
+
+.viewer-search-box input,
 .viewer-column-picker input {
-  width: 5.8rem;
   border: 1px solid rgba(255, 252, 245, 0.18);
   border-radius: 999px;
   padding: 0.7rem 0.9rem;
@@ -708,6 +716,15 @@ button {
   font: inherit;
   text-align: center;
   backdrop-filter: blur(8px);
+}
+
+.viewer-search-box input {
+  width: min(240px, 38vw);
+  text-align: start;
+}
+
+.viewer-column-picker input {
+  width: 5.8rem;
 }
 
 .zoom-control input {
@@ -775,6 +792,83 @@ button {
 .viewer-watermark-parashah {
   font-size: clamp(0.95rem, 2.2vw, 1.2rem);
   letter-spacing: 0.08em;
+}
+
+.viewer-watermark-search {
+  margin-top: 0.35rem;
+  font-family: "Frank Ruhl Libre", serif;
+  font-size: clamp(1.6rem, 4.8vw, 3.3rem);
+  line-height: 1.05;
+  color: rgba(255, 247, 233, 0.07);
+}
+
+.viewer-search-results[hidden] {
+  display: none;
+}
+
+.viewer-search-results {
+  position: absolute;
+  inset-inline-start: 1rem;
+  inset-block-end: 5.8rem;
+  z-index: 4;
+  display: grid;
+  gap: 0.55rem;
+  width: min(360px, calc(100vw - 2rem));
+  max-height: min(44dvh, 420px);
+  overflow: auto;
+  padding: 0.25rem;
+  -webkit-overflow-scrolling: touch;
+}
+
+.viewer-search-hit,
+.viewer-search-empty {
+  border-radius: 20px;
+  border: 1px solid rgba(255, 252, 245, 0.12);
+  background: rgba(20, 13, 9, 0.32);
+  color: rgba(255, 247, 233, 0.92);
+  backdrop-filter: blur(10px);
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.16);
+}
+
+.viewer-search-hit {
+  display: grid;
+  gap: 0.4rem;
+  width: 100%;
+  padding: 0.8rem 0.9rem;
+  text-align: start;
+}
+
+.viewer-search-hit.is-current {
+  background: rgba(61, 106, 72, 0.22);
+  border-color: rgba(132, 201, 149, 0.28);
+}
+
+.viewer-search-hit-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.6rem;
+  align-items: baseline;
+  font-size: 0.88rem;
+}
+
+.viewer-search-hit-head strong {
+  color: white;
+  font-size: 0.96rem;
+}
+
+.viewer-search-hit-head span {
+  color: rgba(255, 247, 233, 0.72);
+  white-space: nowrap;
+}
+
+.viewer-search-hit-text {
+  line-height: 1.7;
+  font-size: 0.93rem;
+}
+
+.viewer-search-empty {
+  padding: 0.85rem 0.95rem;
+  line-height: 1.6;
 }
 
 .viewer-image {
@@ -885,6 +979,15 @@ button {
     justify-content: space-between;
   }
 
+  .viewer-search-box {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .viewer-search-box input {
+    width: min(64vw, 100%);
+  }
+
   .zoom-control input {
     width: 58vw;
   }
@@ -902,6 +1005,13 @@ button {
     padding: 0 0.7rem;
   }
 
+  .viewer-search-results {
+    inset-inline: 0.7rem;
+    inset-block-end: 10.4rem;
+    width: auto;
+    max-height: min(35dvh, 260px);
+  }
+
   .viewer-top,
   .viewer-toolbar {
     padding: 0.7rem;
@@ -914,6 +1024,10 @@ button {
 
   .viewer-watermark-column {
     font-size: 2.55rem;
+  }
+
+  .viewer-watermark-search {
+    font-size: 1.9rem;
   }
 
   .meta-pill {

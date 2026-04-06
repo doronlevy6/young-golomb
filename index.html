@@ -184,6 +184,17 @@
             <button class="secondary-button" id="viewer-next" type="button">הבא</button>
           </div>
 
+          <label class="viewer-search-box">
+            <span>מילה</span>
+            <input
+              id="viewer-search-input"
+              type="text"
+              placeholder="חפש בעדינות"
+              autocomplete="off"
+              inputmode="search"
+            />
+          </label>
+
           <label class="viewer-column-picker">
             <span>עמודה</span>
             <input
@@ -205,6 +216,7 @@
         <div id="viewer-stage" class="viewer-stage">
           <div id="viewer-stage-meta" class="viewer-stage-meta"></div>
           <div id="viewer-watermark" class="viewer-watermark"></div>
+          <div id="viewer-search-results" class="viewer-search-results" hidden></div>
           <img id="viewer-image" class="viewer-image" alt="" />
         </div>
       </div>
