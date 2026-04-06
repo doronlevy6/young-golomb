@@ -17,6 +17,10 @@ const viewerControls = document.getElementById("viewer-controls")
 const viewerPrevButton = document.getElementById("viewer-prev")
 const viewerNextButton = document.getElementById("viewer-next")
 const viewerCloseButton = document.getElementById("viewer-close")
+const viewerSearchToggleButton = document.getElementById("viewer-search-toggle")
+const viewerSearchPanel = document.getElementById("viewer-search-panel")
+const viewerSearchInput = document.getElementById("viewer-search-input")
+const viewerSearchResults = document.getElementById("viewer-search-results")
 const viewerZoomInput = document.getElementById("viewer-zoom")
 const viewerColumnInput = document.getElementById("viewer-column-input")
 
@@ -58,6 +62,8 @@ let viewerState = {
   column: 1,
   title: "",
   subtitle: "",
+  searchOpen: false,
+  searchQuery: "",
   zoomFactor: 1,
   fitScale: 1,
 }
@@ -713,6 +719,102 @@ function viewerWatermarkHtml(summary) {
   `
 }
 
+function getColumnAnchorContext(summary, column = summary?.column || viewerState.column) {
+  if (!summary) return { columnFloat: column }
+
+  const chapter =
+    summary.chapters?.length === 1
+      ? Number(summary.chapters[0]) || parseHebrewNumber(String(summary.chapters[0]))
+      : null
+
+  return {
+    columnFloat: column,
+    book: summary.books?.[0] || null,
+    chapter,
+    parashahKey: summary.parashot?.[0] ? normalizeKey(summary.parashot[0]) : null,
+  }
+}
+
+function getViewerSearchMatches(query, summary, limit = 6) {
+  const value = normalizeSpaces(query)
+  if (!value || !summary) return []
+
+  const currentColumn = viewerState.column
+  const anchor = getColumnAnchorContext(summary, currentColumn)
+
+  return collectTextMatches(value)
+    .map((match) => ({
+      ...match,
+      columnDistance: Math.abs(match.column - currentColumn),
+      inCurrentColumn: match.column === currentColumn,
+    }))
+    .filter((match) => match.columnDistance <= 6)
+    .sort((a, b) => {
+      const proximityA =
+        a.columnDistance === 0 ? 3 : a.columnDistance <= 2 ? 2 : 1
+      const proximityB =
+        b.columnDistance === 0 ? 3 : b.columnDistance <= 2 ? 2 : 1
+
+      return (
+        proximityB - proximityA ||
+        a.columnDistance - b.columnDistance ||
+        anchorBucket(b, anchor) - anchorBucket(a, anchor) ||
+        b.bucket - a.bucket ||
+        a.span - b.span ||
+        a.firstPosition - b.firstPosition ||
+        a.columnFloat - b.columnFloat
+      )
+    })
+    .slice(0, limit)
+}
+
+function renderViewerSearch(summary = getColumnSummary(viewerState.column)) {
+  viewerSearchPanel.hidden = !viewerState.searchOpen
+  viewerSearchToggleButton.classList.toggle("is-active", viewerState.searchOpen)
+  viewerSearchToggleButton.textContent = viewerState.searchOpen ? "סגור חיפוש" : "חיפוש מילה"
+  if (!viewerState.searchOpen) return
+
+  viewerSearchInput.value = viewerState.searchQuery
+
+  const query = normalizeSpaces(viewerState.searchQuery)
+  if (!query) {
+    viewerSearchResults.innerHTML = `
+      <div class="viewer-search-hint">כתוב מילה ונחפש באותה עמודה או בעמודות שלידה.</div>
+    `
+    return
+  }
+
+  const matches = getViewerSearchMatches(query, summary)
+  if (!matches.length) {
+    viewerSearchResults.innerHTML = `
+      <div class="viewer-search-empty">לא מצאתי מילה קרובה באותה עמודה או ליד.</div>
+    `
+    return
+  }
+
+  viewerSearchResults.innerHTML = matches
+    .map((match) => {
+      const placeLabel = match.inCurrentColumn
+        ? "באותה עמודה"
+        : `עמודה ${match.column} · ${match.columnDistance} ${match.columnDistance === 1 ? "עמודה" : "עמודות"}`
+
+      return `
+        <button
+          class="viewer-search-hit${match.inCurrentColumn ? " is-current" : ""}"
+          type="button"
+          data-column="${match.column}"
+        >
+          <div class="viewer-search-hit-head">
+            <strong>${match.book} ${match.chapter}:${match.verse}</strong>
+            <span>${placeLabel}</span>
+          </div>
+          <div class="viewer-search-hit-text">${highlightMatchText(match.text, match, query)}</div>
+        </button>
+      `
+    })
+    .join("")
+}
+
 function formatLocation(location) {
   const columnText =
     location.exact && Math.abs(location.columnFloat - location.column) < 0.001
@@ -1047,6 +1149,8 @@ function openViewer({ title, column, subtitle = "" }) {
   viewerState.column = clampColumn(column)
   viewerState.title = title
   viewerState.subtitle = subtitle
+  viewerState.searchOpen = false
+  viewerState.searchQuery = ""
   viewerState.zoomFactor = 1
   viewerZoomInput.value = "1"
 
@@ -1058,6 +1162,8 @@ function openViewer({ title, column, subtitle = "" }) {
 
 function closeViewer() {
   viewerState.open = false
+  viewerState.searchOpen = false
+  viewerState.searchQuery = ""
   document.body.style.overflow = ""
   viewerModal.hidden = true
 }
@@ -1082,6 +1188,7 @@ function renderViewer(summary = getColumnSummary(viewerState.column)) {
   const imagePath = columnImagePath(viewerState.column)
   viewerImage.src = imagePath
   viewerImage.alt = `${viewerState.title} - עמודה ${viewerState.column}`
+  renderViewerSearch(currentSummary)
   syncViewerScale()
   viewerPrevButton.disabled = viewerState.column <= 1
   viewerNextButton.disabled = viewerState.column >= navigatorData.layout.columns
@@ -1173,6 +1280,27 @@ viewerCloseButton.addEventListener("click", () => {
   closeViewer()
 })
 
+viewerSearchToggleButton.addEventListener("click", () => {
+  viewerState.searchOpen = !viewerState.searchOpen
+  renderViewerSearch()
+  if (viewerState.searchOpen && typeof viewerSearchInput.focus === "function") {
+    viewerSearchInput.focus()
+  }
+})
+
+viewerSearchInput.addEventListener("input", () => {
+  viewerState.searchQuery = normalizeSpaces(viewerSearchInput.value)
+  renderViewerSearch()
+})
+
+viewerSearchResults.addEventListener("click", (event) => {
+  const target = event.target.closest("[data-column]")
+  if (!target) return
+  const nextColumn = Number(target.dataset.column)
+  if (!nextColumn || nextColumn === viewerState.column) return
+  setViewerColumn(nextColumn)
+})
+
 viewerZoomInput.addEventListener("input", () => {
   viewerState.zoomFactor = Number(viewerZoomInput.value)
   syncViewerScale()
@@ -1198,7 +1326,18 @@ viewerModal.addEventListener("click", (event) => {
 
 document.addEventListener("keydown", (event) => {
   if (!viewerState.open) return
-  if (event.key === "Escape") closeViewer()
+  if (event.key === "Escape") {
+    if (viewerState.searchOpen) {
+      viewerState.searchOpen = false
+      renderViewerSearch()
+      return
+    }
+    closeViewer()
+    return
+  }
+  if (document.activeElement === viewerSearchInput && (event.key === "ArrowLeft" || event.key === "ArrowRight")) {
+    return
+  }
   if (event.key === "ArrowLeft") {
     setViewerColumn(viewerState.column + 1)
   }

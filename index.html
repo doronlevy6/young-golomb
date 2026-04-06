@@ -86,10 +86,9 @@
         </div>
 
         <div class="viewer-toolbar" id="viewer-controls">
-          <div class="viewer-nav">
-            <button class="secondary-button" id="viewer-prev" type="button">הקודם</button>
-            <button class="secondary-button" id="viewer-next" type="button">הבא</button>
-          </div>
+          <button class="secondary-button viewer-search-toggle" id="viewer-search-toggle" type="button">
+            חיפוש מילה
+          </button>
 
           <label class="viewer-column-picker">
             <span>עמודה</span>
@@ -110,7 +109,26 @@
         </div>
 
         <div id="viewer-stage" class="viewer-stage">
+          <button class="viewer-overlay-arrow viewer-overlay-prev" id="viewer-prev" type="button" aria-label="עמודה קודמת">
+            ›
+          </button>
+          <button class="viewer-overlay-arrow viewer-overlay-next" id="viewer-next" type="button" aria-label="עמודה הבאה">
+            ‹
+          </button>
           <div id="viewer-watermark" class="viewer-watermark"></div>
+          <div class="viewer-search-panel" id="viewer-search-panel" hidden>
+            <label class="viewer-search-field">
+              <span>מילה קרובה</span>
+              <input
+                id="viewer-search-input"
+                type="text"
+                placeholder="חפש באותה עמודה או ליד"
+                autocomplete="off"
+                inputmode="search"
+              />
+            </label>
+            <div id="viewer-search-results" class="viewer-search-results"></div>
+          </div>
           <img id="viewer-image" class="viewer-image" alt="" />
         </div>
       </div>

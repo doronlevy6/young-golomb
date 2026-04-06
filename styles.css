@@ -598,6 +598,11 @@ button {
   backdrop-filter: blur(12px);
 }
 
+.viewer-search-toggle.is-active {
+  background: rgba(212, 178, 94, 0.2);
+  border-color: rgba(212, 178, 94, 0.35);
+}
+
 .viewer-meta {
   display: grid;
   gap: 0.2rem;
@@ -621,12 +626,6 @@ button {
   color: rgba(255, 247, 233, 0.8);
   line-height: 1.45;
   font-size: 0.94rem;
-}
-
-.viewer-nav {
-  display: flex;
-  gap: 0.6rem;
-  flex-shrink: 0;
 }
 
 .viewer-top .ghost-button,
@@ -692,6 +691,144 @@ button {
   overscroll-behavior: contain;
   touch-action: pan-x pan-y pinch-zoom;
   -webkit-overflow-scrolling: touch;
+}
+
+.viewer-overlay-arrow {
+  position: absolute;
+  top: 50%;
+  z-index: 4;
+  transform: translateY(-50%);
+  width: clamp(2.9rem, 5vw, 4.1rem);
+  height: clamp(5rem, 18vh, 8rem);
+  border: 1px solid rgba(255, 252, 245, 0.14);
+  border-radius: 999px;
+  background: rgba(15, 11, 8, 0.28);
+  color: rgba(255, 247, 233, 0.92);
+  font-size: clamp(2rem, 4vw, 3rem);
+  line-height: 1;
+  backdrop-filter: blur(10px);
+  box-shadow: 0 18px 36px rgba(0, 0, 0, 0.18);
+}
+
+.viewer-overlay-arrow:hover {
+  background: rgba(15, 11, 8, 0.42);
+}
+
+.viewer-overlay-arrow:disabled {
+  opacity: 0.28;
+  cursor: default;
+}
+
+.viewer-overlay-prev {
+  right: 0.75rem;
+}
+
+.viewer-overlay-next {
+  left: 0.75rem;
+}
+
+.viewer-search-panel[hidden] {
+  display: none;
+}
+
+.viewer-search-panel {
+  position: absolute;
+  left: 50%;
+  bottom: 5.6rem;
+  z-index: 6;
+  transform: translateX(-50%);
+  width: min(420px, calc(100vw - 1.4rem));
+  display: grid;
+  gap: 0.7rem;
+  padding: 0.9rem;
+  border: 1px solid rgba(255, 252, 245, 0.16);
+  border-radius: 28px;
+  background: rgba(10, 7, 5, 0.76);
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.24);
+  backdrop-filter: blur(14px);
+}
+
+.viewer-search-field {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.viewer-search-field span {
+  color: rgba(255, 247, 233, 0.86);
+  font-weight: 700;
+}
+
+.viewer-search-field input {
+  width: 100%;
+  border: 1px solid rgba(255, 252, 245, 0.18);
+  border-radius: 18px;
+  padding: 0.85rem 0.95rem;
+  background: rgba(255, 252, 245, 0.12);
+  color: white;
+  font: inherit;
+}
+
+.viewer-search-field input::placeholder {
+  color: rgba(255, 247, 233, 0.5);
+}
+
+.viewer-search-results {
+  display: grid;
+  gap: 0.55rem;
+  max-height: min(42vh, 320px);
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.viewer-search-hit,
+.viewer-search-empty,
+.viewer-search-hint {
+  border-radius: 20px;
+  border: 1px solid rgba(255, 252, 245, 0.12);
+  background: rgba(255, 252, 245, 0.08);
+  color: rgba(255, 247, 233, 0.92);
+}
+
+.viewer-search-hit {
+  display: grid;
+  gap: 0.38rem;
+  width: 100%;
+  padding: 0.75rem 0.85rem;
+  text-align: start;
+}
+
+.viewer-search-hit.is-current {
+  background: rgba(61, 106, 72, 0.22);
+  border-color: rgba(132, 201, 149, 0.26);
+}
+
+.viewer-search-hit-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 0.55rem;
+  font-size: 0.88rem;
+}
+
+.viewer-search-hit-head strong {
+  color: white;
+  font-size: 0.95rem;
+}
+
+.viewer-search-hit-head span {
+  color: rgba(255, 247, 233, 0.72);
+  white-space: nowrap;
+}
+
+.viewer-search-hit-text {
+  line-height: 1.7;
+  font-size: 0.92rem;
+}
+
+.viewer-search-empty,
+.viewer-search-hint {
+  padding: 0.85rem 0.95rem;
+  line-height: 1.65;
 }
 
 .meta-pill-range {
@@ -768,6 +905,10 @@ button {
   .viewer-toolbar {
     gap: 0.65rem;
   }
+
+  .viewer-search-panel {
+    width: min(430px, calc(100vw - 1.2rem));
+  }
 }
 
 @media (max-width: 640px) {
@@ -833,16 +974,6 @@ button {
     width: min(160px, 42vw);
   }
 
-  .viewer-nav {
-    width: 100%;
-    justify-content: center;
-  }
-
-  .viewer-nav .secondary-button {
-    flex: 1 1 0;
-    max-width: 8rem;
-  }
-
   .viewer-top,
   .viewer-toolbar {
     padding-inline: 0.7rem;
@@ -877,10 +1008,34 @@ button {
     flex-wrap: wrap;
   }
 
+  .viewer-overlay-arrow {
+    width: 2.7rem;
+    height: 4.5rem;
+    font-size: 2rem;
+  }
+
+  .viewer-overlay-prev {
+    right: 0.35rem;
+  }
+
+  .viewer-overlay-next {
+    left: 0.35rem;
+  }
+
+  .viewer-search-panel {
+    width: calc(100vw - 1rem);
+    bottom: 6.3rem;
+    padding: 0.8rem;
+  }
+
   .viewer-stage {
     padding:
       clamp(4.8rem, 9vh, 5.7rem)
       0.3rem
       clamp(6rem, 13vh, 7.2rem);
+  }
+
+  .viewer-search-results {
+    max-height: min(34vh, 230px);
   }
 }
