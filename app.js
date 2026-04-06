@@ -1150,23 +1150,26 @@ function renderSplitSegmentSelector(segmentDiffs = [], activeIndex = 0) {
   if (segmentDiffs.length <= 1) return ""
 
   return `
-    <div class="split-segment-selector" role="radiogroup" aria-label="בחירת ספר">
-      ${segmentDiffs
-        .map(
-          (segment, index) => `
-            <button
-              class="segment-chip${index === activeIndex ? " is-active" : ""}"
-              type="button"
-              role="radio"
-              aria-checked="${index === activeIndex ? "true" : "false"}"
-              data-action="select-split-segment"
-              data-split-index="${index}"
-            >
-              ${segment.selectorLabel || segment.label}
-            </button>
-          `,
-        )
-        .join("")}
+    <div class="split-segment-picker">
+      <div class="split-segment-label">בחר ספר להשוואה</div>
+      <div class="split-segment-selector" role="radiogroup" aria-label="בחירת ספר">
+        ${segmentDiffs
+          .map(
+            (segment, index) => `
+              <button
+                class="segment-chip${index === activeIndex ? " is-active" : ""}"
+                type="button"
+                role="radio"
+                aria-checked="${index === activeIndex ? "true" : "false"}"
+                data-action="select-split-segment"
+                data-split-index="${index}"
+              >
+                ${segment.selectorLabel || segment.label}
+              </button>
+            `,
+          )
+          .join("")}
+      </div>
     </div>
   `
 }
@@ -2819,6 +2822,10 @@ targetCalendarButton?.addEventListener("click", () => {
 })
 
 calendarCloseButton?.addEventListener("click", () => {
+  if (journalState.selectedDate) {
+    applyJournalReading(journalState.selectedDate)
+    return
+  }
   closeCalendarModal()
 })
 

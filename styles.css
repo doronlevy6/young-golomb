@@ -358,11 +358,28 @@ mark {
   margin-top: -0.35rem;
 }
 
+.split-segment-picker {
+  display: grid;
+  gap: 0.42rem;
+  margin-bottom: 0.25rem;
+}
+
+.split-segment-label {
+  font-size: 0.84rem;
+  color: var(--accent-strong);
+  font-weight: 700;
+}
+
 .split-segment-selector {
   display: flex;
   flex-wrap: wrap;
   gap: 0.45rem;
   margin-bottom: 0.6rem;
+}
+
+.split-segment-selector .segment-chip {
+  min-width: 5.8rem;
+  text-align: center;
 }
 
 .segment-chip {
@@ -1683,6 +1700,13 @@ button {
 
   .reading-segments {
     grid-template-columns: 1fr;
+  }
+
+  .split-segment-selector {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    padding-bottom: 0.12rem;
+    -webkit-overflow-scrolling: touch;
   }
 
   .summary-main {
