@@ -315,9 +315,19 @@ button {
   line-height: 1.75;
 }
 
+.summary-actions {
+  display: flex;
+  justify-content: flex-start;
+  margin-top: 0.8rem;
+}
+
 .location-grid {
   display: grid;
   gap: 0.9rem;
+}
+
+.location-slot {
+  display: grid;
 }
 
 .location-card {

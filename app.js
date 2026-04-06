@@ -52,6 +52,7 @@ const parashahAliases = {
 
 let navigatorData = null
 let previewState = []
+let comparisonState = null
 let viewerState = {
   open: false,
   column: 1,
@@ -737,6 +738,7 @@ function formatLocation(location) {
 }
 
 function renderError(message) {
+  comparisonState = null
   resultsEl.className = "results"
   resultsEl.innerHTML = `
     <article class="error-card">
@@ -748,12 +750,21 @@ function renderError(message) {
 }
 
 function renderSingle(location, title = "היעד") {
+  comparisonState = null
   resultsEl.className = "results"
   resultsEl.innerHTML = formatLocation(location)
   renderPreview([{ title, location }])
 }
 
-function renderComparison(current, target) {
+function renderComparison(current, target, { sourceVisible = false } = {}) {
+  comparisonState = { current, target, sourceVisible }
+  renderComparisonState()
+}
+
+function renderComparisonState() {
+  if (!comparisonState) return
+
+  const { current, target, sourceVisible } = comparisonState
   const delta = target.columnFloat - current.columnFloat
   const absDelta = Math.abs(delta)
   const direction =
@@ -770,17 +781,34 @@ function renderComparison(current, target) {
         <span class="summary-direction">${direction}</span>
       </div>
       <p class="summary-note">${message}</p>
+      <div class="summary-actions">
+        <button
+          class="ghost-button small-button"
+          type="button"
+          data-action="toggle-source"
+        >
+          ${sourceVisible ? "הסתר מקור" : "הצג מקור"}
+        </button>
+      </div>
     </article>
     <div class="location-grid">
-      ${formatLocation(current)}
-      ${formatLocation(target)}
+      <div class="location-slot location-slot-target">${formatLocation(target)}</div>
+      ${
+        sourceVisible
+          ? `<div class="location-slot location-slot-source">${formatLocation(current)}</div>`
+          : ""
+      }
     </div>
   `
 
-  renderPreview([
-    { title: "עמודת המקור", location: current },
-    { title: "עמודת היעד", location: target },
-  ])
+  renderPreview(
+    sourceVisible
+      ? [
+          { title: "עמודת היעד", location: target },
+          { title: "עמודת המקור", location: current },
+        ]
+      : [{ title: "עמודת היעד", location: target }],
+  )
 }
 
 function renderPreview(items = []) {
@@ -895,6 +923,7 @@ function renderPreviewState() {
 }
 
 function resetState() {
+  comparisonState = null
   currentInput.value = ""
   targetInput.value = ""
   resultsEl.className = "results empty-state"
@@ -1091,6 +1120,13 @@ targetInput.addEventListener("input", () => {
 resetButton.addEventListener("click", () => {
   clearTimeout(liveSearchTimer)
   resetState()
+})
+
+resultsEl.addEventListener("click", (event) => {
+  const target = event.target.closest("[data-action='toggle-source']")
+  if (!target || !comparisonState) return
+  comparisonState.sourceVisible = !comparisonState.sourceVisible
+  renderComparisonState()
 })
 
 previewEl.addEventListener("click", (event) => {
