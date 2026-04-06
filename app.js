@@ -1305,7 +1305,7 @@ function getPosterLogoImage() {
       resolve(image)
     }
     image.onerror = reject
-    image.src = "./assets/golomb-logo.png"
+    image.src = "./assets/goldmann-logo.png"
   })
 }
 
