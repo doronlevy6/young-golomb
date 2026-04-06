@@ -572,12 +572,30 @@ function getSegmentLabel(index) {
   return labels[index] || `ספר ${index + 1}`
 }
 
-function createReadingSegment(range, index) {
+function groupRangesByBook(ranges) {
+  return ranges.reduce((groups, range) => {
+    const previous = groups.at(-1)
+    if (previous && previous.book === range.book) {
+      previous.ranges.push(range)
+      return groups
+    }
+
+    groups.push({
+      book: range.book,
+      ranges: [range],
+    })
+    return groups
+  }, [])
+}
+
+function createReadingSegment(group, index) {
+  const firstRange = group.ranges[0]
+  const lastRange = group.ranges.at(-1)
   const startVerse = navigatorData.verseByKey.get(
-    `${range.book}:${range.start.chapter}:${range.start.verse}`,
+    `${firstRange.book}:${firstRange.start.chapter}:${firstRange.start.verse}`,
   )
   const endVerse = navigatorData.verseByKey.get(
-    `${range.book}:${range.end.chapter}:${range.end.verse}`,
+    `${lastRange.book}:${lastRange.end.chapter}:${lastRange.end.verse}`,
   )
 
   if (!startVerse || !endVerse) return null
@@ -585,7 +603,9 @@ function createReadingSegment(range, index) {
   return {
     index,
     label: getSegmentLabel(index),
-    rangeLabel: formatRangeSegment(range),
+    book: group.book,
+    rangeLabel: group.ranges.map((range) => formatRangeSegment(range)).join(" | "),
+    allowedRanges: group.ranges,
     start: createReadingAnchor(startVerse),
     end: createReadingAnchor(endVerse),
   }
@@ -609,8 +629,8 @@ function createScheduledReadingRecord(item) {
   const ranges = getTorahRangesFromHebcalItem(item)
   if (!ranges.length) return null
 
-  const segments = ranges
-    .map((range, index) => createReadingSegment(range, index))
+  const segments = groupRangesByBook(ranges)
+    .map((group, index) => createReadingSegment(group, index))
     .filter(Boolean)
 
   if (!segments.length) return null
@@ -651,13 +671,14 @@ function enrichReadingsWithScroll(readings) {
       previousReadingDate: previousReading.date,
       previousReadingName: previousReading.name,
       scrollFromPrevious: reading.start.columnFloat - previousReading.end.columnFloat,
-      segmentScrollsFromPrevious: getMatchingSegmentPairs(previousReading.segments, reading.segments).map(
-        ({ source, target }) => ({
-          label: target.label,
-          delta: target.start.columnFloat - source.end.columnFloat,
-          previousLabel: source.label,
-        }),
-      ),
+      segmentScrollsFromPrevious:
+        previousReading.segments.length > 1 && reading.segments.length > 1
+          ? getMatchingSegmentPairs(previousReading.segments, reading.segments).map(({ source, target }) => ({
+              label: target.label,
+              delta: target.start.columnFloat - source.end.columnFloat,
+              previousLabel: source.label,
+            }))
+          : [],
     }
   })
 }
@@ -727,7 +748,7 @@ function renderAllSegmentPickers() {
 }
 
 function renderReadingSegments(segments = []) {
-  if (!segments.length) return ""
+  if (segments.length <= 1) return ""
 
   return `
     <div class="reading-segments">
@@ -766,7 +787,7 @@ function renderReadingSegmentDiffs(segmentDiffs = []) {
 }
 
 function getLocationSegmentDiffs(current, target) {
-  if (!current?.readingSegments?.length || !target?.readingSegments?.length) return []
+  if ((current?.readingSegments?.length || 0) <= 1 || (target?.readingSegments?.length || 0) <= 1) return []
 
   return getMatchingSegmentPairs(current.readingSegments, target.readingSegments).map(
     ({ source, target: nextTarget }) => ({
@@ -970,6 +991,9 @@ function createScheduledReadingLocation(reading, role, rawQuery = "", { fieldKey
     selectedSegmentIndex !== null && reading.segments?.[selectedSegmentIndex]
       ? reading.segments[selectedSegmentIndex]
       : null
+  const allowedRanges = selectedSegment
+    ? selectedSegment.allowedRanges
+    : reading.segments.flatMap((segment) => segment.allowedRanges || [])
 
   return {
     kind: "scheduledReading",
@@ -993,12 +1017,11 @@ function createScheduledReadingLocation(reading, role, rawQuery = "", { fieldKey
     selectedSegmentLabel: selectedSegment?.label || "",
     anchorContext: {
       columnFloat: selectedSegment ? (role === "previous" ? selectedSegment.end.columnFloat : selectedSegment.start.columnFloat) : anchor.columnFloat,
-      book: selectedSegment ? selectedSegment.start.book : anchor.book,
+      book: selectedSegment ? selectedSegment.book : anchor.book,
       chapter: selectedSegment ? selectedSegment.start.chapter : anchor.chapter,
       parashahKey: selectedSegment ? selectedSegment.start.parashahKey : anchor.parashahKey,
-      restrictSearchToRange: Boolean(selectedSegment),
-      minColumnFloat: selectedSegment ? selectedSegment.start.columnFloat : null,
-      maxColumnFloat: selectedSegment ? selectedSegment.end.columnFloat : null,
+      restrictSearchToRange: allowedRanges.length > 0,
+      allowedRanges,
     },
   }
 }
@@ -1224,15 +1247,27 @@ function anchorBucket(match, anchor) {
   return 1
 }
 
+function compareRefPosition(chapterA, verseA, chapterB, verseB) {
+  if (chapterA !== chapterB) return chapterA - chapterB
+  return verseA - verseB
+}
+
+function isMatchWithinAllowedRange(match, range) {
+  if (match.book !== range.book) return false
+  return (
+    compareRefPosition(match.chapter, match.verse, range.start.chapter, range.start.verse) >= 0 &&
+    compareRefPosition(match.chapter, match.verse, range.end.chapter, range.end.verse) <= 0
+  )
+}
+
 function sortMatchesByAnchor(matches, anchor) {
   if (!anchor || !Number.isFinite(anchor.columnFloat)) return [...matches]
 
   return [...matches]
     .filter((match) => {
       if (!anchor.restrictSearchToRange) return true
-      if (!anchor.book || match.book !== anchor.book) return false
-      if (!Number.isFinite(anchor.minColumnFloat) || !Number.isFinite(anchor.maxColumnFloat)) return true
-      return match.columnFloat >= anchor.minColumnFloat && match.columnFloat <= anchor.maxColumnFloat
+      if (!Array.isArray(anchor.allowedRanges) || !anchor.allowedRanges.length) return true
+      return anchor.allowedRanges.some((range) => isMatchWithinAllowedRange(match, range))
     })
     .sort((a, b) => {
       return (
