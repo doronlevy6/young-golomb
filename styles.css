@@ -63,10 +63,9 @@ mark {
 .brand-mark {
   width: 74px;
   height: 74px;
-  border-radius: 22px;
-  border: 1px solid rgba(18, 34, 93, 0.08);
-  background: rgba(255, 255, 255, 0.6);
-  box-shadow: 0 16px 40px rgba(18, 34, 93, 0.08);
+  display: block;
+  object-fit: contain;
+  overflow: visible;
 }
 
 .brand-copy {
@@ -178,6 +177,267 @@ mark {
 .main-shell {
   display: grid;
   gap: 1rem;
+}
+
+.times-layout {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: minmax(0, 1.08fr) minmax(320px, 0.92fr);
+  align-items: start;
+}
+
+.times-panel,
+.poster-panel {
+  padding: 1rem 1.05rem;
+}
+
+.times-panel .today-info {
+  margin-top: 0;
+}
+
+.times-settings {
+  margin-top: 0.85rem;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.65rem;
+}
+
+.field-full {
+  grid-column: 1 / -1;
+}
+
+.times-summary {
+  margin-top: 0.9rem;
+}
+
+.times-extra-lines {
+  margin-top: 0.9rem;
+  padding: 0.8rem;
+  border-radius: 18px;
+  border: 1px solid rgba(126, 63, 40, 0.12);
+  background: rgba(255, 255, 255, 0.75);
+}
+
+.times-fixed-lines {
+  margin-top: 0.9rem;
+  padding: 0.8rem;
+  border-radius: 18px;
+  border: 1px solid rgba(126, 63, 40, 0.12);
+  background: rgba(255, 255, 255, 0.78);
+}
+
+.times-fixed-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.55rem;
+}
+
+.times-fixed-lines-list {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.times-fixed-row {
+  display: grid;
+  gap: 0.45rem;
+  grid-template-columns: minmax(0, 1fr) minmax(116px, 0.42fr);
+  align-items: center;
+}
+
+.times-fixed-row input {
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 0.68rem 0.78rem;
+  background: #fffdfa;
+  color: var(--ink);
+  font: inherit;
+}
+
+.times-extra-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.55rem;
+}
+
+.times-extra-lines-list {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.times-extra-row {
+  display: grid;
+  gap: 0.45rem;
+  grid-template-columns: minmax(0, 1fr) minmax(160px, 0.75fr) auto;
+  align-items: center;
+}
+
+.times-extra-row input,
+.times-extra-row select {
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 0.7rem 0.8rem;
+  background: #fffdfa;
+  color: var(--ink);
+  font: inherit;
+}
+
+.checkbox-field {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  align-self: center;
+}
+
+.checkbox-field input {
+  inline-size: 1rem;
+  block-size: 1rem;
+  accent-color: var(--accent);
+}
+
+.times-card {
+  display: grid;
+  gap: 0.7rem;
+  border: 1px solid rgba(126, 63, 40, 0.12);
+  border-radius: 22px;
+  padding: 0.95rem 1rem;
+  background:
+    radial-gradient(circle at top left, rgba(126, 63, 40, 0.1), transparent 34%),
+    linear-gradient(180deg, rgba(255, 252, 246, 0.98), rgba(248, 240, 226, 0.95));
+}
+
+.times-card-head {
+  display: grid;
+  gap: 0.3rem;
+  margin-bottom: 0.18rem;
+}
+
+.times-card-head h3 {
+  margin: 0;
+  font-family: "Frank Ruhl Libre", serif;
+  font-size: clamp(1.35rem, 2.8vw, 1.8rem);
+}
+
+.times-card-subtitle {
+  margin: 0;
+  color: var(--accent-strong);
+  font-family: "Frank Ruhl Libre", serif;
+  font-size: clamp(1.15rem, 2.2vw, 1.45rem);
+  line-height: 1.2;
+}
+
+.times-season {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  padding: 0.35rem 0.72rem;
+  background: rgba(126, 63, 40, 0.1);
+  color: var(--accent-strong);
+  font-size: 0.88rem;
+  font-weight: 700;
+}
+
+.times-card-date {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.6;
+  font-size: 0.96rem;
+}
+
+.times-lines {
+  display: grid;
+  gap: 0.38rem;
+}
+
+.times-line {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 0.6rem;
+  border-radius: 14px;
+  border: 1px solid rgba(126, 63, 40, 0.1);
+  background: rgba(255, 255, 255, 0.74);
+  padding: 0.62rem 0.75rem;
+}
+
+.times-line span {
+  color: var(--muted);
+  font-weight: 700;
+}
+
+.times-line strong {
+  color: var(--ink);
+  font-size: 1.15rem;
+  font-weight: 800;
+}
+
+.times-line.is-primary strong {
+  color: var(--accent-strong);
+  font-size: 1.24rem;
+}
+
+.times-note {
+  margin: -0.18rem 0 0.18rem;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.times-greeting {
+  margin: 0.45rem 0 0;
+  text-align: center;
+  color: var(--accent-strong);
+  font-family: "Frank Ruhl Libre", serif;
+  font-size: clamp(1.25rem, 2.6vw, 1.7rem);
+  font-weight: 700;
+}
+
+.poster-head {
+  display: grid;
+  gap: 0.25rem;
+}
+
+.poster-head h2 {
+  margin: 0;
+  font-size: 1.18rem;
+}
+
+.poster-head p {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.6;
+}
+
+.poster-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  margin-top: 0.7rem;
+}
+
+.times-poster-preview {
+  margin-top: 0.75rem;
+  width: 100%;
+  display: block;
+  border-radius: 18px;
+  border: 1px solid rgba(126, 63, 40, 0.14);
+  background: linear-gradient(180deg, #f3ecdc, #e8dcc2);
+}
+
+.times-poster-canvas {
+  display: none;
+}
+
+.compact-hint.success {
+  color: var(--success);
+}
+
+.compact-hint.error {
+  color: var(--error);
 }
 
 .tab-view[hidden] {
@@ -307,7 +567,8 @@ mark {
 }
 
 .field input,
-.field-inline input {
+.field-inline input,
+.field select {
   width: 100%;
   border: 1px solid var(--line);
   border-radius: var(--radius-md);
@@ -318,7 +579,8 @@ mark {
 }
 
 .field input:focus,
-.field-inline input:focus {
+.field-inline input:focus,
+.field select:focus {
   outline: 2px solid rgba(126, 63, 40, 0.18);
   border-color: rgba(126, 63, 40, 0.45);
 }
@@ -1598,6 +1860,10 @@ button {
 }
 
 @media (max-width: 900px) {
+  .times-layout {
+    grid-template-columns: 1fr;
+  }
+
   .layout {
     grid-template-columns: 1fr;
   }
@@ -1711,6 +1977,28 @@ button {
 
   .field-inline {
     grid-template-columns: 1fr;
+  }
+
+  .times-settings {
+    grid-template-columns: 1fr;
+  }
+
+  .times-extra-row {
+    grid-template-columns: 1fr;
+  }
+
+  .times-fixed-row {
+    grid-template-columns: 1fr;
+  }
+
+  .poster-actions {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .poster-actions .primary-button,
+  .poster-actions .ghost-button {
+    width: 100%;
   }
 
   .field-target .field-inline input {

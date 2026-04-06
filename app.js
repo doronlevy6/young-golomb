@@ -17,11 +17,35 @@ const journalSummaryEl = document.getElementById("journal-summary")
 const journalMonthsEl = document.getElementById("journal-months")
 const calendarModal = document.getElementById("calendar-modal")
 const calendarCloseButton = document.getElementById("calendar-close")
+const calendarTitleEl = document.getElementById("calendar-title")
+const calendarSubtitleEl = document.getElementById("calendar-subtitle")
 const journalMonthSelect = document.getElementById("journal-month-select")
 const journalYearSelect = document.getElementById("journal-year-select")
 const journalPrevMonthButton = document.getElementById("journal-prev-month")
 const journalNextMonthButton = document.getElementById("journal-next-month")
+const modeTabsEl = document.getElementById("mode-tabs")
+const timesViewEl = document.getElementById("times-view")
+const navigatorViewEl = document.getElementById("navigator-view")
 const todayInfoEl = document.getElementById("today-info")
+const timesDateInput = document.getElementById("times-date-input")
+const timesCalendarButton = document.getElementById("times-calendar-button")
+const timesDateTodayButton = document.getElementById("times-date-today")
+const timesMainTitleInput = document.getElementById("times-main-title")
+const timesDafTimeInput = document.getElementById("times-daf-time")
+const timesGreetingModeInput = document.getElementById("times-greeting-mode")
+const timesGreetingInput = document.getElementById("times-greeting-input")
+const timesSeasonModeInput = document.getElementById("times-season-mode")
+const timesIncludeDafInput = document.getElementById("times-include-daf")
+const timesResetFixedLinesButton = document.getElementById("times-reset-fixed-lines")
+const timesFixedLinesList = document.getElementById("times-fixed-lines-list")
+const timesAddExtraLineButton = document.getElementById("times-add-extra-line")
+const timesExtraLinesList = document.getElementById("times-extra-lines-list")
+const timesSummaryEl = document.getElementById("times-summary")
+const timesCopyImageButton = document.getElementById("times-copy-image")
+const timesDownloadImageButton = document.getElementById("times-download-image")
+const timesCopyStatusEl = document.getElementById("times-copy-status")
+const timesPosterPreview = document.getElementById("times-poster-preview")
+const timesPosterCanvas = document.getElementById("times-poster-canvas")
 
 const viewerModal = document.getElementById("viewer-modal")
 const viewerMeta = document.getElementById("viewer-meta")
@@ -79,18 +103,28 @@ const scheduledReadingPrefixes = {
 }
 const israelTimeZone = "Asia/Jerusalem"
 const bneiBrakGeoNameId = 295514
+const bneiBrakCandleOffsetMinutes = 22
 const featuredZmanim = [
   { key: "alotHaShachar", label: "עלות" },
   { key: "sunrise", label: "נץ" },
   { key: "sofZmanShma", label: "שמע" },
   { key: "chatzot", label: "חצות" },
   { key: "sunset", label: "שקיעה" },
-  { key: "tzeit7083deg", label: "צאת" },
+  { keys: ["tzeit85deg", "tzeit7083deg"], label: "צאת" },
 ]
+const appModes = {
+  times: "times",
+  navigator: "navigator",
+}
+const timesSettingsStorageKey = "torah-scroll-navigator.times-settings.v1"
+const defaultTimesGreeting = "שבת שלום ומועדים לשמחה!"
 
 let navigatorData = null
 let previewState = []
 let comparisonState = null
+let appState = {
+  mode: appModes.times,
+}
 let todayInfoState = {
   isoDate: getIsraelDateString(),
   hebrewDate: "",
@@ -134,6 +168,34 @@ let viewerState = {
 let touchStartX = null
 let touchStartY = null
 let liveSearchTimer = null
+let timesCopyMessageTimer = null
+let posterLogoImage = null
+let posterPreviewUrl = ""
+let timesState = {
+  selectedDate: getIsraelDateString(),
+  loading: false,
+  error: "",
+  rawTimes: null,
+  calendarTimes: {
+    candleLighting: null,
+    havdalah: null,
+  },
+  readingName: "",
+  readingTypeLabel: "",
+  seasonLabel: "",
+  baseSchedule: [],
+  schedule: [],
+  settings: {
+    mainTitle: "",
+    dafTime: "18:00",
+    includeDaf: true,
+    seasonMode: "auto",
+    greetingMode: "auto",
+    greeting: defaultTimesGreeting,
+    fixedLineOverrides: {},
+    extraLines: [],
+  },
+}
 
 function normalizeSpaces(text) {
   return text.replace(/\s+/g, " ").trim()
@@ -305,12 +367,6 @@ function getIsraelDateObject(isoDate) {
   return new Date(`${isoDate}T12:00:00Z`)
 }
 
-function addDaysToIsoDate(isoDate, days) {
-  const date = new Date(`${isoDate}T00:00:00Z`)
-  date.setUTCDate(date.getUTCDate() + days)
-  return date.toISOString().slice(0, 10)
-}
-
 function formatReadingDate(dateString) {
   const date = new Date(`${dateString}T00:00:00Z`)
   return new Intl.DateTimeFormat("he-IL", {
@@ -362,13 +418,19 @@ function formatHebrewDay(isoDate) {
   }
 }
 
-function formatClockTime(dateTimeString) {
+function formatClockTime(dateTimeValue) {
+  const date =
+    dateTimeValue instanceof Date
+      ? dateTimeValue
+      : new Date(dateTimeValue)
+  if (Number.isNaN(date.getTime())) return ""
+
   return new Intl.DateTimeFormat("he-IL", {
     timeZone: israelTimeZone,
     hour: "2-digit",
     minute: "2-digit",
     hourCycle: "h23",
-  }).format(new Date(dateTimeString))
+  }).format(date)
 }
 
 function parseIsoDateFromQuery(query) {
@@ -457,7 +519,7 @@ async function loadTodayInfo() {
   renderTodayInfo()
 
   try {
-    const response = await fetch(
+    const response = await fetchWithTimeout(
       `https://www.hebcal.com/zmanim?cfg=json&geonameid=${bneiBrakGeoNameId}&date=${todayInfoState.isoDate}`,
     )
     if (!response.ok) throw new Error(`Hebcal zmanim HTTP ${response.status}`)
@@ -468,7 +530,8 @@ async function loadTodayInfo() {
       payload?.location?.city === "Bnei Brak" ? "בני ברק" : payload?.location?.city || "בני ברק"
     todayInfoState.zmanim = featuredZmanim
       .map((item) => {
-        const value = times[item.key]
+        const candidateKeys = Array.isArray(item.keys) ? item.keys : [item.key]
+        const value = candidateKeys.map((key) => times[key]).find(Boolean)
         if (!value) return null
         return { label: item.label, time: formatClockTime(value) }
       })
@@ -481,6 +544,933 @@ async function loadTodayInfo() {
     todayInfoState.loading = false
     renderTodayInfo()
   }
+}
+
+function addMinutes(date, minutes) {
+  return new Date(date.getTime() + minutes * 60 * 1000)
+}
+
+function addDaysToIsoDate(isoDate, days) {
+  const date = getIsraelDateObject(isoDate)
+  date.setUTCDate(date.getUTCDate() + days)
+  return date.toISOString().slice(0, 10)
+}
+
+async function fetchWithTimeout(url, options = {}, timeoutMs = 12000) {
+  const controller = new AbortController()
+  const timeout = setTimeout(() => controller.abort(), timeoutMs)
+  try {
+    return await fetch(url, { ...options, signal: controller.signal })
+  } catch (error) {
+    if (error?.name === "AbortError") {
+      throw new Error("פג זמן הטעינה של השרת, נסה שוב.")
+    }
+    throw error
+  } finally {
+    clearTimeout(timeout)
+  }
+}
+
+function normalizeTimeInput(value) {
+  const match = String(value || "").match(/^([01]\d|2[0-3]):([0-5]\d)$/)
+  return match ? `${match[1]}:${match[2]}` : ""
+}
+
+async function fetchCalendarCandleTimes(dateString) {
+  const start = addDaysToIsoDate(dateString, -1)
+  const end = dateString
+  const url =
+    `https://www.hebcal.com/hebcal?v=1&cfg=json` +
+    `&start=${start}&end=${end}` +
+    `&c=on&b=${bneiBrakCandleOffsetMinutes}&M=on&i=on` +
+    `&geo=geoname&geonameid=${bneiBrakGeoNameId}`
+
+  try {
+    const response = await fetchWithTimeout(url)
+    if (!response.ok) return { candleLighting: null, havdalah: null }
+    const payload = await response.json()
+    const items = Array.isArray(payload?.items) ? payload.items : []
+    const candles = items.filter((item) => item?.category === "candles")
+    const havdalot = items.filter((item) => item?.category === "havdalah")
+    const preferredCandle =
+      candles.find((item) => String(item.date || "").startsWith(`${dateString}T`)) ||
+      candles.at(-1) ||
+      null
+    const preferredHavdalah =
+      havdalot.find((item) => String(item.date || "").startsWith(`${dateString}T`)) ||
+      null
+    return {
+      candleLighting: preferredCandle?.date ? new Date(preferredCandle.date) : null,
+      havdalah: preferredHavdalah?.date ? new Date(preferredHavdalah.date) : null,
+    }
+  } catch {
+    return { candleLighting: null, havdalah: null }
+  }
+}
+
+function getIsraelOffsetHours(isoDate) {
+  try {
+    const parts = new Intl.DateTimeFormat("en-US", {
+      timeZone: israelTimeZone,
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+      timeZoneName: "shortOffset",
+    }).formatToParts(getIsraelDateObject(isoDate))
+    const offsetRaw = parts.find((part) => part.type === "timeZoneName")?.value || "GMT+2"
+    const match = offsetRaw.match(/GMT([+-]\d{1,2})(?::(\d{2}))?/)
+    if (!match) return 2
+    const hours = Number(match[1])
+    const minutes = Number(match[2] || "0")
+    return hours >= 0 ? hours + minutes / 60 : hours - minutes / 60
+  } catch {
+    return 2
+  }
+}
+
+function getSeasonLabel(isoDate) {
+  return getIsraelOffsetHours(isoDate) >= 3 ? "קיץ" : "חורף"
+}
+
+function normalizeGreetingMode(value) {
+  return value === "custom" ? "custom" : "auto"
+}
+
+function normalizeSeasonMode(value) {
+  return value === "summer" || value === "winter" ? value : "auto"
+}
+
+function normalizeGreetingInput(value) {
+  return String(value || "")
+    .replace(/[\r\n]+/g, " ")
+    .slice(0, 180)
+}
+
+function normalizeMainTitle(value) {
+  return String(value || "")
+    .replace(/[\r\n]+/g, " ")
+    .slice(0, 120)
+}
+
+function normalizeFixedLineField(value, maxLength = 80) {
+  return normalizeSpaces(String(value || "")).slice(0, maxLength)
+}
+
+function normalizeFixedLineOverrides(value) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return {}
+  const entries = Object.entries(value).slice(0, 40)
+  return entries.reduce((accumulator, [rawId, rawOverride]) => {
+    const id = normalizeSpaces(rawId)
+    if (!id) return accumulator
+    const override = rawOverride && typeof rawOverride === "object" ? rawOverride : {}
+    const label = normalizeFixedLineField(override.label, 80)
+    const time = normalizeFixedLineField(override.time, 32)
+    if (label || time) {
+      accumulator[id] = { label, time }
+    }
+    return accumulator
+  }, {})
+}
+
+function normalizeExtraLine(item) {
+  if (!item || typeof item !== "object") return null
+  const text = normalizeSpaces(item.text || "")
+  const afterId = normalizeSpaces(item.afterId || "")
+  return { text, afterId }
+}
+
+function normalizeExtraLines(items) {
+  if (!Array.isArray(items)) return []
+  return items
+    .map((item) => normalizeExtraLine(item))
+    .filter(Boolean)
+    .slice(0, 12)
+}
+
+function loadTimesSettings() {
+  try {
+    const raw = localStorage.getItem(timesSettingsStorageKey)
+    if (!raw) return
+    const parsed = JSON.parse(raw)
+    timesState.settings.mainTitle = normalizeMainTitle(parsed?.mainTitle)
+    timesState.settings.dafTime = normalizeTimeInput(parsed?.dafTime) || timesState.settings.dafTime
+    timesState.settings.includeDaf = parsed?.includeDaf !== false
+    timesState.settings.seasonMode = normalizeSeasonMode(parsed?.seasonMode)
+    timesState.settings.greetingMode = normalizeGreetingMode(parsed?.greetingMode)
+    timesState.settings.greeting = normalizeGreetingInput(parsed?.greeting || "")
+    timesState.settings.fixedLineOverrides = normalizeFixedLineOverrides(parsed?.fixedLineOverrides)
+    timesState.settings.extraLines = normalizeExtraLines(parsed?.extraLines)
+  } catch {
+    timesState.settings = {
+      ...timesState.settings,
+      mainTitle: "",
+      includeDaf: true,
+      seasonMode: "auto",
+      greetingMode: "auto",
+      greeting: defaultTimesGreeting,
+      fixedLineOverrides: {},
+      extraLines: [],
+    }
+  }
+}
+
+function saveTimesSettings() {
+  try {
+    localStorage.setItem(timesSettingsStorageKey, JSON.stringify(timesState.settings))
+  } catch {}
+}
+
+function setTimesCopyStatus(message, mode = "") {
+  if (!timesCopyStatusEl) return
+  clearTimeout(timesCopyMessageTimer)
+  timesCopyStatusEl.textContent = message
+  timesCopyStatusEl.className = `compact-hint${mode ? ` ${mode}` : ""}`
+  if (message) {
+    timesCopyMessageTimer = setTimeout(() => {
+      timesCopyStatusEl.textContent = ""
+      timesCopyStatusEl.className = "compact-hint"
+    }, 3600)
+  }
+}
+
+function setAppMode(mode) {
+  appState.mode = mode === appModes.navigator ? appModes.navigator : appModes.times
+
+  if (timesViewEl) {
+    timesViewEl.hidden = appState.mode !== appModes.times
+  }
+  if (navigatorViewEl) {
+    navigatorViewEl.hidden = appState.mode !== appModes.navigator
+  }
+
+  modeTabsEl?.querySelectorAll(".mode-tab").forEach((button) => {
+    const isActive = button.dataset.tab === appState.mode
+    button.classList.toggle("is-active", isActive)
+    button.setAttribute("aria-pressed", isActive ? "true" : "false")
+  })
+}
+
+function getTimesReadingMeta(dateString) {
+  const sameDateReadings = (autoReadingsState.readings || []).filter((reading) => reading.date === dateString)
+  const preferred =
+    sameDateReadings.find((reading) => !reading.isWeekdayReading) ||
+    sameDateReadings[0] ||
+    null
+
+  if (!preferred) return null
+  return {
+    name: preferred.name,
+    typeLabel: preferred.typeLabel,
+  }
+}
+
+function formatParashahDisplayName(name) {
+  const rawName = normalizeSpaces(name || "")
+  if (!rawName) return ""
+
+  const cleaned = normalizeSpaces(
+    rawName
+      .replace(/^Parashat\s+/i, "")
+      .replace(/^Parsha(?:t)?\s+/i, "")
+      .replace(/^פרשת\s+/u, "")
+      .replace(/^פרשה\s+/u, ""),
+  )
+  if (!cleaned) return ""
+
+  return cleaned
+}
+
+function getTimesOccasionMeta({
+  dateString = timesState.selectedDate,
+  readingName = timesState.readingName,
+  readingTypeLabel = timesState.readingTypeLabel,
+} = {}) {
+  const cleanedReadingName = normalizeSpaces(readingName || "")
+  const dayIndex = getWeekdayIndex(dateString)
+  const isHoliday = readingTypeLabel === "קריאת חג"
+  const isShabbat = readingTypeLabel === "קריאת שבת" || dayIndex === 6
+
+  if (isHoliday) {
+    return {
+      kind: "holiday",
+      heading: "זמני חג",
+      subheading: cleanedReadingName,
+      autoGreeting: dayIndex === 6 ? "שבת שלום ומועדים לשמחה!" : "מועדים לשמחה!",
+      exitLabel: "צאת החג",
+      preExitNote: "5 דקות לפני צאת החג",
+    }
+  }
+
+  if (isShabbat) {
+    const parashahLabel = formatParashahDisplayName(cleanedReadingName)
+    return {
+      kind: "shabbat",
+      heading: "זמני שבת",
+      subheading: parashahLabel,
+      autoGreeting: "שבת שלום! ❤️",
+      exitLabel: "צאת שבת",
+      preExitNote: "5 דקות לפני צאת שבת",
+    }
+  }
+
+  return {
+    kind: "day",
+    heading: "זמני היום",
+    subheading: cleanedReadingName,
+    autoGreeting: "בשורות טובות!",
+    exitLabel: "צאת היום",
+    preExitNote: "5 דקות לפני צאת היום",
+  }
+}
+
+function resolveSeasonLabel(dateString) {
+  if (timesState.settings.seasonMode === "summer") return "קיץ"
+  if (timesState.settings.seasonMode === "winter") return "חורף"
+  return getSeasonLabel(dateString)
+}
+
+function getEffectiveGreeting(occasionMeta) {
+  const greeting =
+    timesState.settings.greetingMode === "custom"
+      ? normalizeSpaces(timesState.settings.greeting || "") || occasionMeta.autoGreeting || defaultTimesGreeting
+      : occasionMeta.autoGreeting || defaultTimesGreeting
+
+  const cleanGreeting = String(greeting || "").replace(/\s+$/g, "")
+  if (!cleanGreeting) return "❤️"
+  if (/[❤️♥]\s*$/u.test(cleanGreeting)) return cleanGreeting
+  return `${cleanGreeting} ❤️`
+}
+
+function numberToHebrewLetters(value) {
+  const number = Number(value)
+  if (!Number.isInteger(number) || number <= 0) return ""
+
+  const hundreds = ["", "ק", "ר", "ש", "ת", "תק", "תר", "תש", "תת", "תתק"]
+  const tens = ["", "י", "כ", "ל", "מ", "נ", "ס", "ע", "פ", "צ"]
+  const units = ["", "א", "ב", "ג", "ד", "ה", "ו", "ז", "ח", "ט"]
+  let n = number
+  let letters = ""
+
+  while (n >= 1000) {
+    letters += "תתק"
+    n -= 900
+  }
+
+  const hundredIndex = Math.floor(n / 100)
+  letters += hundreds[hundredIndex]
+  n %= 100
+
+  if (n === 15) return letters + "טו"
+  if (n === 16) return letters + "טז"
+
+  const tenIndex = Math.floor(n / 10)
+  letters += tens[tenIndex]
+  n %= 10
+  letters += units[n]
+
+  return letters
+}
+
+function addHebrewGershayim(text) {
+  const value = normalizeSpaces(text || "")
+  if (!value) return ""
+  if (value.length === 1) return `${value}׳`
+  return `${value.slice(0, -1)}״${value.slice(-1)}`
+}
+
+function formatHebrewDateGematria(isoDate) {
+  try {
+    const parts = new Intl.DateTimeFormat("he-IL-u-ca-hebrew", {
+      timeZone: israelTimeZone,
+      day: "numeric",
+      month: "long",
+      year: "numeric",
+    }).formatToParts(getIsraelDateObject(isoDate))
+
+    const dayNumber = Number(parts.find((part) => part.type === "day")?.value || "")
+    const monthLabelRaw = normalizeSpaces(parts.find((part) => part.type === "month")?.value || "")
+    const monthLabel = monthLabelRaw.replace(/^ב(?=[\p{Script=Hebrew}])/u, "")
+    const yearNumber = Number(parts.find((part) => part.type === "year")?.value || "")
+    if (!dayNumber || !monthLabel || !yearNumber) return formatHebrewDate(isoDate)
+
+    const dayLabel = numberToHebrewLetters(dayNumber)
+    const yearLabel = addHebrewGershayim(numberToHebrewLetters(yearNumber % 1000))
+    return `${dayLabel} ${monthLabel} ${yearLabel}`
+  } catch {
+    return formatHebrewDate(isoDate)
+  }
+}
+
+async function fetchTimesReadingMeta(dateString) {
+  try {
+    const response = await fetchWithTimeout(
+      `https://www.hebcal.com/leyning?cfg=json&start=${dateString}&end=${dateString}&i=on&h=on&triennial=off`,
+    )
+    if (!response.ok) return null
+    const payload = await response.json()
+    const items = Array.isArray(payload.items) ? payload.items : []
+    const preferred = items.find((item) => !item.weekday) || items[0] || null
+    if (!preferred) return null
+
+    return {
+      name: getHebcalReadingName(preferred),
+      typeLabel: getHebcalReadingTypeLabel(preferred),
+    }
+  } catch {
+    return null
+  }
+}
+
+function getZmanDate(times, key) {
+  if (!times?.[key]) return null
+  const date = new Date(times[key])
+  return Number.isNaN(date.getTime()) ? null : date
+}
+
+function getEffectiveTimesHeading(occasionMeta = getTimesOccasionMeta()) {
+  const customTitle = normalizeMainTitle(timesState.settings.mainTitle)
+  if (normalizeSpaces(customTitle)) {
+    return {
+      title: customTitle,
+      subtitle: "",
+    }
+  }
+  return {
+    title: occasionMeta.heading || "זמני היום",
+    subtitle: normalizeSpaces(occasionMeta.subheading || ""),
+  }
+}
+
+function applyFixedLineOverrides(schedule, overrides = timesState.settings.fixedLineOverrides) {
+  if (!Array.isArray(schedule) || !schedule.length) return []
+  const normalizedOverrides = normalizeFixedLineOverrides(overrides)
+  return schedule.map((entry) => {
+    const override = normalizedOverrides[entry.id]
+    if (!override) return entry
+    return {
+      ...entry,
+      label: override.label || entry.label,
+      time: override.time || entry.time,
+    }
+  })
+}
+
+function updateFixedLineOverride(lineId, nextPatch = {}) {
+  const id = normalizeSpaces(lineId)
+  if (!id) return
+  const overrides = normalizeFixedLineOverrides(timesState.settings.fixedLineOverrides)
+  const existing = overrides[id] || { label: "", time: "" }
+  const next = {
+    label: normalizeFixedLineField(nextPatch.label ?? existing.label, 80),
+    time: normalizeFixedLineField(nextPatch.time ?? existing.time, 32),
+  }
+  if (!next.label && !next.time) {
+    delete overrides[id]
+  } else {
+    overrides[id] = next
+  }
+  timesState.settings.fixedLineOverrides = overrides
+}
+
+function applyExtraLinesToSchedule(baseSchedule, extraLines = []) {
+  if (!baseSchedule.length) return []
+  const validExtraLines = normalizeExtraLines(extraLines).filter((line) => line.text)
+  if (!validExtraLines.length) return [...baseSchedule]
+  const validTargetIds = new Set(baseSchedule.map((entry) => entry.id))
+  const fallbackTargetId = baseSchedule.at(-1)?.id || ""
+
+  const grouped = validExtraLines.reduce((map, line, index) => {
+    const key = validTargetIds.has(line.afterId) ? line.afterId : fallbackTargetId
+    if (!map.has(key)) map.set(key, [])
+    map.get(key).push({
+      id: `extra-${index}`,
+      label: line.text,
+      time: "",
+      primary: false,
+      isExtra: true,
+    })
+    return map
+  }, new Map())
+
+  const result = []
+  baseSchedule.forEach((entry) => {
+    result.push(entry)
+    const extras = grouped.get(entry.id) || []
+    extras.forEach((line) => result.push(line))
+  })
+
+  return result
+}
+
+function buildHolidaySchedule(times, seasonLabel, occasionMeta = {}, calendarTimes = {}) {
+  const sunset = getZmanDate(times, "sunset")
+  if (!sunset) return []
+
+  const candleLighting =
+    calendarTimes.candleLighting ||
+    getZmanDate(times, "candleLighting") ||
+    addMinutes(sunset, -bneiBrakCandleOffsetMinutes)
+  const tzeit =
+    calendarTimes.havdalah ||
+    getZmanDate(times, "tzeit85deg") ||
+    getZmanDate(times, "tzeit7083deg") ||
+    getZmanDate(times, "tzeit") ||
+    addMinutes(sunset, 40)
+  const sofZmanShma = getZmanDate(times, "sofZmanShma")
+  const shacharit = seasonLabel === "קיץ" ? "09:30" : "09:00"
+  const dafTime = normalizeTimeInput(timesState.settings.dafTime) || "18:00"
+  const exitLabel = occasionMeta.exitLabel || "צאת החג"
+  const baseSchedule = [
+    { id: "candle_lighting", label: "הדלקת נרות", time: formatClockTime(candleLighting), primary: true },
+    { id: "mincha_at_candle", label: "מנחה", time: formatClockTime(addMinutes(candleLighting, 10)) },
+    { id: "arvit_after_sunset", label: "ערבית", time: formatClockTime(addMinutes(sunset, 25)) },
+    { id: "shacharit", label: "שחרית", time: shacharit, primary: true },
+    { id: "sof_zman_shma", label: "זמן אחרון לקריאת שמע", time: sofZmanShma ? formatClockTime(sofZmanShma) : "—" },
+    { id: "mincha_before_exit", label: "ערבית", time: formatClockTime(addMinutes(tzeit, -5)) },
+    { id: exitLabel === "צאת שבת" ? "tzeit_shabbat" : "tzeit_chag", label: exitLabel, time: formatClockTime(tzeit), primary: true },
+  ]
+
+  if (timesState.settings.includeDaf) {
+    baseSchedule.splice(4, 0, {
+      id: "daf_yomi",
+      label: "שיעור הדף היומי",
+      time: dafTime,
+    })
+  }
+
+  return baseSchedule
+}
+
+function renderTimesFixedLinesEditor(baseSchedule = timesState.baseSchedule) {
+  if (!timesFixedLinesList) return
+  const rows = Array.isArray(baseSchedule) ? baseSchedule : []
+
+  if (!rows.length) {
+    timesFixedLinesList.innerHTML = `<p class="compact-hint">לאחר טעינת זמני היום תוכל לערוך שורות קבועות.</p>`
+    return
+  }
+
+  timesFixedLinesList.innerHTML = rows
+    .map(
+      (entry) => `
+        <div class="times-fixed-row" data-fixed-id="${escapeHtml(entry.id)}">
+          <input
+            class="times-fixed-label"
+            type="text"
+            value="${escapeHtml(entry.label)}"
+            placeholder="טקסט שורה"
+            data-action="fixed-label"
+            data-fixed-id="${escapeHtml(entry.id)}"
+          />
+          <input
+            class="times-fixed-time"
+            type="text"
+            value="${escapeHtml(entry.time || "")}"
+            placeholder="שעה"
+            data-action="fixed-time"
+            data-fixed-id="${escapeHtml(entry.id)}"
+          />
+        </div>
+      `,
+    )
+    .join("")
+}
+
+function renderTimesExtraLinesEditor(baseSchedule = timesState.baseSchedule) {
+  if (!timesExtraLinesList) return
+  const lines = normalizeExtraLines(timesState.settings.extraLines)
+  const targets = (baseSchedule || []).map((entry) => ({
+    id: entry.id,
+    label: entry.label,
+  }))
+
+  if (!targets.length) {
+    timesExtraLinesList.innerHTML = `<p class="compact-hint">לאחר טעינת זמני היום תוכל להוסיף שורות מותאמות.</p>`
+    return
+  }
+
+  if (!lines.length) {
+    timesExtraLinesList.innerHTML = `<p class="compact-hint">אין שורות נוספות כרגע.</p>`
+    return
+  }
+
+  timesExtraLinesList.innerHTML = lines
+    .map(
+      (line, index) => `
+        <div class="times-extra-row" data-extra-index="${index}">
+          <input
+            class="times-extra-text"
+            type="text"
+            value="${escapeHtml(line.text)}"
+            placeholder="טקסט נוסף"
+            data-action="extra-text"
+            data-extra-index="${index}"
+          />
+          <select
+            class="times-extra-after"
+            data-action="extra-after"
+            data-extra-index="${index}"
+          >
+            ${targets
+              .map(
+                (target) => `
+                  <option value="${target.id}" ${target.id === line.afterId ? "selected" : ""}>
+                    אחרי ${escapeHtml(target.label)}
+                  </option>
+                `,
+              )
+              .join("")}
+          </select>
+          <button
+            class="ghost-button small-button"
+            type="button"
+            data-action="extra-remove"
+            data-extra-index="${index}"
+          >
+            הסר
+          </button>
+        </div>
+      `,
+    )
+    .join("")
+}
+
+function renderTimesSummary() {
+  if (timesDateInput) timesDateInput.value = timesState.selectedDate
+  if (timesMainTitleInput && document.activeElement !== timesMainTitleInput) {
+    timesMainTitleInput.value = normalizeMainTitle(timesState.settings.mainTitle)
+  }
+  if (timesDafTimeInput) timesDafTimeInput.value = normalizeTimeInput(timesState.settings.dafTime) || "18:00"
+  if (timesGreetingModeInput) timesGreetingModeInput.value = normalizeGreetingMode(timesState.settings.greetingMode)
+  if (timesGreetingInput) {
+    const occasionMeta = getTimesOccasionMeta()
+    const effectiveGreeting = getEffectiveGreeting(occasionMeta)
+    const customGreeting = normalizeGreetingInput(timesState.settings.greeting || "")
+    if (document.activeElement !== timesGreetingInput) {
+      timesGreetingInput.value =
+        normalizeGreetingMode(timesState.settings.greetingMode) === "custom"
+          ? customGreeting
+          : effectiveGreeting
+    }
+    timesGreetingInput.disabled = normalizeGreetingMode(timesState.settings.greetingMode) !== "custom"
+  }
+  if (timesSeasonModeInput) timesSeasonModeInput.value = normalizeSeasonMode(timesState.settings.seasonMode)
+  if (timesIncludeDafInput) timesIncludeDafInput.checked = timesState.settings.includeDaf !== false
+  if (!timesSummaryEl) return
+
+  if (timesState.loading) {
+    timesSummaryEl.className = "times-summary empty-state"
+    timesSummaryEl.innerHTML = "<p>טוען זמני שבת/חג...</p>"
+    if (timesPosterPreview) timesPosterPreview.removeAttribute("src")
+    renderTimesFixedLinesEditor([])
+    renderTimesExtraLinesEditor([])
+    return
+  }
+
+  if (timesState.error) {
+    timesSummaryEl.className = "times-summary empty-state"
+    timesSummaryEl.innerHTML = `<p>${escapeHtml(timesState.error)}</p>`
+    if (timesPosterPreview) timesPosterPreview.removeAttribute("src")
+    renderTimesFixedLinesEditor([])
+    renderTimesExtraLinesEditor([])
+    return
+  }
+
+  const hebrewDate = formatHebrewDateGematria(timesState.selectedDate)
+  const gregorianDate = formatReadingDate(timesState.selectedDate)
+  const occasionMeta = getTimesOccasionMeta()
+  const heading = getEffectiveTimesHeading(occasionMeta)
+  const greeting = getEffectiveGreeting(occasionMeta)
+
+  timesSummaryEl.className = "times-summary"
+  timesSummaryEl.innerHTML = `
+    <article class="times-card">
+      <div class="times-card-head">
+        <h3>${escapeHtml(heading.title)}</h3>
+        ${heading.subtitle ? `<p class="times-card-subtitle">${escapeHtml(heading.subtitle)}</p>` : ""}
+      </div>
+      <p class="times-card-date">${escapeHtml(hebrewDate)} · ${escapeHtml(gregorianDate)}</p>
+      <div class="times-lines">
+        ${timesState.schedule
+          .map(
+            (entry) => `
+              <div class="times-line${entry.primary ? " is-primary" : ""}">
+                <span>${escapeHtml(entry.label)}</span>
+                ${entry.time ? `<strong>${escapeHtml(entry.time)}</strong>` : ""}
+              </div>
+            `,
+          )
+          .join("")}
+      </div>
+      <p class="times-greeting">${escapeHtml(greeting)}</p>
+    </article>
+  `
+  renderTimesFixedLinesEditor(timesState.baseSchedule)
+  renderTimesExtraLinesEditor(timesState.baseSchedule)
+  renderTimesPosterImage()
+}
+
+function roundedRectPath(ctx, x, y, width, height, radius) {
+  const safeRadius = Math.min(radius, width / 2, height / 2)
+  ctx.beginPath()
+  ctx.moveTo(x + safeRadius, y)
+  ctx.arcTo(x + width, y, x + width, y + height, safeRadius)
+  ctx.arcTo(x + width, y + height, x, y + height, safeRadius)
+  ctx.arcTo(x, y + height, x, y, safeRadius)
+  ctx.arcTo(x, y, x + width, y, safeRadius)
+  ctx.closePath()
+}
+
+function drawWrappedRtlText(ctx, text, x, y, maxWidth, lineHeight) {
+  const words = normalizeSpaces(text).split(" ").filter(Boolean)
+  if (!words.length) return y
+
+  let line = ""
+  let currentY = y
+
+  words.forEach((word, index) => {
+    const testLine = line ? `${line} ${word}` : word
+    if (ctx.measureText(testLine).width > maxWidth && line) {
+      ctx.fillText(line, x, currentY)
+      currentY += lineHeight
+      line = word
+    } else {
+      line = testLine
+    }
+
+    if (index === words.length - 1 && line) {
+      ctx.fillText(line, x, currentY)
+      currentY += lineHeight
+    }
+  })
+
+  return currentY
+}
+
+function getPosterLogoImage() {
+  if (posterLogoImage) return Promise.resolve(posterLogoImage)
+
+  return new Promise((resolve, reject) => {
+    const image = new Image()
+    image.onload = () => {
+      posterLogoImage = image
+      resolve(image)
+    }
+    image.onerror = reject
+    image.src = "./assets/golomb-logo.png"
+  })
+}
+
+async function renderTimesPosterImage() {
+  if (!timesPosterCanvas || !timesPosterPreview) return
+  if (timesState.loading || timesState.error || !timesState.schedule.length) return
+
+  const canvas = timesPosterCanvas
+  const ctx = canvas.getContext("2d")
+  if (!ctx) return
+
+  const width = canvas.width
+  const height = canvas.height
+
+  const backgroundGradient = ctx.createLinearGradient(0, 0, 0, height)
+  backgroundGradient.addColorStop(0, "#fbf6eb")
+  backgroundGradient.addColorStop(1, "#ebdfc3")
+  ctx.fillStyle = backgroundGradient
+  ctx.fillRect(0, 0, width, height)
+
+  const glow = ctx.createRadialGradient(width * 0.25, 0, 40, width * 0.25, 0, width * 0.8)
+  glow.addColorStop(0, "rgba(126, 63, 40, 0.18)")
+  glow.addColorStop(1, "rgba(126, 63, 40, 0)")
+  ctx.fillStyle = glow
+  ctx.fillRect(0, 0, width, height)
+
+  ctx.shadowColor = "rgba(69, 47, 30, 0.12)"
+  ctx.shadowBlur = 42
+  ctx.shadowOffsetY = 10
+  roundedRectPath(ctx, 56, 56, width - 112, height - 112, 34)
+  ctx.fillStyle = "rgba(255, 252, 245, 0.96)"
+  ctx.fill()
+  ctx.shadowColor = "transparent"
+
+  try {
+    const logo = await getPosterLogoImage()
+    const logoX = 92
+    const logoY = height - 262
+    const logoSize = 170
+    ctx.drawImage(logo, logoX, logoY, logoSize, logoSize)
+  } catch {}
+
+  const occasionMeta = getTimesOccasionMeta()
+  const heading = getEffectiveTimesHeading(occasionMeta)
+
+  ctx.direction = "rtl"
+  ctx.textAlign = "right"
+  ctx.fillStyle = "#2e2418"
+  ctx.font = '700 64px "Frank Ruhl Libre", serif'
+  let headingBottom = drawWrappedRtlText(ctx, heading.title, width - 96, 146, width - 290, 72)
+
+  if (heading.subtitle) {
+    ctx.fillStyle = "#5f2817"
+    ctx.font = '700 54px "Frank Ruhl Libre", serif'
+    headingBottom = drawWrappedRtlText(ctx, heading.subtitle, width - 96, headingBottom + 28, width - 290, 62)
+  }
+
+  ctx.fillStyle = "#5f2817"
+  ctx.font = '700 34px "Heebo", sans-serif'
+  const dateLineBottom = drawWrappedRtlText(
+    ctx,
+    formatHebrewDateGematria(timesState.selectedDate),
+    width - 96,
+    headingBottom + 40,
+    width - 170,
+    40,
+  )
+
+  let y = dateLineBottom + 42
+  timesState.schedule.forEach((entry) => {
+    ctx.fillStyle = "#2e2418"
+    ctx.font = entry.primary ? '800 52px "Heebo", sans-serif' : '700 44px "Heebo", sans-serif'
+    const lineText = entry.time ? `${entry.label}: ${entry.time}` : entry.label
+    y = drawWrappedRtlText(ctx, lineText, width - 96, y, width - 170, 56)
+    y += 10
+  })
+
+  ctx.fillStyle = "#5f2817"
+  ctx.font = '700 52px "Frank Ruhl Libre", serif'
+  drawWrappedRtlText(
+    ctx,
+    getEffectiveGreeting(getTimesOccasionMeta()),
+    width - 96,
+    Math.min(height - 160, y + 46),
+    width - 180,
+    58,
+  )
+
+  if (posterPreviewUrl) {
+    URL.revokeObjectURL(posterPreviewUrl)
+    posterPreviewUrl = ""
+  }
+
+  const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/png"))
+  if (!blob) return
+  posterPreviewUrl = URL.createObjectURL(blob)
+  timesPosterPreview.src = posterPreviewUrl
+}
+
+function getPosterBlob() {
+  if (!timesPosterCanvas) return Promise.resolve(null)
+  return new Promise((resolve) => {
+    timesPosterCanvas.toBlob((blob) => resolve(blob || null), "image/png")
+  })
+}
+
+async function copyTimesPosterImage() {
+  if (!timesState.schedule.length) return
+  await renderTimesPosterImage()
+  const blob = await getPosterBlob()
+  if (!blob) return
+
+  if (!navigator.clipboard || typeof window.ClipboardItem === "undefined") {
+    setTimesCopyStatus("העתקה ישירה לא נתמכת כאן. אפשר להוריד PNG.", "error")
+    return
+  }
+
+  try {
+    await navigator.clipboard.write([new ClipboardItem({ "image/png": blob })])
+    setTimesCopyStatus("התמונה הועתקה ללוח.", "success")
+  } catch {
+    setTimesCopyStatus("לא הצלחתי להעתיק. אפשר להוריד PNG.", "error")
+  }
+}
+
+async function downloadTimesPosterImage() {
+  if (!timesState.schedule.length) return
+  await renderTimesPosterImage()
+  const blob = await getPosterBlob()
+  if (!blob) return
+
+  const url = URL.createObjectURL(blob)
+  const anchor = document.createElement("a")
+  anchor.href = url
+  anchor.download = `zmanim-${timesState.selectedDate}.png`
+  document.body.appendChild(anchor)
+  anchor.click()
+  anchor.remove()
+  URL.revokeObjectURL(url)
+  setTimesCopyStatus("התמונה ירדה כ־PNG.", "success")
+}
+
+function getTimesDateQueryValue(value) {
+  return /^\d{4}-\d{2}-\d{2}$/.test(String(value || "")) ? value : getIsraelDateString()
+}
+
+async function loadHolidayTimes(dateString = timesState.selectedDate) {
+  timesState.selectedDate = getTimesDateQueryValue(dateString)
+  timesState.loading = true
+  timesState.error = ""
+  renderTimesSummary()
+
+  try {
+    const response = await fetchWithTimeout(
+      `https://www.hebcal.com/zmanim?cfg=json&geonameid=${bneiBrakGeoNameId}&date=${timesState.selectedDate}`,
+    )
+    if (!response.ok) throw new Error("לא הצלחתי לטעון זמני היום.")
+    const payload = await response.json()
+    const seasonLabel = resolveSeasonLabel(timesState.selectedDate)
+
+    const readingMeta = getTimesReadingMeta(timesState.selectedDate) || await fetchTimesReadingMeta(timesState.selectedDate)
+    timesState.readingName = readingMeta?.name || ""
+    timesState.readingTypeLabel = readingMeta?.typeLabel || ""
+    const occasionMeta = getTimesOccasionMeta({
+      dateString: timesState.selectedDate,
+      readingName: timesState.readingName,
+      readingTypeLabel: timesState.readingTypeLabel,
+    })
+    timesState.rawTimes = payload?.times || {}
+    const calendarTimes = await fetchCalendarCandleTimes(timesState.selectedDate)
+    timesState.calendarTimes = calendarTimes
+    const generatedSchedule = buildHolidaySchedule(timesState.rawTimes, seasonLabel, occasionMeta, timesState.calendarTimes)
+    timesState.baseSchedule = applyFixedLineOverrides(generatedSchedule, timesState.settings.fixedLineOverrides)
+    if (!timesState.baseSchedule.length) throw new Error("חסר מידע זמנים לתאריך הזה.")
+    const schedule = applyExtraLinesToSchedule(timesState.baseSchedule, timesState.settings.extraLines)
+    timesState.seasonLabel = seasonLabel
+    timesState.schedule = schedule
+  } catch (error) {
+    timesState.error = error.message || "לא הצלחתי לחשב זמני שבת/חג."
+    timesState.rawTimes = null
+    timesState.calendarTimes = { candleLighting: null, havdalah: null }
+    timesState.baseSchedule = []
+    timesState.schedule = []
+  } finally {
+    timesState.loading = false
+    renderTimesSummary()
+  }
+}
+
+function refreshTimesScheduleFromBase() {
+  if (!timesState.baseSchedule.length) return
+  timesState.schedule = applyExtraLinesToSchedule(timesState.baseSchedule, timesState.settings.extraLines)
+}
+
+function rebuildTimesScheduleLocally() {
+  if (!timesState.rawTimes) return false
+  const occasionMeta = getTimesOccasionMeta({
+    dateString: timesState.selectedDate,
+    readingName: timesState.readingName,
+    readingTypeLabel: timesState.readingTypeLabel,
+  })
+  const seasonLabel = resolveSeasonLabel(timesState.selectedDate)
+  timesState.seasonLabel = seasonLabel
+  const generatedSchedule = buildHolidaySchedule(
+    timesState.rawTimes,
+    seasonLabel,
+    occasionMeta,
+    timesState.calendarTimes,
+  )
+  timesState.baseSchedule = applyFixedLineOverrides(generatedSchedule, timesState.settings.fixedLineOverrides)
+  refreshTimesScheduleFromBase()
+  renderTimesSummary()
+  return true
 }
 
 function normalizeHebcalBook(bookName) {
@@ -1469,20 +2459,41 @@ function setJournalVisibleMonth(monthKey) {
 }
 
 function openCalendarModal(fieldKey = "target") {
-  journalState.fieldKey = fieldKey === "current" ? "current" : "target"
-  const fieldInput = journalState.fieldKey === "current" ? currentInput : targetInput
+  const normalizedFieldKey =
+    fieldKey === "current" || fieldKey === "target" || fieldKey === "times"
+      ? fieldKey
+      : "target"
+  journalState.fieldKey = normalizedFieldKey
+  const fieldInput =
+    journalState.fieldKey === "current"
+      ? currentInput
+      : journalState.fieldKey === "target"
+        ? targetInput
+        : null
   const fallbackReading =
     journalState.fieldKey === "current"
       ? autoReadingsState.previous || autoReadingsState.next
-      : autoReadingsState.next || autoReadingsState.previous
-  const selectedReading = getScheduledReadingFromQuery(fieldInput.value) || fallbackReading
+      : journalState.fieldKey === "target"
+        ? autoReadingsState.next || autoReadingsState.previous
+        : getReadingByDate(timesState.selectedDate) || autoReadingsState.next || autoReadingsState.previous
+  const selectedReading = fieldInput ? getScheduledReadingFromQuery(fieldInput.value) || fallbackReading : fallbackReading
   const targetDate =
-    parseIsoDateFromQuery(fieldInput.value) ||
+    (fieldInput ? parseIsoDateFromQuery(fieldInput.value) : "") ||
     selectedReading?.date ||
+    (journalState.fieldKey === "times" ? timesState.selectedDate : "") ||
     journalState.selectedDate ||
     autoReadingsState.today
   journalState.selectedDate = targetDate
   journalState.visibleMonthKey = getMonthKey(targetDate)
+  if (calendarTitleEl && calendarSubtitleEl) {
+    if (journalState.fieldKey === "times") {
+      calendarTitleEl.textContent = "בחר תאריך לזמני שבת/חג"
+      calendarSubtitleEl.textContent = "בחירת יום תעדכן את זמני היום ותזהה שבת/חג לפי הקריאה."
+    } else {
+      calendarTitleEl.textContent = "בחר תאריך יעד"
+      calendarSubtitleEl.textContent = "בחירת יום תמלא יעד ומקור. אם אין קריאה באותו יום, נבחרת הקריאה הקרובה שאחריו."
+    }
+  }
   journalState.open = true
   calendarModal.hidden = false
   document.body.style.overflow = "hidden"
@@ -1497,6 +2508,13 @@ function closeCalendarModal() {
 
 function applyJournalReading(dateString) {
   const selectedReading = getReadingFromDateQuery(dateString)
+
+  if (journalState.fieldKey === "times") {
+    closeCalendarModal()
+    loadHolidayTimes(dateString)
+    return
+  }
+
   if (!selectedReading) return
 
   if (journalState.fieldKey === "current") {
@@ -1663,7 +2681,7 @@ async function fetchLeyningItemsInChunks(start, end) {
     const sourceUrl = `https://www.hebcal.com/leyning?cfg=json&start=${cursor}&end=${chunkEnd}&i=on&triennial=off`
     sourceUrls.push(sourceUrl)
 
-    const response = await fetch(sourceUrl)
+    const response = await fetchWithTimeout(sourceUrl)
     if (!response.ok) throw new Error(`Hebcal HTTP ${response.status}`)
 
     const payload = await response.json()
@@ -1724,6 +2742,12 @@ async function loadAutoReadings() {
     autoReadingsState.loading = false
     renderReadingDefaults()
     renderJournal()
+    const timesReadingMeta = getTimesReadingMeta(timesState.selectedDate)
+    if (timesReadingMeta && !timesState.loading) {
+      timesState.readingName = timesReadingMeta.name
+      timesState.readingTypeLabel = timesReadingMeta.typeLabel
+      renderTimesSummary()
+    }
     if (getScheduledReadingFromQuery(currentInput.value) || getScheduledReadingFromQuery(targetInput.value)) {
       runSearch({ live: true })
     } else {
@@ -2744,9 +3768,13 @@ function renderViewer(summary = getColumnSummary(viewerState.column)) {
 async function init() {
   try {
     setStatus("טוען...")
+    loadTimesSettings()
+    setAppMode(appState.mode)
+    renderTimesSummary()
     renderJournal()
     renderTodayInfo()
     loadTodayInfo()
+    loadHolidayTimes(timesState.selectedDate)
     const response = await fetch("./data/navigator_data.json")
     if (!response.ok) throw new Error(`HTTP ${response.status}`)
 
@@ -2761,6 +3789,151 @@ async function init() {
     console.error(error)
   }
 }
+
+modeTabsEl?.addEventListener("click", (event) => {
+  const target = event.target.closest("[data-tab]")
+  if (!target) return
+  setAppMode(target.dataset.tab)
+})
+
+timesDateInput?.addEventListener("change", () => {
+  const nextDate = getTimesDateQueryValue(timesDateInput.value)
+  if (nextDate === timesState.selectedDate) return
+  loadHolidayTimes(nextDate)
+})
+
+timesDateTodayButton?.addEventListener("click", () => {
+  loadHolidayTimes(getIsraelDateString())
+})
+
+timesMainTitleInput?.addEventListener("input", () => {
+  timesState.settings.mainTitle = normalizeMainTitle(timesMainTitleInput.value)
+  saveTimesSettings()
+  renderTimesSummary()
+})
+
+timesDafTimeInput?.addEventListener("change", () => {
+  const nextTime = normalizeTimeInput(timesDafTimeInput.value) || "18:00"
+  timesState.settings.dafTime = nextTime
+  saveTimesSettings()
+  if (!rebuildTimesScheduleLocally()) {
+    loadHolidayTimes(timesState.selectedDate)
+  }
+})
+
+timesGreetingModeInput?.addEventListener("change", () => {
+  timesState.settings.greetingMode = normalizeGreetingMode(timesGreetingModeInput.value)
+  saveTimesSettings()
+  renderTimesSummary()
+})
+
+timesGreetingInput?.addEventListener("input", () => {
+  timesState.settings.greeting = normalizeGreetingInput(timesGreetingInput.value)
+  saveTimesSettings()
+  renderTimesSummary()
+})
+
+timesSeasonModeInput?.addEventListener("change", () => {
+  timesState.settings.seasonMode = normalizeSeasonMode(timesSeasonModeInput.value)
+  saveTimesSettings()
+  if (!rebuildTimesScheduleLocally()) {
+    loadHolidayTimes(timesState.selectedDate)
+  }
+})
+
+timesIncludeDafInput?.addEventListener("change", () => {
+  timesState.settings.includeDaf = Boolean(timesIncludeDafInput.checked)
+  saveTimesSettings()
+  if (!rebuildTimesScheduleLocally()) {
+    loadHolidayTimes(timesState.selectedDate)
+  }
+})
+
+timesResetFixedLinesButton?.addEventListener("click", () => {
+  timesState.settings.fixedLineOverrides = {}
+  saveTimesSettings()
+  if (!rebuildTimesScheduleLocally()) {
+    loadHolidayTimes(timesState.selectedDate)
+  }
+})
+
+timesFixedLinesList?.addEventListener("input", (event) => {
+  const target = event.target.closest("[data-fixed-id]")
+  if (!target) return
+  const fixedId = normalizeSpaces(String(target.dataset.fixedId || ""))
+  if (!fixedId) return
+  const action = String(target.dataset.action || "").trim()
+  if (action === "fixed-label") {
+    updateFixedLineOverride(fixedId, { label: target.value })
+  } else if (action === "fixed-time") {
+    updateFixedLineOverride(fixedId, { time: target.value })
+  } else {
+    return
+  }
+  saveTimesSettings()
+  if (!rebuildTimesScheduleLocally()) {
+    loadHolidayTimes(timesState.selectedDate)
+  }
+})
+
+timesAddExtraLineButton?.addEventListener("click", () => {
+  const defaultAfterId = timesState.baseSchedule.at(-1)?.id || "sof_zman_shma"
+  timesState.settings.extraLines = normalizeExtraLines([
+    ...(timesState.settings.extraLines || []),
+    { text: "", afterId: defaultAfterId },
+  ])
+  saveTimesSettings()
+  renderTimesExtraLinesEditor(timesState.baseSchedule)
+})
+
+timesExtraLinesList?.addEventListener("input", (event) => {
+  const target = event.target.closest("[data-action='extra-text']")
+  if (!target) return
+  const index = Number(target.dataset.extraIndex)
+  if (!Number.isInteger(index) || index < 0) return
+  const items = [...normalizeExtraLines(timesState.settings.extraLines)]
+  const existing = items[index] || { text: "", afterId: timesState.baseSchedule.at(-1)?.id || "" }
+  items[index] = { ...existing, text: target.value }
+  timesState.settings.extraLines = normalizeExtraLines(items)
+  saveTimesSettings()
+  refreshTimesScheduleFromBase()
+  renderTimesSummary()
+})
+
+timesExtraLinesList?.addEventListener("change", (event) => {
+  const target = event.target.closest("[data-action='extra-after']")
+  if (!target) return
+  const index = Number(target.dataset.extraIndex)
+  if (!Number.isInteger(index) || index < 0) return
+  const items = [...normalizeExtraLines(timesState.settings.extraLines)]
+  const existing = items[index] || { text: "", afterId: timesState.baseSchedule.at(-1)?.id || "" }
+  items[index] = { ...existing, afterId: normalizeSpaces(target.value) }
+  timesState.settings.extraLines = normalizeExtraLines(items)
+  saveTimesSettings()
+  refreshTimesScheduleFromBase()
+  renderTimesSummary()
+})
+
+timesExtraLinesList?.addEventListener("click", (event) => {
+  const target = event.target.closest("[data-action='extra-remove']")
+  if (!target) return
+  const index = Number(target.dataset.extraIndex)
+  if (!Number.isInteger(index) || index < 0) return
+  const items = [...normalizeExtraLines(timesState.settings.extraLines)]
+  items.splice(index, 1)
+  timesState.settings.extraLines = normalizeExtraLines(items)
+  saveTimesSettings()
+  refreshTimesScheduleFromBase()
+  renderTimesSummary()
+})
+
+timesCopyImageButton?.addEventListener("click", () => {
+  copyTimesPosterImage()
+})
+
+timesDownloadImageButton?.addEventListener("click", () => {
+  downloadTimesPosterImage()
+})
 
 formEl?.addEventListener("submit", (event) => {
   event.preventDefault()
@@ -2841,10 +4014,14 @@ targetCalendarButton?.addEventListener("click", () => {
   openCalendarModal("target")
 })
 
+timesCalendarButton?.addEventListener("click", () => {
+  openCalendarModal("times")
+})
+
 calendarCloseButton?.addEventListener("click", () => {
   if (journalState.selectedDate) {
     applyJournalReading(journalState.selectedDate)
-    return
+    if (!journalState.open) return
   }
   closeCalendarModal()
 })

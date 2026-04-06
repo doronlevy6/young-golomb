@@ -29,26 +29,139 @@
           </div>
           <span class="status-pill" id="data-status">טוען...</span>
         </div>
-
-        <section id="today-info" class="today-info" aria-live="polite">
-          <div class="today-copy">
-            <p class="today-kicker">היום בבני ברק</p>
-            <h2 class="today-title">טוען תאריך...</h2>
-            <div class="today-dates">
-              <span>טוען תאריך לועזי...</span>
-            </div>
-          </div>
-          <div class="today-zmanim">
-            <div class="today-zman today-zman-placeholder">
-              <span>שעות היום</span>
-              <strong>טוען...</strong>
-            </div>
-          </div>
-        </section>
       </header>
 
       <main class="main-shell">
-        <section id="navigator-view">
+        <div class="mode-tabs" id="mode-tabs">
+          <button class="mode-tab is-active" type="button" data-tab="times">
+            זמני שבת/חג
+          </button>
+          <button class="mode-tab" type="button" data-tab="navigator">
+            ניווט ספר תורה
+          </button>
+        </div>
+
+        <section id="times-view" class="tab-view">
+          <div class="times-layout">
+            <section class="panel times-panel">
+              <section id="today-info" class="today-info" aria-live="polite">
+                <div class="today-copy">
+                  <p class="today-kicker">היום בבני ברק</p>
+                  <h2 class="today-title">טוען תאריך...</h2>
+                  <div class="today-dates">
+                    <span>טוען תאריך לועזי...</span>
+                  </div>
+                </div>
+                <div class="today-zmanim">
+                  <div class="today-zman today-zman-placeholder">
+                    <span>שעות היום</span>
+                    <strong>טוען...</strong>
+                  </div>
+                </div>
+              </section>
+
+              <div class="times-settings">
+                <label class="field">
+                  <span>תאריך</span>
+                  <div class="field-inline">
+                    <input id="times-date-input" type="date" />
+                    <button
+                      class="ghost-button small-button calendar-trigger"
+                      id="times-calendar-button"
+                      type="button"
+                      aria-label="פתח יומן לתאריך"
+                    >
+                      יומן
+                    </button>
+                  </div>
+                </label>
+
+                <button class="ghost-button small-button" id="times-date-today" type="button">
+                  היום
+                </button>
+
+                <label class="field field-full">
+                  <span>כותרת ראשית</span>
+                  <input id="times-main-title" type="text" placeholder="אוטומטי לפי סוג היום" />
+                </label>
+
+                <label class="field">
+                  <span>שעת דף יומי</span>
+                  <input id="times-daf-time" type="time" step="60" />
+                </label>
+
+                <label class="field">
+                  <span>מצב ברכה</span>
+                  <select id="times-greeting-mode">
+                    <option value="auto">אוטומטי</option>
+                    <option value="custom">מותאם אישית</option>
+                  </select>
+                </label>
+
+                <label class="field">
+                  <span>ברכה לסיום</span>
+                  <input id="times-greeting-input" type="text" placeholder="שבת שלום ומועדים לשמחה!" />
+                </label>
+
+                <label class="field">
+                  <span>שחרית לפי עונה</span>
+                  <select id="times-season-mode">
+                    <option value="auto">אוטומטי</option>
+                    <option value="summer">קיץ</option>
+                    <option value="winter">חורף</option>
+                  </select>
+                </label>
+
+                <label class="field checkbox-field">
+                  <input id="times-include-daf" type="checkbox" />
+                  <span>להציג שיעור דף יומי</span>
+                </label>
+              </div>
+
+              <div class="times-fixed-lines">
+                <div class="times-fixed-head">
+                  <strong>שורות קבועות</strong>
+                  <button class="ghost-button small-button" id="times-reset-fixed-lines" type="button">
+                    איפוס שורות
+                  </button>
+                </div>
+                <div id="times-fixed-lines-list" class="times-fixed-lines-list"></div>
+              </div>
+
+              <div class="times-extra-lines">
+                <div class="times-extra-head">
+                  <strong>שורות נוספות</strong>
+                  <button class="ghost-button small-button" id="times-add-extra-line" type="button">
+                    הוסף שורה
+                  </button>
+                </div>
+                <div id="times-extra-lines-list" class="times-extra-lines-list"></div>
+              </div>
+
+              <div id="times-summary" class="times-summary empty-state">
+                <p>טוען זמני שבת/חג...</p>
+              </div>
+            </section>
+
+            <section class="panel poster-panel">
+              <div class="poster-head">
+                <h2>תמונה לשיתוף</h2>
+                <p>העתקה או הורדה של כרטיס זמנים עם הלוגו.</p>
+              </div>
+
+              <div class="poster-actions">
+                <button class="primary-button" id="times-copy-image" type="button">העתק תמונה</button>
+                <button class="ghost-button" id="times-download-image" type="button">הורד PNG</button>
+              </div>
+
+              <p id="times-copy-status" class="compact-hint"></p>
+              <img id="times-poster-preview" class="times-poster-preview" alt="תמונת זמני שבת וחג" />
+              <canvas id="times-poster-canvas" class="times-poster-canvas" width="1080" height="1350" hidden></canvas>
+            </section>
+          </div>
+        </section>
+
+        <section id="navigator-view" class="tab-view" hidden>
           <div class="layout">
             <section class="panel search-panel">
               <form id="navigator-form" class="search-form">
@@ -134,7 +247,7 @@
         <div class="calendar-header">
           <div class="calendar-copy">
             <h2 id="calendar-title">בחר תאריך יעד</h2>
-            <p>בחירת יום תמלא יעד ומקור. אם אין קריאה באותו יום, נבחרת הקריאה הקרובה שאחריו.</p>
+            <p id="calendar-subtitle">בחירת יום תמלא יעד ומקור. אם אין קריאה באותו יום, נבחרת הקריאה הקרובה שאחריו.</p>
           </div>
           <button class="ghost-button" id="calendar-close" type="button">סגור</button>
         </div>
