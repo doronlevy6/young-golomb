@@ -1,0 +1,8 @@
+{
+  "name": "torah-scroll-navigator",
+  "private": true,
+  "scripts": {
+    "local": "python3 -m http.server 4173 --bind 127.0.0.1",
+    "deploy": "./tools/deploy.sh"
+  }
+}

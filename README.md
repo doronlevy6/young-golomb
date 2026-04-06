@@ -47,7 +47,17 @@ More detail:
 ## Local Preview
 
 ```bash
-python3 -m http.server 4173
+npm run local
 ```
 
-Then open `http://localhost:4173/`.
+Then open `http://127.0.0.1:4173/`.
+
+## Deploy
+
+Deployment is manual.
+
+```bash
+npm run deploy
+```
+
+This command creates a commit if needed, then pushes to `origin/main`.

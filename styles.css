@@ -266,6 +266,9 @@ mark {
 .search-panel {
   position: sticky;
   top: 1rem;
+  background:
+    radial-gradient(circle at top left, rgba(126, 63, 40, 0.08), transparent 34%),
+    rgba(255, 252, 245, 0.96);
 }
 
 .field {
@@ -273,12 +276,38 @@ mark {
   gap: 0.45rem;
 }
 
+.field-target {
+  gap: 0.55rem;
+}
+
+.field-target span {
+  color: var(--accent-strong);
+}
+
+.field-target .field-inline input {
+  border-color: rgba(126, 63, 40, 0.24);
+  background: linear-gradient(180deg, #fffdfa, #fff8ef);
+  box-shadow: 0 10px 24px rgba(126, 63, 40, 0.05);
+}
+
+.field-secondary {
+  padding-top: 0.1rem;
+}
+
+.field-inline {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.55rem;
+  align-items: center;
+}
+
 .field span {
   color: var(--muted);
   font-weight: 700;
 }
 
-.field input {
+.field input,
+.field-inline input {
   width: 100%;
   border: 1px solid var(--line);
   border-radius: var(--radius-md);
@@ -288,9 +317,21 @@ mark {
   font: inherit;
 }
 
-.field input:focus {
+.field input:focus,
+.field-inline input:focus {
   outline: 2px solid rgba(126, 63, 40, 0.18);
   border-color: rgba(126, 63, 40, 0.45);
+}
+
+.calendar-trigger {
+  white-space: nowrap;
+}
+
+.target-hint {
+  margin: -0.2rem 0 0.05rem;
+  color: var(--accent-strong);
+  font-size: 0.92rem;
+  font-weight: 700;
 }
 
 .compact-hint {
@@ -403,15 +444,6 @@ mark {
 .reading-segment-diff strong {
   font-size: 0.94rem;
   line-height: 1.45;
-}
-
-.journal-view {
-  display: block;
-}
-
-.journal-layout {
-  display: grid;
-  gap: 1rem;
 }
 
 .journal-summary-panel,
@@ -539,7 +571,7 @@ mark {
 .journal-day {
   display: grid;
   align-content: start;
-  gap: 0.22rem;
+  gap: 0.18rem;
   padding: 0.48rem 0.4rem;
   border: 1px solid rgba(126, 63, 40, 0.08);
   background: rgba(255, 255, 255, 0.78);
@@ -548,6 +580,15 @@ mark {
 
 .journal-day:hover {
   transform: translateY(-1px);
+}
+
+.journal-day.is-disabled {
+  background: rgba(126, 63, 40, 0.04);
+  color: var(--muted);
+}
+
+.journal-day.is-disabled:hover {
+  transform: none;
 }
 
 .journal-day.is-reading {
@@ -570,15 +611,25 @@ mark {
 
 .journal-day-number {
   font-weight: 700;
-  font-size: 0.84rem;
+  font-size: 0.82rem;
+  line-height: 1.1;
+}
+
+.journal-day-hebrew {
+  color: var(--muted);
+  font-size: 0.58rem;
+  line-height: 1.15;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .journal-day-label {
-  font-size: 0.68rem;
-  line-height: 1.25;
+  font-size: 0.64rem;
+  line-height: 1.2;
   color: var(--ink);
   display: -webkit-box;
-  -webkit-line-clamp: 3;
+  -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
@@ -589,6 +640,96 @@ mark {
   margin-top: auto;
   border-radius: 999px;
   background: rgba(126, 63, 40, 0.45);
+}
+
+.calendar-modal[hidden] {
+  display: none;
+}
+
+.calendar-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+  background: rgba(24, 16, 11, 0.42);
+  backdrop-filter: blur(10px);
+}
+
+.calendar-shell {
+  width: min(1100px, 100%);
+  max-height: min(92dvh, 900px);
+  overflow: auto;
+  padding: 1rem;
+  border: 1px solid rgba(126, 63, 40, 0.14);
+  border-radius: 32px;
+  background:
+    radial-gradient(circle at top left, rgba(126, 63, 40, 0.1), transparent 34%),
+    linear-gradient(180deg, rgba(255, 252, 246, 0.98), rgba(247, 239, 225, 0.97));
+  box-shadow: 0 28px 70px rgba(42, 27, 17, 0.2);
+}
+
+.calendar-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: start;
+  gap: 1rem;
+  margin-bottom: 0.9rem;
+}
+
+.calendar-copy {
+  display: grid;
+  gap: 0.3rem;
+}
+
+.calendar-copy h2 {
+  margin: 0;
+  font-family: "Frank Ruhl Libre", serif;
+  font-size: clamp(1.35rem, 3vw, 1.9rem);
+}
+
+.calendar-copy p {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.7;
+}
+
+.calendar-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 0.65rem;
+  margin-bottom: 1rem;
+}
+
+.calendar-select {
+  display: grid;
+  gap: 0.3rem;
+  min-width: 8.2rem;
+}
+
+.calendar-select span {
+  color: var(--muted);
+  font-size: 0.88rem;
+  font-weight: 700;
+}
+
+.calendar-select select {
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 0.8rem 0.95rem;
+  background: rgba(255, 255, 255, 0.86);
+  color: var(--ink);
+  font: inherit;
+}
+
+.calendar-layout {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: minmax(300px, 360px) minmax(0, 1fr);
+  align-items: start;
 }
 
 .actions,
@@ -667,6 +808,16 @@ button {
   gap: 1rem;
 }
 
+.results-placeholder {
+  min-height: 11rem;
+  align-content: center;
+  justify-items: start;
+}
+
+.results-placeholder p {
+  margin: 0;
+}
+
 .column-preview {
   margin-top: 1rem;
 }
@@ -690,6 +841,10 @@ button {
   border: 1px solid rgba(126, 63, 40, 0.14);
 }
 
+.summary-card-primary {
+  box-shadow: 0 18px 42px rgba(126, 63, 40, 0.12);
+}
+
 .summary-card h3,
 .location-card h3,
 .error-card h3 {
@@ -704,9 +859,29 @@ button {
   align-items: baseline;
 }
 
+.summary-route {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  margin: 0 0 0.8rem;
+}
+
+.summary-route-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.38rem 0.7rem;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.78);
+  border: 1px solid rgba(126, 63, 40, 0.14);
+  color: var(--accent-strong);
+  font-size: 0.84rem;
+  font-weight: 700;
+}
+
 .summary-value {
   font-family: "Frank Ruhl Libre", serif;
-  font-size: clamp(1.8rem, 3vw, 2.4rem);
+  font-size: clamp(2.5rem, 5.2vw, 3.8rem);
+  font-weight: 800;
   line-height: 1;
 }
 
@@ -1358,6 +1533,10 @@ button {
     grid-template-columns: 1fr;
   }
 
+  .calendar-layout {
+    grid-template-columns: 1fr;
+  }
+
   .journal-months {
     grid-template-columns: 1fr;
   }
@@ -1448,21 +1627,27 @@ button {
     font-size: 0.84rem;
   }
 
-  .mode-tabs {
-    width: 100%;
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+  .field-inline {
+    grid-template-columns: 1fr;
   }
 
-  .mode-tab {
+  .field-target .field-inline input {
+    min-height: 3.4rem;
+    font-size: 1rem;
+  }
+
+  .calendar-trigger {
     width: 100%;
-    text-align: center;
   }
 
   .field-actions,
   .compact-actions {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .results-placeholder {
+    min-height: 8.5rem;
   }
 
   .compact-actions .primary-button,
@@ -1477,6 +1662,37 @@ button {
 
   .reading-segments {
     grid-template-columns: 1fr;
+  }
+
+  .summary-main {
+    align-items: end;
+  }
+
+  .summary-value {
+    font-size: 3rem;
+  }
+
+  .calendar-modal {
+    padding: 0.65rem;
+  }
+
+  .calendar-shell {
+    max-height: 94dvh;
+    padding: 0.85rem;
+    border-radius: 26px;
+  }
+
+  .calendar-header {
+    flex-direction: column;
+  }
+
+  .calendar-controls {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .calendar-select {
+    min-width: 0;
   }
 
   .journal-month {
@@ -1502,8 +1718,29 @@ button {
     font-size: 0.62rem;
   }
 
+  .journal-day-hebrew {
+    font-size: 0.54rem;
+  }
+
   .preview-toolbar {
     flex-direction: column;
+  }
+
+  .preview-stepper,
+  .preview-open {
+    width: 100%;
+  }
+
+  .preview-stepper {
+    justify-content: stretch;
+  }
+
+  .preview-stepper .icon-button {
+    flex: 1 1 0;
+  }
+
+  .preview-open {
+    justify-self: stretch;
   }
 
   .preview-info-grid {

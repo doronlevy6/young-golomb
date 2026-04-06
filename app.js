@@ -6,16 +6,20 @@ const currentInput = document.getElementById("current-query")
 const currentSegmentPicker = document.getElementById("current-segment-picker")
 const targetInput = document.getElementById("target-query")
 const targetSegmentPicker = document.getElementById("target-segment-picker")
+const targetCalendarButton = document.getElementById("target-calendar-button")
 const resetButton = document.getElementById("reset-button")
 const clearCurrentButton = document.getElementById("clear-current-button")
 const clearTargetButton = document.getElementById("clear-target-button")
 const suggestionsEl = document.getElementById("query-suggestions")
 const readingDefaultsEl = document.getElementById("reading-defaults")
-const modeTabsEl = document.getElementById("mode-tabs")
-const navigatorViewEl = document.getElementById("navigator-view")
-const journalViewEl = document.getElementById("journal-view")
 const journalSummaryEl = document.getElementById("journal-summary")
 const journalMonthsEl = document.getElementById("journal-months")
+const calendarModal = document.getElementById("calendar-modal")
+const calendarCloseButton = document.getElementById("calendar-close")
+const journalMonthSelect = document.getElementById("journal-month-select")
+const journalYearSelect = document.getElementById("journal-year-select")
+const journalPrevMonthButton = document.getElementById("journal-prev-month")
+const journalNextMonthButton = document.getElementById("journal-next-month")
 const todayInfoEl = document.getElementById("today-info")
 
 const viewerModal = document.getElementById("viewer-modal")
@@ -106,11 +110,10 @@ let autoReadingsState = {
   loading: false,
   error: "",
 }
-let uiState = {
-  activeTab: "navigator",
-}
 let journalState = {
   selectedDate: "",
+  visibleMonthKey: "",
+  open: false,
 }
 let querySegmentState = {
   current: null,
@@ -345,6 +348,18 @@ function formatHebrewDate(isoDate) {
   }
 }
 
+function formatHebrewDay(isoDate) {
+  try {
+    return new Intl.DateTimeFormat("he-IL-u-ca-hebrew", {
+      timeZone: israelTimeZone,
+      day: "numeric",
+      month: "short",
+    }).format(getIsraelDateObject(isoDate))
+  } catch {
+    return formatHebrewDate(isoDate)
+  }
+}
+
 function formatClockTime(dateTimeString) {
   return new Intl.DateTimeFormat("he-IL", {
     timeZone: israelTimeZone,
@@ -352,6 +367,15 @@ function formatClockTime(dateTimeString) {
     minute: "2-digit",
     hourCycle: "h23",
   }).format(new Date(dateTimeString))
+}
+
+function parseIsoDateFromQuery(query) {
+  const match = normalizeSpaces(query).match(/\b(\d{4}-\d{2}-\d{2})\b/)
+  return match ? match[1] : ""
+}
+
+function formatReadingDateInputValue(reading) {
+  return `${reading.date} · ${reading.name}`
 }
 
 function renderTodayInfo() {
@@ -523,6 +547,36 @@ function getMonthKeysInRange(startIso, endIso) {
   return keys
 }
 
+function getJournalMonthKeys() {
+  if (!autoReadingsState.rangeStart || !autoReadingsState.rangeEnd) return []
+  return getMonthKeysInRange(autoReadingsState.rangeStart, autoReadingsState.rangeEnd)
+}
+
+function getJournalMonthName(monthKey) {
+  return new Intl.DateTimeFormat("he-IL", {
+    timeZone: israelTimeZone,
+    month: "long",
+  }).format(new Date(`${monthKey}-01T00:00:00Z`))
+}
+
+function getJournalYears() {
+  return [...new Set(getJournalMonthKeys().map((monthKey) => monthKey.slice(0, 4)))]
+}
+
+function getJournalMonthKeysForYear(year) {
+  return getJournalMonthKeys().filter((monthKey) => monthKey.startsWith(`${year}-`))
+}
+
+function getReadingOnOrAfterDate(dateString) {
+  return autoReadingsState.readings.find((reading) => reading.date >= dateString) || null
+}
+
+function getReadingFromDateQuery(query) {
+  const isoDate = parseIsoDateFromQuery(query)
+  if (!isoDate) return null
+  return getReadingByDate(isoDate) || getReadingOnOrAfterDate(isoDate)
+}
+
 function columnImagePath(column) {
   const padded = String(column).padStart(3, "0")
   return `./columns/Torah_Scroll_Col_${padded}_of_245.jpg`
@@ -535,7 +589,7 @@ function buildSuggestions() {
     option.value = parashah.name_display
     fragment.appendChild(option)
   })
-  ;["קריאה אחרונה", "קריאה הבאה", "בראשית ג", "שמות כ", "במדבר כב ב", "עמודה 44", "והנחש היה ערום"].forEach((value) => {
+  ;["קריאה אחרונה", "קריאה הבאה", "2026-04-11", "בראשית ג", "שמות כ", "במדבר כב ב", "עמודה 44", "והנחש היה ערום"].forEach((value) => {
     const option = document.createElement("option")
     option.value = value
     fragment.appendChild(option)
@@ -649,27 +703,89 @@ function getAliyahSortKey(key) {
   return String(key).toUpperCase() === "M" ? 99 : 199
 }
 
-function getTorahRangesFromAliyot(aliyot = {}) {
-  return Object.entries(aliyot)
-    .sort((a, b) => getAliyahSortKey(a[0]) - getAliyahSortKey(b[0]))
-    .map(([, aliyah]) => parseHebcalRange(aliyah.k, aliyah.b, aliyah.e))
+function parseSummaryRangeText(summaryRangeText) {
+  const value = normalizeSpaces(String(summaryRangeText || "").replace(/[–—]/g, "-"))
+  if (!value) return null
+
+  const match = value.match(/^(.+?)\s+(\d+):(\d+)(?:\s*-\s*(?:(\d+):)?(\d+))?$/u)
+  if (!match) return null
+
+  const [, bookName, startChapterRaw, startVerseRaw, endChapterRaw, endVerseRaw] = match
+  const startChapter = parseHebrewNumber(startChapterRaw)
+  const startVerse = parseHebrewNumber(startVerseRaw)
+  const endChapter = endChapterRaw ? parseHebrewNumber(endChapterRaw) : startChapter
+  const endVerse = endVerseRaw ? parseHebrewNumber(endVerseRaw) : startVerse
+
+  if (!startChapter || !startVerse || !endChapter || !endVerse) return null
+  return parseHebcalRange(bookName, `${startChapter}:${startVerse}`, `${endChapter}:${endVerse}`)
+}
+
+function getTorahRangesFromSummary(summary) {
+  if (typeof summary !== "string") return []
+  return summary
+    .split(/\s*[;|]\s*/u)
+    .map((part) => parseSummaryRangeText(part))
     .filter(Boolean)
 }
 
+function getTorahRangesFromSummaryParts(summaryParts = []) {
+  if (!Array.isArray(summaryParts)) return []
+
+  return summaryParts
+    .map((part) => {
+      if (typeof part === "string") return parseSummaryRangeText(part)
+      if (!part || typeof part !== "object") return null
+      return parseHebcalRange(part.k || part.book, part.b || part.begin || part.start, part.e || part.end)
+    })
+    .filter(Boolean)
+}
+
+function getTorahRangesFromKriyahEntries(kriyah = {}) {
+  const aliyahRanges = Object.entries(kriyah)
+    .sort((a, b) => getAliyahSortKey(a[0]) - getAliyahSortKey(b[0]))
+    .map(([, aliyah]) => parseHebcalRange(aliyah.k, aliyah.b, aliyah.e))
+    .filter(Boolean)
+
+  if (!aliyahRanges.length) return []
+
+  return aliyahRanges.reduce((groups, range) => {
+    const last = groups.at(-1)
+    if (!last || last.book !== range.book) {
+      groups.push({
+        book: range.book,
+        start: { ...range.start },
+        end: { ...range.end },
+      })
+      return groups
+    }
+
+    last.end = { ...range.end }
+    return groups
+  }, [])
+}
+
 function getTorahRangesFromHebcalItem(item) {
-  if (Array.isArray(item.summaryParts) && item.summaryParts.length) {
-    const summaryRanges = item.summaryParts
-      .map((part) => parseHebcalRange(part.k, part.b, part.e))
-      .filter(Boolean)
-    if (summaryRanges.length) return summaryRanges
+  const summaryPartRanges = getTorahRangesFromSummaryParts(item.summaryParts)
+  if (summaryPartRanges.length) {
+    return summaryPartRanges
+  }
+
+  const torahRanges = getTorahRangesFromSummary(item.torah)
+  if (torahRanges.length) {
+    return torahRanges
+  }
+
+  const summaryRanges = getTorahRangesFromSummary(item.summary)
+  if (summaryRanges.length) {
+    return summaryRanges
   }
 
   if (item.weekday) {
-    const weekdayRanges = getTorahRangesFromAliyot(item.weekday)
+    const weekdayRanges = getTorahRangesFromKriyahEntries(item.weekday)
     if (weekdayRanges.length) return weekdayRanges
   }
 
-  return getTorahRangesFromAliyot(item.fullkriyah)
+  return getTorahRangesFromKriyahEntries(item.fullkriyah)
 }
 
 function formatRangeSegment(range) {
@@ -744,7 +860,6 @@ function createReadingSegment(range, index) {
 
   return {
     index,
-    shortLabel: getSegmentLabel(index),
     label: getSegmentLabel(index),
     book: range.book,
     rangeLabel: formatRangeSegment(range),
@@ -766,7 +881,7 @@ function getSegmentScrollDiffs(sourceSegments = [], targetSegments = []) {
     diffs.push({
       label: target.label,
       delta: target.start.columnFloat - source.end.columnFloat,
-      contextLabel: `מול ${source.shortLabel || source.label} הקודם`,
+      contextLabel: `מול ${source.label} הקודם`,
     })
   }
 
@@ -779,7 +894,7 @@ function getSegmentScrollDiffs(sourceSegments = [], targetSegments = []) {
       diffs.push({
         label: target.label,
         delta: target.start.columnFloat - baseTarget.end.columnFloat,
-        contextLabel: `אחרי ${baseTarget.shortLabel || baseTarget.label} הבא`,
+        contextLabel: `אחרי ${baseTarget.label} הבא`,
       })
     }
   }
@@ -851,11 +966,17 @@ function getSelectedJournalReading() {
   return getReadingByDate(journalState.selectedDate)
 }
 
+function getReadingAnchorRole(fieldKey = "target") {
+  return fieldKey === "current" ? "previous" : "next"
+}
+
 function getScheduledReadingFromQuery(query) {
   const value = normalizeSpaces(query)
   if (!value) return null
   const plusQuery = parsePlusQuery(value)
   const anchorQuery = plusQuery ? plusQuery.anchorQuery : value
+  const datedReading = getReadingFromDateQuery(anchorQuery)
+  if (datedReading) return datedReading
   const scheduledReadingKey = getScheduledReadingKey(anchorQuery)
   if (!scheduledReadingKey) return null
   return autoReadingsState[scheduledReadingKey] || null
@@ -1008,6 +1129,7 @@ function renderJournalSummary() {
     reading.scrollFromPrevious === null
       ? "זו הקריאה הראשונה בטווח"
       : describeScrollDelta(reading.scrollFromPrevious)
+  const hasSplitScroll = reading.segmentScrollsFromPrevious.length > 0
 
   journalSummaryEl.className = "journal-summary"
   journalSummaryEl.innerHTML = `
@@ -1016,8 +1138,11 @@ function renderJournalSummary() {
         <h3>${escapeHtml(reading.name)}</h3>
         <div class="journal-summary-date">${escapeHtml(reading.displayDate)}</div>
       </div>
-      <div class="journal-scroll">${escapeHtml(scrollLabel)}</div>
-      ${renderReadingSegmentDiffs(reading.segmentScrollsFromPrevious)}
+      ${
+        hasSplitScroll
+          ? renderReadingSegmentDiffs(reading.segmentScrollsFromPrevious)
+          : `<div class="journal-scroll">${escapeHtml(scrollLabel)}</div>`
+      }
       <div class="journal-summary-grid">
         <div class="journal-stat">
           <span>תחילת הקריאה</span>
@@ -1058,55 +1183,103 @@ function renderJournalMonths() {
   }
 
   const readingMap = new Map(readings.map((reading) => [reading.date, reading]))
-  const monthKeys = getMonthKeysInRange(autoReadingsState.rangeStart, autoReadingsState.rangeEnd)
   const weekdayLabels = ["א", "ב", "ג", "ד", "ה", "ו", "ש"]
 
+  const monthKeys = getJournalMonthKeys()
+  if (!monthKeys.length) {
+    journalMonthsEl.className = "journal-months empty-state"
+    journalMonthsEl.innerHTML = "<p>אין כרגע חודשים זמינים.</p>"
+    return
+  }
+
+  if (!monthKeys.includes(journalState.visibleMonthKey)) {
+    journalState.visibleMonthKey =
+      getMonthKey(journalState.selectedDate || autoReadingsState.next?.date || autoReadingsState.today || monthKeys[0])
+  }
+
+  const monthKey = monthKeys.includes(journalState.visibleMonthKey) ? journalState.visibleMonthKey : monthKeys[0]
+  const monthStart = `${monthKey}-01`
+  const firstWeekday = getWeekdayIndex(monthStart)
+  const daysInMonth = getDaysInMonth(monthStart)
+  const cells = []
+
+  for (let index = 0; index < firstWeekday; index += 1) {
+    cells.push('<div class="journal-day-empty"></div>')
+  }
+
+  for (let day = 1; day <= daysInMonth; day += 1) {
+    const isoDate = `${monthKey}-${String(day).padStart(2, "0")}`
+    const reading = readingMap.get(isoDate)
+    const isSelected = journalState.selectedDate === isoDate
+    const isToday = autoReadingsState.today === isoDate
+    const label = reading?.calendarLabel || ""
+    const hebrewDate = formatHebrewDay(isoDate)
+
+    cells.push(`
+      <button
+        class="journal-day${reading ? " is-reading" : " is-disabled"}${label ? " has-label" : ""}${isSelected ? " is-selected" : ""}${isToday ? " is-today" : ""}"
+        type="button"
+        data-journal-date="${isoDate}"
+        data-has-reading="${reading ? "true" : "false"}"
+      >
+        <div class="journal-day-number">${day}</div>
+        <div class="journal-day-hebrew">${escapeHtml(hebrewDate)}</div>
+        ${label ? `<div class="journal-day-label">${escapeHtml(label)}</div>` : ""}
+        ${reading && !label ? `<div class="journal-day-dot"></div>` : ""}
+      </button>
+    `)
+  }
+
   journalMonthsEl.className = "journal-months"
-  journalMonthsEl.innerHTML = monthKeys
-    .map((monthKey) => {
-      const monthStart = `${monthKey}-01`
-      const firstWeekday = getWeekdayIndex(monthStart)
-      const daysInMonth = getDaysInMonth(monthStart)
-      const cells = []
+  journalMonthsEl.innerHTML = `
+    <section class="journal-month">
+      <h3>${escapeHtml(getMonthTitle(monthStart))}</h3>
+      <div class="journal-weekdays">
+        ${weekdayLabels.map((label) => `<span>${label}</span>`).join("")}
+      </div>
+      <div class="journal-days">${cells.join("")}</div>
+    </section>
+  `
+}
 
-      for (let index = 0; index < firstWeekday; index += 1) {
-        cells.push('<div class="journal-day-empty"></div>')
-      }
+function renderJournalControls() {
+  if (!journalMonthSelect || !journalYearSelect) return
 
-      for (let day = 1; day <= daysInMonth; day += 1) {
-        const isoDate = `${monthKey}-${String(day).padStart(2, "0")}`
-        const reading = readingMap.get(isoDate)
-        const isSelected = journalState.selectedDate === isoDate
-        const isToday = autoReadingsState.today === isoDate
-        const label = reading?.calendarLabel || ""
+  const monthKeys = getJournalMonthKeys()
+  if (!monthKeys.length) {
+    journalMonthSelect.innerHTML = ""
+    journalYearSelect.innerHTML = ""
+    journalMonthSelect.disabled = true
+    journalYearSelect.disabled = true
+    if (journalPrevMonthButton) journalPrevMonthButton.disabled = true
+    if (journalNextMonthButton) journalNextMonthButton.disabled = true
+    return
+  }
 
-        cells.push(`
-          <button
-            class="journal-day${reading ? " is-reading" : ""}${label ? " has-label" : ""}${isSelected ? " is-selected" : ""}${isToday ? " is-today" : ""}"
-            type="button"
-            data-journal-date="${isoDate}"
-          >
-            <div class="journal-day-number">${day}</div>
-            ${label ? `<div class="journal-day-label">${escapeHtml(label)}</div>` : ""}
-            ${reading && !label ? `<div class="journal-day-dot"></div>` : ""}
-          </button>
-        `)
-      }
+  const visibleMonth = monthKeys.includes(journalState.visibleMonthKey) ? journalState.visibleMonthKey : monthKeys[0]
+  const visibleYear = visibleMonth.slice(0, 4)
+  const monthsForYear = getJournalMonthKeysForYear(visibleYear)
+  const visibleMonthNumber = visibleMonth.slice(5, 7)
 
-      return `
-        <section class="journal-month">
-          <h3>${escapeHtml(getMonthTitle(monthStart))}</h3>
-          <div class="journal-weekdays">
-            ${weekdayLabels.map((label) => `<span>${label}</span>`).join("")}
-          </div>
-          <div class="journal-days">${cells.join("")}</div>
-        </section>
-      `
-    })
+  journalYearSelect.disabled = false
+  journalMonthSelect.disabled = false
+  journalYearSelect.innerHTML = getJournalYears()
+    .map((year) => `<option value="${year}">${year}</option>`)
     .join("")
+  journalMonthSelect.innerHTML = monthsForYear
+    .map((monthKey) => `<option value="${monthKey.slice(5, 7)}">${escapeHtml(getJournalMonthName(monthKey))}</option>`)
+    .join("")
+
+  journalYearSelect.value = visibleYear
+  journalMonthSelect.value = visibleMonthNumber
+
+  const monthIndex = monthKeys.indexOf(visibleMonth)
+  if (journalPrevMonthButton) journalPrevMonthButton.disabled = monthIndex <= 0
+  if (journalNextMonthButton) journalNextMonthButton.disabled = monthIndex === -1 || monthIndex >= monthKeys.length - 1
 }
 
 function renderJournal() {
+  renderJournalControls()
   renderJournalSummary()
   renderJournalMonths()
 }
@@ -1114,17 +1287,64 @@ function renderJournal() {
 function setJournalDate(dateString) {
   if (!dateString || journalState.selectedDate === dateString) return
   journalState.selectedDate = dateString
+  journalState.visibleMonthKey = getMonthKey(dateString)
   renderJournal()
 }
 
-function setActiveTab(tabKey) {
-  uiState.activeTab = tabKey
-  navigatorViewEl.hidden = tabKey !== "navigator"
-  journalViewEl.hidden = tabKey !== "journal"
+function setJournalVisibleMonth(monthKey) {
+  if (!monthKey || journalState.visibleMonthKey === monthKey) return
+  journalState.visibleMonthKey = monthKey
+  if (!journalState.selectedDate.startsWith(monthKey)) {
+    const firstReadingInMonth =
+      autoReadingsState.readings.find((reading) => reading.date.startsWith(monthKey))?.date || `${monthKey}-01`
+    journalState.selectedDate = firstReadingInMonth
+  }
+  renderJournal()
+}
 
-  modeTabsEl.querySelectorAll("[data-tab]").forEach((button) => {
-    button.classList.toggle("is-active", button.dataset.tab === tabKey)
-  })
+function openCalendarModal() {
+  const targetReading = getScheduledReadingFromQuery(targetInput.value) || autoReadingsState.next || autoReadingsState.previous
+  const targetDate =
+    parseIsoDateFromQuery(targetInput.value) ||
+    targetReading?.date ||
+    journalState.selectedDate ||
+    autoReadingsState.today
+  journalState.selectedDate = targetDate
+  journalState.visibleMonthKey = getMonthKey(targetDate)
+  journalState.open = true
+  calendarModal.hidden = false
+  document.body.style.overflow = "hidden"
+  renderJournal()
+}
+
+function closeCalendarModal() {
+  journalState.open = false
+  calendarModal.hidden = true
+  document.body.style.overflow = ""
+}
+
+function applyJournalReading(dateString) {
+  const targetReading = getReadingFromDateQuery(dateString)
+  if (!targetReading) return
+
+  const previousReading =
+    autoReadingsState.readings.filter((reading) => reading.date < targetReading.date).at(-1) || null
+
+  targetInput.value =
+    targetReading.date === dateString ? formatReadingDateInputValue(targetReading) : `${dateString} · ${targetReading.name}`
+  querySegmentState.target = null
+  renderSegmentPicker("target")
+
+  if (previousReading) {
+    currentInput.value = formatReadingDateInputValue(previousReading)
+  } else {
+    currentInput.value = ""
+  }
+  querySegmentState.current = null
+  renderSegmentPicker("current")
+
+  closeCalendarModal()
+  runSearch({ live: true })
 }
 
 function getScheduledReadingKey(query) {
@@ -1269,6 +1489,7 @@ async function loadAutoReadings() {
       autoReadingsState.next?.date ||
       autoReadingsState.previous?.date ||
       today
+    journalState.visibleMonthKey = getMonthKey(journalState.selectedDate)
   } catch (error) {
     autoReadingsState.readings = []
     autoReadingsState.previous = null
@@ -1281,7 +1502,7 @@ async function loadAutoReadings() {
     autoReadingsState.loading = false
     renderReadingDefaults()
     renderJournal()
-    if (getScheduledReadingKey(currentInput.value) || getScheduledReadingKey(targetInput.value)) {
+    if (getScheduledReadingFromQuery(currentInput.value) || getScheduledReadingFromQuery(targetInput.value)) {
       runSearch({ live: true })
     } else {
       applyAutoReadingDefaults()
@@ -1516,6 +1737,20 @@ function resolveStandardQuery(query, options = {}) {
     const reading = autoReadingsState[scheduledReadingKey]
     if (!reading) throw new Error("הקריאות האוטומטיות עדיין לא נטענו.")
     return createScheduledReadingLocation(reading, scheduledReadingKey, value, options)
+  }
+
+  const datedReading = getReadingFromDateQuery(value)
+  if (datedReading) {
+    return createScheduledReadingLocation(
+      datedReading,
+      getReadingAnchorRole(options.fieldKey),
+      value,
+      options,
+    )
+  }
+
+  if (parseIsoDateFromQuery(value)) {
+    throw new Error("אין קריאה בתאריך הזה או אחריו בטווח שנטען.")
   }
 
   const directColumn = findDirectColumn(value)
@@ -1929,6 +2164,7 @@ function renderComparisonState() {
   const delta = target.columnFloat - current.columnFloat
   const absDelta = Math.abs(delta)
   const segmentDiffs = getLocationSegmentDiffs(current, target)
+  const hasSplitScroll = segmentDiffs.length > 0
   const direction =
     absDelta < 0.25 ? "אותו מקום" : delta > 0 ? "קדימה" : "אחורה"
   const message =
@@ -1936,14 +2172,19 @@ function renderComparisonState() {
 
   resultsEl.className = "results"
   resultsEl.innerHTML = `
-    <article class="summary-card">
-      <h3>גלילה</h3>
-      <div class="summary-main">
-        <span class="summary-value">${formatNumber(absDelta, 1)}</span>
-        <span class="summary-direction">${direction}</span>
-      </div>
-      <p class="summary-note">${message}</p>
-      ${renderReadingSegmentDiffs(segmentDiffs)}
+    <article class="summary-card summary-card-primary">
+      <h3>כמה לגלול</h3>
+      ${
+        hasSplitScroll
+          ? renderReadingSegmentDiffs(segmentDiffs)
+          : `
+            <div class="summary-main">
+              <span class="summary-value">${formatNumber(absDelta, 1)}</span>
+              <span class="summary-direction">${direction}</span>
+            </div>
+            <p class="summary-note">${message}</p>
+          `
+      }
       <div class="summary-actions">
         <button
           class="ghost-button small-button"
@@ -2093,8 +2334,8 @@ function resetState() {
   querySegmentState.current = null
   querySegmentState.target = null
   renderAllSegmentPickers()
-  resultsEl.className = "results empty-state"
-  resultsEl.innerHTML = "<p>מלא שדה אחד או שניים.</p>"
+  resultsEl.className = "results empty-state results-placeholder"
+  resultsEl.innerHTML = "<p>בחר יעד כדי לדעת כמה לגלול.</p><p>אפשר גם לפתוח יומן.</p>"
   renderPreview()
 }
 
@@ -2107,8 +2348,8 @@ function tryResolveQuery(value, options = {}) {
 }
 
 function renderTypingState() {
-  resultsEl.className = "results empty-state"
-  resultsEl.innerHTML = "<p>ממשיך לחפש...</p>"
+  resultsEl.className = "results empty-state results-placeholder"
+  resultsEl.innerHTML = "<p>ממשיך לחפש את היעד...</p>"
   renderPreview()
 }
 
@@ -2269,7 +2510,6 @@ function renderViewer(summary = getColumnSummary(viewerState.column)) {
 async function init() {
   try {
     setStatus("טוען...")
-    setActiveTab(uiState.activeTab)
     renderJournal()
     renderTodayInfo()
     loadTodayInfo()
@@ -2359,22 +2599,54 @@ clearTargetButton.addEventListener("click", () => {
   runSearch({ live: true })
 })
 
-modeTabsEl.addEventListener("click", (event) => {
-  const target = event.target.closest("[data-tab]")
-  if (!target) return
-  setActiveTab(target.dataset.tab)
+targetCalendarButton.addEventListener("click", () => {
+  openCalendarModal()
+})
+
+calendarCloseButton.addEventListener("click", () => {
+  closeCalendarModal()
 })
 
 journalMonthsEl.addEventListener("click", (event) => {
   const target = event.target.closest("[data-journal-date]")
   if (!target) return
-  setJournalDate(target.dataset.journalDate)
+  const dateString = target.dataset.journalDate
+  setJournalDate(dateString)
+  applyJournalReading(dateString)
 })
 
 journalMonthsEl.addEventListener("mouseover", (event) => {
   const target = event.target.closest("[data-journal-date]")
   if (!target) return
   setJournalDate(target.dataset.journalDate)
+})
+
+journalMonthSelect.addEventListener("change", () => {
+  const selectedYear = journalYearSelect.value
+  const selectedMonth = journalMonthSelect.value
+  if (!selectedYear || !selectedMonth) return
+  setJournalVisibleMonth(`${selectedYear}-${selectedMonth}`)
+})
+
+journalYearSelect.addEventListener("change", () => {
+  const year = journalYearSelect.value
+  if (!year) return
+  const monthsForYear = getJournalMonthKeysForYear(year)
+  if (!monthsForYear.length) return
+  const currentMonthKey = `${year}-${journalMonthSelect.value}`
+  setJournalVisibleMonth(monthsForYear.includes(currentMonthKey) ? currentMonthKey : monthsForYear[0])
+})
+
+journalPrevMonthButton.addEventListener("click", () => {
+  const monthKeys = getJournalMonthKeys()
+  const index = monthKeys.indexOf(journalState.visibleMonthKey)
+  if (index > 0) setJournalVisibleMonth(monthKeys[index - 1])
+})
+
+journalNextMonthButton.addEventListener("click", () => {
+  const monthKeys = getJournalMonthKeys()
+  const index = monthKeys.indexOf(journalState.visibleMonthKey)
+  if (index >= 0 && index < monthKeys.length - 1) setJournalVisibleMonth(monthKeys[index + 1])
 })
 
 resultsEl.addEventListener("click", (event) => {
@@ -2474,7 +2746,15 @@ viewerModal.addEventListener("click", (event) => {
   if (event.target === viewerModal) closeViewer()
 })
 
+calendarModal.addEventListener("click", (event) => {
+  if (event.target === calendarModal) closeCalendarModal()
+})
+
 document.addEventListener("keydown", (event) => {
+  if (journalState.open && event.key === "Escape") {
+    closeCalendarModal()
+    return
+  }
   if (!viewerState.open) return
   if (event.key === "Escape") {
     if (viewerState.searchOpen) {

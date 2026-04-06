@@ -48,41 +48,47 @@
       </header>
 
       <main class="main-shell">
-        <div class="mode-tabs" id="mode-tabs">
-          <button class="mode-tab is-active" type="button" data-tab="navigator">ניווט</button>
-          <button class="mode-tab" type="button" data-tab="journal">יומן</button>
-        </div>
-
-        <section id="navigator-view" class="tab-view">
+        <section id="navigator-view">
           <div class="layout">
             <section class="panel search-panel">
               <form id="navigator-form" class="search-form">
-                <label class="field">
+                <label class="field field-target">
+                  <span>רוצה להגיע ל</span>
+                  <div class="field-inline">
+                    <input
+                      id="target-query"
+                      name="target"
+                      list="query-suggestions"
+                      placeholder="תאריך / פרשה / שמות כ / עמודה"
+                      autocomplete="off"
+                    />
+                    <button
+                      class="ghost-button small-button calendar-trigger"
+                      id="target-calendar-button"
+                      type="button"
+                      aria-label="פתח יומן יעד"
+                    >
+                      יומן
+                    </button>
+                  </div>
+                </label>
+                <p class="target-hint">הכי פשוט: בוחרים יעד, ורואים כמה לגלול.</p>
+                <div id="target-segment-picker" class="segment-picker" hidden></div>
+
+                <label class="field field-secondary">
                   <span>אני נמצא ב</span>
                   <input
                     id="current-query"
                     name="current"
                     list="query-suggestions"
-                    placeholder="פרשה / שמות כ / במדבר כב ב / עמודה"
+                    placeholder="מיקום נוכחי או השאר אוטומטי"
                     autocomplete="off"
                   />
                 </label>
                 <div id="current-segment-picker" class="segment-picker" hidden></div>
 
-                <label class="field">
-                  <span>רוצה להגיע ל</span>
-                  <input
-                    id="target-query"
-                    name="target"
-                    list="query-suggestions"
-                    placeholder="פרשה / שמות כ / במדבר כב ב / עמודה"
-                    autocomplete="off"
-                  />
-                </label>
-                <div id="target-segment-picker" class="segment-picker" hidden></div>
-
                 <div class="actions compact-actions">
-                  <button class="primary-button" type="submit">חיפוש</button>
+                  <button class="primary-button" type="submit">חשב גלילה</button>
                   <button class="ghost-button small-button" id="reset-button" type="button">איפוס</button>
                 </div>
 
@@ -91,14 +97,15 @@
                   <button class="ghost-button small-button" id="clear-target-button" type="button">נקה יעד</button>
                 </div>
 
-                <p class="compact-hint">פרשה, ספר פרק פסוק, עמודה, או <code>יתרו + אנכי</code></p>
+                <p class="compact-hint">פרשה, תאריך, ספר פרק פסוק, או <code>יתרו + אנכי</code></p>
                 <div id="reading-defaults" class="reading-defaults" hidden></div>
               </form>
             </section>
 
             <section class="panel results-panel">
-              <div id="results" class="results empty-state">
-                <p>מלא שדה אחד או שניים.</p>
+              <div id="results" class="results empty-state results-placeholder">
+                <p>בחר יעד כדי לדעת כמה לגלול.</p>
+                <p>אפשר גם לפתוח יומן.</p>
               </div>
 
               <div id="column-preview" class="column-preview empty-state">
@@ -107,26 +114,52 @@
             </section>
           </div>
         </section>
-
-        <section id="journal-view" class="tab-view journal-view" hidden>
-          <div class="journal-layout">
-            <section class="panel journal-summary-panel">
-              <div id="journal-summary" class="journal-summary empty-state">
-                <p>טוען יומן...</p>
-              </div>
-            </section>
-
-            <section class="panel journal-months-panel">
-              <div id="journal-months" class="journal-months empty-state">
-                <p>טוען חודשים...</p>
-              </div>
-            </section>
-          </div>
-        </section>
       </main>
     </div>
 
     <datalist id="query-suggestions"></datalist>
+
+    <div id="calendar-modal" class="calendar-modal" hidden>
+      <div class="calendar-shell" role="dialog" aria-modal="true" aria-labelledby="calendar-title">
+        <div class="calendar-header">
+          <div class="calendar-copy">
+            <h2 id="calendar-title">בחר תאריך יעד</h2>
+            <p>בחירת יום תמלא יעד ומקור. אם אין קריאה באותו יום, נבחרת הקריאה הקרובה שאחריו.</p>
+          </div>
+          <button class="ghost-button" id="calendar-close" type="button">סגור</button>
+        </div>
+
+        <div class="calendar-controls">
+          <button class="ghost-button small-button" id="journal-prev-month" type="button">הקודם</button>
+
+          <label class="calendar-select">
+            <span>חודש</span>
+            <select id="journal-month-select"></select>
+          </label>
+
+          <label class="calendar-select">
+            <span>שנה</span>
+            <select id="journal-year-select"></select>
+          </label>
+
+          <button class="ghost-button small-button" id="journal-next-month" type="button">הבא</button>
+        </div>
+
+        <div class="calendar-layout">
+          <section class="panel journal-summary-panel">
+            <div id="journal-summary" class="journal-summary empty-state">
+              <p>טוען יומן...</p>
+            </div>
+          </section>
+
+          <section class="panel journal-months-panel">
+            <div id="journal-months" class="journal-months empty-state">
+              <p>טוען חודשים...</p>
+            </div>
+          </section>
+        </div>
+      </div>
+    </div>
 
     <div id="viewer-modal" class="viewer-modal" hidden>
       <div class="viewer-shell">
