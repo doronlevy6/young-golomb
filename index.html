@@ -89,9 +89,21 @@
             <button class="secondary-button" id="viewer-next" type="button">הבא</button>
           </div>
 
+          <label class="viewer-column-picker">
+            <span>עמודה</span>
+            <input
+              id="viewer-column-input"
+              type="number"
+              min="1"
+              max="245"
+              step="1"
+              inputmode="numeric"
+            />
+          </label>
+
           <label class="zoom-control">
             <span>זום</span>
-            <input id="viewer-zoom" type="range" min="1" max="3" step="0.1" value="1.4" />
+            <input id="viewer-zoom" type="range" min="1" max="4" step="0.1" value="1" />
           </label>
         </div>
 

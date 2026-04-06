@@ -36,6 +36,13 @@ code {
   padding: 0.18rem 0.55rem;
 }
 
+mark {
+  background: rgba(218, 189, 92, 0.48);
+  color: inherit;
+  border-radius: 0.45rem;
+  padding: 0 0.18rem;
+}
+
 .page-shell {
   width: min(1220px, calc(100% - 1.2rem));
   margin: 0 auto;
@@ -329,6 +336,13 @@ button {
   font-weight: 700;
 }
 
+.location-verse {
+  margin: 0.15rem 0 0;
+  color: var(--ink);
+  line-height: 1.9;
+  font-size: 0.98rem;
+}
+
 .error-card {
   background: rgba(153, 45, 34, 0.06);
   border: 1px solid rgba(153, 45, 34, 0.12);
@@ -575,6 +589,25 @@ button {
   font-weight: 700;
 }
 
+.viewer-column-picker {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.7rem;
+  color: var(--muted);
+  font-weight: 700;
+}
+
+.viewer-column-picker input {
+  width: 5.8rem;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 0.7rem 0.9rem;
+  background: white;
+  color: var(--ink);
+  font: inherit;
+  text-align: center;
+}
+
 .zoom-control input {
   width: min(220px, 42vw);
 }
@@ -606,7 +639,7 @@ button {
 .viewer-image {
   display: block;
   margin: 0 auto;
-  width: 140%;
+  width: auto;
   max-width: none;
   height: auto;
   border-radius: 18px;
@@ -699,6 +732,11 @@ button {
     justify-content: space-between;
   }
 
+  .viewer-column-picker {
+    width: 100%;
+    justify-content: space-between;
+  }
+
   .zoom-control input {
     width: 58vw;
   }
@@ -709,10 +747,6 @@ button {
 
   .viewer-nav .secondary-button {
     flex: 1 1 0;
-  }
-
-  .viewer-image {
-    width: 180%;
   }
 
   .meta-pill {

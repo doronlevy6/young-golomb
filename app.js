@@ -16,6 +16,7 @@ const viewerPrevButton = document.getElementById("viewer-prev")
 const viewerNextButton = document.getElementById("viewer-next")
 const viewerCloseButton = document.getElementById("viewer-close")
 const viewerZoomInput = document.getElementById("viewer-zoom")
+const viewerColumnInput = document.getElementById("viewer-column-input")
 
 const bookAliases = {
   בראשית: "בראשית",
@@ -54,9 +55,11 @@ let viewerState = {
   column: 1,
   title: "",
   subtitle: "",
-  zoom: 1.4,
+  zoomFactor: 1,
+  fitScale: 1,
 }
 let touchStartX = null
+let liveSearchTimer = null
 
 function normalizeSpaces(text) {
   return text.replace(/\s+/g, " ").trim()
@@ -83,6 +86,70 @@ function normalizeKey(text) {
       .replace(/^parasha\s+/u, "")
       .replace(/^parsha\s+/u, ""),
   )
+}
+
+function escapeHtml(text) {
+  return text
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;")
+}
+
+function normalizeCharForMap(char) {
+  return char
+    .normalize("NFKD")
+    .replace(/\p{M}/gu, "")
+    .replace(/[־-]/g, " ")
+    .replace(/["'׳״:;,.!?()[\]{}<>|/\\]/g, " ")
+    .replace(/[^\p{Script=Hebrew}A-Za-z0-9\s]/gu, " ")
+    .toLowerCase()
+}
+
+function buildHighlightMap(text) {
+  let normalized = ""
+  const map = []
+  let pendingSpace = false
+  let pendingSpaceStart = null
+
+  for (let index = 0; index < text.length; index += 1) {
+    const chunk = normalizeCharForMap(text[index])
+    for (const char of chunk) {
+      if (/\s/.test(char)) {
+        if (!normalized) continue
+        pendingSpace = true
+        if (pendingSpaceStart === null) pendingSpaceStart = index
+        continue
+      }
+
+      if (pendingSpace) {
+        normalized += " "
+        map.push({ start: pendingSpaceStart ?? index, end: index })
+        pendingSpace = false
+        pendingSpaceStart = null
+      }
+
+      normalized += char
+      map.push({ start: index, end: index + 1 })
+    }
+  }
+
+  return { normalized, map }
+}
+
+function mergeRanges(ranges) {
+  if (!ranges.length) return []
+  const sorted = [...ranges].sort((a, b) => a[0] - b[0] || a[1] - b[1])
+  return sorted.reduce((merged, current) => {
+    const previous = merged.at(-1)
+    if (!previous || current[0] > previous[1]) {
+      merged.push([...current])
+      return merged
+    }
+    previous[1] = Math.max(previous[1], current[1])
+    return merged
+  }, [])
 }
 
 function parseHebrewNumber(token) {
@@ -329,6 +396,66 @@ function findTextMatches(query, limit = 12) {
     .slice(0, limit)
 }
 
+function getMatchRanges(match, normalizedQuery, terms) {
+  if (match.mode === "exact_start" || match.mode === "exact_phrase") {
+    const start = match.searchText.indexOf(normalizedQuery)
+    return start >= 0 ? [[start, start + normalizedQuery.length]] : []
+  }
+
+  if (match.mode === "ordered_terms") {
+    const ranges = []
+    let fromIndex = 0
+    for (const term of terms) {
+      const start = match.searchText.indexOf(term, fromIndex)
+      if (start === -1) continue
+      ranges.push([start, start + term.length])
+      fromIndex = start + term.length
+    }
+    return ranges
+  }
+
+  return terms
+    .map((term) => {
+      const start = match.searchText.indexOf(term)
+      return start >= 0 ? [start, start + term.length] : null
+    })
+    .filter(Boolean)
+}
+
+function highlightMatchText(originalText, match, queryText) {
+  const normalizedQuery = normalizeKey(queryText)
+  const terms = normalizedQuery.split(" ").filter(Boolean)
+  const ranges = mergeRanges(getMatchRanges(match, normalizedQuery, terms))
+  if (!ranges.length) return escapeHtml(originalText)
+
+  const { normalized, map } = buildHighlightMap(originalText)
+  if (!map.length || normalized !== match.searchText) {
+    return escapeHtml(originalText)
+  }
+
+  const originalRanges = mergeRanges(
+    ranges
+      .map(([start, end]) => {
+        const first = map[start]
+        const last = map[end - 1]
+        return first && last ? [first.start, last.end] : null
+      })
+      .filter(Boolean),
+  )
+
+  if (!originalRanges.length) return escapeHtml(originalText)
+
+  let cursor = 0
+  return originalRanges
+    .map(([start, end]) => {
+      const before = escapeHtml(originalText.slice(cursor, start))
+      const marked = `<mark>${escapeHtml(originalText.slice(start, end))}</mark>`
+      cursor = end
+      return before + marked
+    })
+    .join("") + escapeHtml(originalText.slice(cursor))
+}
+
 function resolveQuery(query) {
   const value = normalizeSpaces(query)
   if (!value) throw new Error("צריך למלא לפחות שדה אחד.")
@@ -390,6 +517,7 @@ function resolveQuery(query) {
     exact: best.exact,
     detail: `${best.parashah} | ${best.matchLabel}`,
     queryText: value,
+    verseTextHtml: highlightMatchText(best.text, best, value),
   }
 }
 
@@ -468,6 +596,7 @@ function formatLocation(location) {
         <div>עמודה ${columnText}</div>
         <div>שורה ${lineText}</div>
         <div>${location.detail}</div>
+        ${location.verseTextHtml ? `<p class="location-verse">${location.verseTextHtml}</p>` : ""}
       </div>
     </article>
   `
@@ -484,10 +613,10 @@ function renderError(message) {
   renderPreview()
 }
 
-function renderSingle(location) {
+function renderSingle(location, title = "היעד") {
   resultsEl.className = "results"
   resultsEl.innerHTML = formatLocation(location)
-  renderPreview([{ title: "היעד", location }])
+  renderPreview([{ title, location }])
 }
 
 function renderComparison(current, target) {
@@ -596,7 +725,7 @@ function renderPreviewState() {
                 data-action="open"
                 data-preview-index="${index}"
               >
-                פתח גדול
+                מסך מלא
               </button>
 
               <div
@@ -639,17 +768,60 @@ function resetState() {
   renderPreview()
 }
 
-function runSearch() {
+function tryResolveQuery(value) {
+  try {
+    return value ? resolveQuery(value) : null
+  } catch {
+    return null
+  }
+}
+
+function renderTypingState() {
+  resultsEl.className = "results empty-state"
+  resultsEl.innerHTML = "<p>ממשיך לחפש...</p>"
+  renderPreview()
+}
+
+function runSearch({ live = false } = {}) {
   try {
     const currentValue = normalizeSpaces(currentInput.value)
     const targetValue = normalizeSpaces(targetInput.value)
 
     if (!currentValue && !targetValue) {
+      if (live) {
+        resetState()
+        return
+      }
       throw new Error("צריך למלא לפחות שדה אחד.")
     }
 
+    if (live) {
+      const currentLocation = tryResolveQuery(currentValue)
+      const targetLocation = tryResolveQuery(targetValue)
+
+      if (currentLocation && targetLocation) {
+        renderComparison(currentLocation, targetLocation)
+        return
+      }
+
+      if (currentLocation) {
+        renderSingle(currentLocation, "המיקום")
+        return
+      }
+
+      if (targetLocation) {
+        renderSingle(targetLocation, "היעד")
+        return
+      }
+
+      renderTypingState()
+      return
+    }
+
     if (!currentValue || !targetValue) {
-      renderSingle(resolveQuery(targetValue || currentValue))
+      const singleValue = targetValue || currentValue
+      const title = targetValue ? "היעד" : "המיקום"
+      renderSingle(resolveQuery(singleValue), title)
       return
     }
 
@@ -659,16 +831,66 @@ function runSearch() {
   }
 }
 
+function scheduleLiveSearch() {
+  clearTimeout(liveSearchTimer)
+  liveSearchTimer = setTimeout(() => {
+    runSearch({ live: true })
+  }, 140)
+}
+
+function getViewerFitScale() {
+  if (!viewerImage.naturalWidth || !viewerImage.naturalHeight) return 1
+
+  const computedStyle =
+    typeof getComputedStyle === "function"
+      ? getComputedStyle(viewerStage)
+      : {
+          paddingLeft: "0",
+          paddingRight: "0",
+          paddingTop: "0",
+          paddingBottom: "0",
+        }
+
+  const paddingX =
+    parseFloat(computedStyle.paddingLeft || "0") + parseFloat(computedStyle.paddingRight || "0")
+  const paddingY =
+    parseFloat(computedStyle.paddingTop || "0") + parseFloat(computedStyle.paddingBottom || "0")
+  const stageWidth = (viewerStage.clientWidth || 900) - paddingX
+  const stageHeight =
+    (viewerStage.clientHeight || 900) - paddingY - Number(viewerStageMeta.offsetHeight || 0) - 12
+
+  if (stageWidth <= 0 || stageHeight <= 0) return 1
+
+  return Math.max(
+    0.05,
+    Math.min(stageWidth / viewerImage.naturalWidth, stageHeight / viewerImage.naturalHeight),
+  )
+}
+
+function syncViewerScale() {
+  if (!viewerState.open || !viewerImage.naturalWidth || !viewerImage.naturalHeight) return
+  viewerState.fitScale = getViewerFitScale()
+  const width = viewerImage.naturalWidth * viewerState.fitScale * viewerState.zoomFactor
+  viewerImage.style.width = `${Math.max(width, 80)}px`
+}
+
+function resetViewerPosition() {
+  viewerStage.scrollTop = 0
+  viewerStage.scrollLeft = 0
+}
+
 function openViewer({ title, column, subtitle = "" }) {
   const summary = getColumnSummary(column)
   viewerState.open = true
   viewerState.column = clampColumn(column)
   viewerState.title = title
   viewerState.subtitle = subtitle
-  viewerState.zoom = Number(viewerZoomInput.value || 1.4)
+  viewerState.zoomFactor = 1
+  viewerZoomInput.value = "1"
 
   document.body.style.overflow = "hidden"
   viewerModal.hidden = false
+  resetViewerPosition()
   renderViewer(summary)
 }
 
@@ -676,6 +898,12 @@ function closeViewer() {
   viewerState.open = false
   document.body.style.overflow = ""
   viewerModal.hidden = true
+}
+
+function setViewerColumn(column, { resetScroll = true } = {}) {
+  viewerState.column = clampColumn(column)
+  if (resetScroll) resetViewerPosition()
+  renderViewer()
 }
 
 function renderViewer(summary = getColumnSummary(viewerState.column)) {
@@ -688,9 +916,11 @@ function renderViewer(summary = getColumnSummary(viewerState.column)) {
     </div>
   `
   viewerStageMeta.innerHTML = summaryPills(currentSummary)
-  viewerImage.src = columnImagePath(viewerState.column)
+  viewerColumnInput.value = String(viewerState.column)
+  const imagePath = columnImagePath(viewerState.column)
+  viewerImage.src = imagePath
   viewerImage.alt = `${viewerState.title} - עמודה ${viewerState.column}`
-  viewerImage.style.width = `${viewerState.zoom * 100}%`
+  syncViewerScale()
   viewerPrevButton.disabled = viewerState.column <= 1
   viewerNextButton.disabled = viewerState.column >= navigatorData.layout.columns
 }
@@ -717,7 +947,16 @@ formEl.addEventListener("submit", (event) => {
   runSearch()
 })
 
+currentInput.addEventListener("input", () => {
+  scheduleLiveSearch()
+})
+
+targetInput.addEventListener("input", () => {
+  scheduleLiveSearch()
+})
+
 resetButton.addEventListener("click", () => {
+  clearTimeout(liveSearchTimer)
   resetState()
 })
 
@@ -754,13 +993,11 @@ previewEl.addEventListener("click", (event) => {
 })
 
 viewerPrevButton.addEventListener("click", () => {
-  viewerState.column = clampColumn(viewerState.column - 1)
-  renderViewer()
+  setViewerColumn(viewerState.column - 1)
 })
 
 viewerNextButton.addEventListener("click", () => {
-  viewerState.column = clampColumn(viewerState.column + 1)
-  renderViewer()
+  setViewerColumn(viewerState.column + 1)
 })
 
 viewerCloseButton.addEventListener("click", () => {
@@ -768,8 +1005,22 @@ viewerCloseButton.addEventListener("click", () => {
 })
 
 viewerZoomInput.addEventListener("input", () => {
-  viewerState.zoom = Number(viewerZoomInput.value)
-  renderViewer()
+  viewerState.zoomFactor = Number(viewerZoomInput.value)
+  syncViewerScale()
+})
+
+viewerColumnInput.addEventListener("change", () => {
+  const nextColumn = Number(viewerColumnInput.value)
+  if (!nextColumn) return
+  setViewerColumn(nextColumn)
+})
+
+viewerColumnInput.addEventListener("keydown", (event) => {
+  if (event.key !== "Enter") return
+  event.preventDefault()
+  const nextColumn = Number(viewerColumnInput.value)
+  if (!nextColumn) return
+  setViewerColumn(nextColumn)
 })
 
 viewerModal.addEventListener("click", (event) => {
@@ -780,12 +1031,10 @@ document.addEventListener("keydown", (event) => {
   if (!viewerState.open) return
   if (event.key === "Escape") closeViewer()
   if (event.key === "ArrowLeft") {
-    viewerState.column = clampColumn(viewerState.column + 1)
-    renderViewer()
+    setViewerColumn(viewerState.column + 1)
   }
   if (event.key === "ArrowRight") {
-    viewerState.column = clampColumn(viewerState.column - 1)
-    renderViewer()
+    setViewerColumn(viewerState.column - 1)
   }
 })
 
@@ -800,8 +1049,18 @@ viewerStage.addEventListener("touchend", (event) => {
   const delta = endX - touchStartX
   touchStartX = null
   if (Math.abs(delta) < 50) return
-  viewerState.column = clampColumn(viewerState.column + (delta < 0 ? 1 : -1))
-  renderViewer()
+  setViewerColumn(viewerState.column + (delta < 0 ? 1 : -1))
 })
+
+viewerImage.addEventListener("load", () => {
+  syncViewerScale()
+})
+
+if (typeof window !== "undefined" && typeof window.addEventListener === "function") {
+  window.addEventListener("resize", () => {
+    if (!viewerState.open) return
+    syncViewerScale()
+  })
+}
 
 init()
