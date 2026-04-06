@@ -259,6 +259,39 @@ mark {
   font-size: 0.88rem;
 }
 
+.reading-segments,
+.reading-segment-diffs {
+  display: grid;
+  gap: 0.55rem;
+}
+
+.reading-segments {
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+}
+
+.reading-segment,
+.reading-segment-diff {
+  display: grid;
+  gap: 0.2rem;
+  padding: 0.72rem 0.8rem;
+  border-radius: 18px;
+  border: 1px solid rgba(126, 63, 40, 0.12);
+  background: rgba(255, 255, 255, 0.72);
+}
+
+.reading-segment span,
+.reading-segment-diff span {
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.reading-segment strong,
+.reading-segment-diff strong {
+  font-size: 0.94rem;
+  line-height: 1.45;
+}
+
 .journal-view {
   display: block;
 }
@@ -1290,6 +1323,10 @@ button {
   }
 
   .journal-summary-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .reading-segments {
     grid-template-columns: 1fr;
   }
 

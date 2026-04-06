@@ -550,20 +550,56 @@ function createReadingAnchor(verse) {
   }
 }
 
+function getSegmentLabel(index) {
+  const labels = ["ספר ראשון", "ספר שני", "ספר שלישי", "ספר רביעי"]
+  return labels[index] || `ספר ${index + 1}`
+}
+
+function createReadingSegment(range, index) {
+  const startVerse = navigatorData.verseByKey.get(
+    `${range.book}:${range.start.chapter}:${range.start.verse}`,
+  )
+  const endVerse = navigatorData.verseByKey.get(
+    `${range.book}:${range.end.chapter}:${range.end.verse}`,
+  )
+
+  if (!startVerse || !endVerse) return null
+
+  return {
+    index,
+    label: getSegmentLabel(index),
+    rangeLabel: formatRangeSegment(range),
+    start: createReadingAnchor(startVerse),
+    end: createReadingAnchor(endVerse),
+  }
+}
+
+function getMatchingSegmentPairs(sourceSegments = [], targetSegments = []) {
+  const size = Math.min(sourceSegments.length, targetSegments.length)
+  const pairs = []
+
+  for (let index = 0; index < size; index += 1) {
+    const source = sourceSegments[index]
+    const target = targetSegments[index]
+    if (!source || !target) continue
+    pairs.push({ index, source, target })
+  }
+
+  return pairs
+}
+
 function createScheduledReadingRecord(item) {
   const ranges = getTorahRangesFromHebcalItem(item)
   if (!ranges.length) return null
 
-  const firstRange = ranges[0]
-  const lastRange = ranges.at(-1)
-  const startVerse = navigatorData.verseByKey.get(
-    `${firstRange.book}:${firstRange.start.chapter}:${firstRange.start.verse}`,
-  )
-  const endVerse = navigatorData.verseByKey.get(
-    `${lastRange.book}:${lastRange.end.chapter}:${lastRange.end.verse}`,
-  )
+  const segments = ranges
+    .map((range, index) => createReadingSegment(range, index))
+    .filter(Boolean)
 
-  if (!startVerse || !endVerse) return null
+  if (!segments.length) return null
+
+  const firstSegment = segments[0]
+  const lastSegment = segments.at(-1)
 
   return {
     date: item.date,
@@ -572,11 +608,13 @@ function createScheduledReadingRecord(item) {
     typeLabel: getHebcalReadingTypeLabel(item),
     summary: item.summary || "",
     rangeLabel: ranges.map((range) => formatRangeSegment(range)).join(" | "),
-    start: createReadingAnchor(startVerse),
-    end: createReadingAnchor(endVerse),
+    segments,
+    start: firstSegment.start,
+    end: lastSegment.end,
     previousReadingDate: "",
     previousReadingName: "",
     scrollFromPrevious: null,
+    segmentScrollsFromPrevious: [],
   }
 }
 
@@ -595,6 +633,13 @@ function enrichReadingsWithScroll(readings) {
       previousReadingDate: previousReading.date,
       previousReadingName: previousReading.name,
       scrollFromPrevious: reading.start.columnFloat - previousReading.end.columnFloat,
+      segmentScrollsFromPrevious: getMatchingSegmentPairs(previousReading.segments, reading.segments).map(
+        ({ source, target }) => ({
+          label: target.label,
+          delta: target.start.columnFloat - source.end.columnFloat,
+          previousLabel: source.label,
+        }),
+      ),
     }
   })
 }
@@ -605,6 +650,56 @@ function getReadingByDate(dateString) {
 
 function getSelectedJournalReading() {
   return getReadingByDate(journalState.selectedDate)
+}
+
+function renderReadingSegments(segments = []) {
+  if (!segments.length) return ""
+
+  return `
+    <div class="reading-segments">
+      ${segments
+        .map(
+          (segment) => `
+            <div class="reading-segment">
+              <span>${segment.label}</span>
+              <strong>${segment.start.refLabel} · עמודה ${segment.start.column}</strong>
+              <strong>${segment.end.refLabel} · עמודה ${segment.end.column}</strong>
+            </div>
+          `,
+        )
+        .join("")}
+    </div>
+  `
+}
+
+function renderReadingSegmentDiffs(segmentDiffs = []) {
+  if (!segmentDiffs.length) return ""
+
+  return `
+    <div class="reading-segment-diffs">
+      ${segmentDiffs
+        .map(
+          (segment) => `
+            <div class="reading-segment-diff">
+              <span>${segment.label}</span>
+              <strong>${describeScrollDelta(segment.delta)}</strong>
+            </div>
+          `,
+        )
+        .join("")}
+    </div>
+  `
+}
+
+function getLocationSegmentDiffs(current, target) {
+  if (!current?.readingSegments?.length || !target?.readingSegments?.length) return []
+
+  return getMatchingSegmentPairs(current.readingSegments, target.readingSegments).map(
+    ({ source, target: nextTarget }) => ({
+      label: nextTarget.label,
+      delta: nextTarget.start.columnFloat - source.end.columnFloat,
+    }),
+  )
 }
 
 function getNearestReadingsForDate(dateString) {
@@ -670,6 +765,7 @@ function renderJournalSummary() {
         <div class="journal-summary-date">${escapeHtml(reading.displayDate)}</div>
       </div>
       <div class="journal-scroll">${escapeHtml(scrollLabel)}</div>
+      ${renderReadingSegmentDiffs(reading.segmentScrollsFromPrevious)}
       <div class="journal-summary-grid">
         <div class="journal-stat">
           <span>תחילת הקריאה</span>
@@ -688,6 +784,7 @@ function renderJournalSummary() {
           <strong>${escapeHtml(reading.rangeLabel)}</strong>
         </div>
       </div>
+      ${renderReadingSegments(reading.segments)}
     </article>
   `
 }
@@ -814,6 +911,8 @@ function createScheduledReadingLocation(reading, role, rawQuery = "") {
     readingStartColumn: reading.start.column,
     readingEndRef: reading.end.refLabel,
     readingEndColumn: reading.end.column,
+    readingSegments: reading.segments,
+    readingSegmentScrollsFromPrevious: reading.segmentScrollsFromPrevious,
     anchorContext: {
       columnFloat: anchor.columnFloat,
       book: anchor.book,
@@ -1499,6 +1598,7 @@ function formatLocation(location) {
         <div>עמודה ${columnText}</div>
         <div>שורה ${lineText}</div>
         <div>${location.detail}</div>
+        ${renderReadingSegments(location.readingSegments)}
         ${location.verseTextHtml ? `<p class="location-verse">${location.verseTextHtml}</p>` : ""}
       </div>
     </article>
@@ -1546,6 +1646,7 @@ function renderComparisonState() {
   const { current, target, sourceVisible } = comparisonState
   const delta = target.columnFloat - current.columnFloat
   const absDelta = Math.abs(delta)
+  const segmentDiffs = getLocationSegmentDiffs(current, target)
   const direction =
     absDelta < 0.25 ? "אותו מקום" : delta > 0 ? "קדימה" : "אחורה"
   const message =
@@ -1560,6 +1661,7 @@ function renderComparisonState() {
         <span class="summary-direction">${direction}</span>
       </div>
       <p class="summary-note">${message}</p>
+      ${renderReadingSegmentDiffs(segmentDiffs)}
       <div class="summary-actions">
         <button
           class="ghost-button small-button"
