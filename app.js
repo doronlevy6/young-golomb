@@ -8,6 +8,9 @@ const targetInput = document.getElementById("target-query")
 const targetSegmentPicker = document.getElementById("target-segment-picker")
 const currentCalendarButton = document.getElementById("current-calendar-button")
 const targetCalendarButton = document.getElementById("target-calendar-button")
+const currentPhotoButton = document.getElementById("current-photo-button")
+const currentPhotoInput = document.getElementById("current-photo-input")
+const currentPhotoStatusEl = document.getElementById("current-photo-status")
 const resetButton = document.getElementById("reset-button")
 const clearCurrentButton = document.getElementById("clear-current-button")
 const clearTargetButton = document.getElementById("clear-target-button")
@@ -118,6 +121,34 @@ const appModes = {
 }
 const timesSettingsStorageKey = "torah-scroll-navigator.times-settings.v1"
 const defaultTimesGreeting = "שבת שלום ומועדים לשמחה!"
+const tesseractEsmUrl = "https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.esm.min.js"
+const ocrStopWords = new Set([
+  "את",
+  "אשר",
+  "אם",
+  "או",
+  "אל",
+  "על",
+  "עם",
+  "של",
+  "מן",
+  "הוא",
+  "היא",
+  "זה",
+  "זו",
+  "לא",
+  "כל",
+  "עוד",
+  "גם",
+  "כי",
+  "ויאמר",
+  "ויאמרו",
+  "ויהי",
+  "היה",
+  "היו",
+  "בן",
+  "בת",
+])
 
 let navigatorData = null
 let previewState = []
@@ -171,6 +202,9 @@ let liveSearchTimer = null
 let timesCopyMessageTimer = null
 let posterLogoImage = null
 let posterPreviewUrl = ""
+let ocrWorkerPromise = null
+let ocrJobToken = 0
+let ocrRecognizingNow = false
 let timesState = {
   selectedDate: getIsraelDateString(),
   loading: false,
@@ -233,6 +267,189 @@ function escapeHtml(text) {
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#39;")
+}
+
+function setCurrentPhotoStatus(message = "", tone = "") {
+  if (!currentPhotoStatusEl) return
+  const text = normalizeSpaces(String(message || ""))
+  currentPhotoStatusEl.classList.remove("is-loading", "is-success", "is-error")
+  if (!text) {
+    currentPhotoStatusEl.hidden = true
+    currentPhotoStatusEl.textContent = ""
+    return
+  }
+  currentPhotoStatusEl.hidden = false
+  currentPhotoStatusEl.textContent = text
+  if (tone === "loading" || tone === "success" || tone === "error") {
+    currentPhotoStatusEl.classList.add(`is-${tone}`)
+  }
+}
+
+function setCurrentPhotoBusyState(isBusy) {
+  if (!currentPhotoButton) return
+  currentPhotoButton.disabled = Boolean(isBusy)
+  currentPhotoButton.textContent = isBusy ? "מזהה..." : "צלם/העלה"
+}
+
+function updateOcrLoggerStatus(message) {
+  if (!ocrRecognizingNow || !message || typeof message.status !== "string") return
+  const status = normalizeSpaces(message.status.toLowerCase())
+  if (!status) return
+
+  if (status.includes("recognizing text")) {
+    const progress = Number.isFinite(message.progress) ? Math.round(message.progress * 100) : null
+    const percent = Number.isFinite(progress) ? ` ${progress}%` : ""
+    setCurrentPhotoStatus(`מפענח טקסט מהצילום${percent}`, "loading")
+    return
+  }
+
+  if (status.includes("loading language")) {
+    setCurrentPhotoStatus("טוען שפת OCR בעברית...", "loading")
+    return
+  }
+
+  if (status.includes("initializing")) {
+    setCurrentPhotoStatus("מכין מנוע OCR...", "loading")
+    return
+  }
+}
+
+async function getOcrWorker() {
+  if (ocrWorkerPromise) return ocrWorkerPromise
+
+  ocrWorkerPromise = (async () => {
+    try {
+      const module = await import(tesseractEsmUrl)
+      const createWorker = module.createWorker || module.default?.createWorker
+      if (typeof createWorker !== "function") {
+        throw new Error("מנוע ה-OCR לא נטען בדפדפן הזה.")
+      }
+      return createWorker("heb+eng", 1, {
+        logger: updateOcrLoggerStatus,
+      })
+    } catch (error) {
+      ocrWorkerPromise = null
+      throw error
+    }
+  })()
+
+  return ocrWorkerPromise
+}
+
+function getReadableOcrError(error) {
+  const message = normalizeSpaces(String(error?.message || ""))
+  if (!message) return "לא הצלחתי לזהות עמודה מהצילום."
+  if (message.includes("Failed to fetch") || message.includes("fetch")) {
+    return "לא הצלחתי לטעון את מנוע ה-OCR. בדוק חיבור לרשת ונסה שוב."
+  }
+  if (message.includes("network")) {
+    return "שגיאת רשת בזמן זיהוי התמונה. נסה שוב."
+  }
+  return message
+}
+
+function readFileFromInputEvent(event) {
+  const element = event.target
+  if (!(element instanceof HTMLInputElement)) return null
+  return element.files?.[0] || null
+}
+
+function getOcrStatusParts(detection) {
+  const parts = [`זוהתה עמודה ${detection.column} (${describeOcrConfidence(detection.confidence)}).`]
+  const anchorVerse = detection.bestVerse ? formatVerseReferenceLabel(detection.bestVerse) : ""
+  if (anchorVerse) parts.push(`זיהוי לפי ${anchorVerse}.`)
+  const alternatives = getOcrAlternativeColumnsLabel(detection.alternatives)
+  if (alternatives && detection.confidence !== "high") parts.push(alternatives)
+  return parts
+}
+
+function applyDetectedCurrentColumn(detection) {
+  currentInput.value = `עמודה ${detection.column}`
+  querySegmentState.current = null
+  renderSegmentPicker("current")
+  runSearch({ live: true })
+}
+
+function getOcrStatusTone(confidence) {
+  return confidence === "low" ? "error" : "success"
+}
+
+function getOcrSourceForRecognition(preparedImage) {
+  return preparedImage || ""
+}
+
+async function recognizePhotoToColumn(file) {
+  const preparedImage = await prepareImageForOcr(file)
+  const worker = await getOcrWorker()
+  const recognition = await worker.recognize(getOcrSourceForRecognition(preparedImage))
+  const ocrText = normalizeSpaces(recognition?.data?.text || "")
+  return detectColumnFromOcrText(ocrText)
+}
+
+async function identifyCurrentColumnFromPhoto(file) {
+  if (!file) return
+  if (!navigatorData) {
+    setCurrentPhotoStatus("הנתונים עוד בטעינה, נסה שוב בעוד רגע.", "error")
+    return
+  }
+  if (!file.type || !file.type.startsWith("image/")) {
+    setCurrentPhotoStatus("צריך לבחור קובץ תמונה.", "error")
+    return
+  }
+
+  const jobToken = ++ocrJobToken
+  setCurrentPhotoBusyState(true)
+  setCurrentPhotoStatus("מכין את התמונה לזיהוי...", "loading")
+  ocrRecognizingNow = true
+
+  try {
+    const detection = await recognizePhotoToColumn(file)
+    if (jobToken !== ocrJobToken) return
+
+    applyDetectedCurrentColumn(detection)
+    setCurrentPhotoStatus(
+      getOcrStatusParts(detection).join(" "),
+      getOcrStatusTone(detection.confidence),
+    )
+  } catch (error) {
+    console.error(error)
+    setCurrentPhotoStatus(getReadableOcrError(error), "error")
+  } finally {
+    ocrRecognizingNow = false
+    setCurrentPhotoBusyState(false)
+    if (currentPhotoInput) currentPhotoInput.value = ""
+  }
+}
+function loadImageFromObjectUrl(objectUrl) {
+  return new Promise((resolve, reject) => {
+    const image = new Image()
+    image.onload = () => resolve(image)
+    image.onerror = () => reject(new Error("לא הצלחתי לפתוח את התמונה."))
+    image.src = objectUrl
+  })
+}
+
+async function prepareImageForOcr(file) {
+  const objectUrl = URL.createObjectURL(file)
+  try {
+    const image = await loadImageFromObjectUrl(objectUrl)
+    const sourceWidth = image.naturalWidth || image.width || 1
+    const sourceHeight = image.naturalHeight || image.height || 1
+    const maxSide = 2300
+    const scale = Math.min(1, maxSide / Math.max(sourceWidth, sourceHeight))
+    const width = Math.max(1, Math.round(sourceWidth * scale))
+    const height = Math.max(1, Math.round(sourceHeight * scale))
+
+    const canvas = document.createElement("canvas")
+    canvas.width = width
+    canvas.height = height
+    const context = canvas.getContext("2d", { alpha: false })
+    if (!context) return file
+    context.drawImage(image, 0, 0, width, height)
+    return canvas
+  } finally {
+    URL.revokeObjectURL(objectUrl)
+  }
 }
 
 function normalizeCharForMap(char) {
@@ -1709,6 +1926,7 @@ function buildIndexes() {
   navigatorData.parashahByKey = new Map()
   navigatorData.verseByKey = new Map()
   navigatorData.columnsByNumber = new Map()
+  navigatorData.versesByColumn = new Map()
   navigatorData.verseItems = []
   navigatorData.books = []
   navigatorData.bookChapters = new Map()
@@ -1740,9 +1958,15 @@ function buildIndexes() {
     }
     item.key = `${item.book}:${item.chapter}:${item.verse}`
     item.searchText = normalizeKey(item.text)
+    item.searchTokens = item.searchText.split(" ").filter(Boolean)
+    item.searchTokenSet = new Set(item.searchTokens)
     item.parashahKey = normalizeKey(item.parashah)
     navigatorData.verseByKey.set(item.key, item)
     navigatorData.verseItems.push(item)
+    if (!navigatorData.versesByColumn.has(item.column)) {
+      navigatorData.versesByColumn.set(item.column, [])
+    }
+    navigatorData.versesByColumn.get(item.column).push(item)
 
     if (!navigatorData.bookChapters.has(item.book)) {
       navigatorData.bookChapters.set(item.book, new Map())
@@ -2946,6 +3170,178 @@ function findTextMatches(query, limit = 12) {
   return collectTextMatches(query).slice(0, limit)
 }
 
+function buildOcrTokenEntries(normalizedText) {
+  const counts = new Map()
+  normalizedText
+    .split(" ")
+    .map((token) => token.trim())
+    .filter(Boolean)
+    .forEach((token) => {
+      if (token.length < 2) return
+      if (/^\d+$/u.test(token)) return
+      if (ocrStopWords.has(token)) return
+      counts.set(token, (counts.get(token) || 0) + 1)
+    })
+
+  return [...counts.entries()]
+    .sort((a, b) => b[0].length - a[0].length || b[1] - a[1] || a[0].localeCompare(b[0], "he"))
+    .slice(0, 180)
+    .map(([token, count]) => {
+      const lengthWeight = Math.min(3.4, 0.75 + token.length * 0.28)
+      const frequencyWeight = Math.min(1.8, count * 0.38)
+      return {
+        token,
+        count,
+        weight: lengthWeight + frequencyWeight,
+      }
+    })
+}
+
+function buildOcrPhraseEntries(normalizedText, maxEntries = 24) {
+  const tokens = normalizedText.split(" ").filter((token) => token && !ocrStopWords.has(token))
+  const seen = new Set()
+  const phrases = []
+
+  for (const size of [4, 3]) {
+    for (let index = 0; index <= tokens.length - size; index += 1) {
+      const slice = tokens.slice(index, index + size)
+      if (slice.some((token) => token.length < 2)) continue
+      const phrase = slice.join(" ")
+      if (phrase.length < 10 || seen.has(phrase)) continue
+      seen.add(phrase)
+      phrases.push({
+        phrase,
+        weight: 7 + size * 1.5,
+      })
+      if (phrases.length >= maxEntries) return phrases
+    }
+  }
+
+  return phrases
+}
+
+function scoreColumnFromOcr(verses, tokenEntries, phraseEntries) {
+  if (!Array.isArray(verses) || !verses.length) {
+    return {
+      score: 0,
+      verseHits: 0,
+      tokenHits: 0,
+      phraseHits: 0,
+      bestVerse: null,
+    }
+  }
+
+  let score = 0
+  let verseHits = 0
+  let tokenHits = 0
+  let phraseHits = 0
+  let bestVerse = null
+  let bestVerseScore = 0
+
+  for (const verse of verses) {
+    let verseScore = 0
+    for (const tokenEntry of tokenEntries) {
+      if (verse.searchTokenSet?.has(tokenEntry.token)) {
+        verseScore += tokenEntry.weight
+        tokenHits += 1
+      }
+    }
+    if (verseScore <= 0) continue
+    verseHits += 1
+    score += Math.min(verseScore, 24)
+    if (verseScore > bestVerseScore) {
+      bestVerseScore = verseScore
+      bestVerse = verse
+    }
+  }
+
+  for (const phraseEntry of phraseEntries) {
+    if (verses.some((verse) => verse.searchText.includes(phraseEntry.phrase))) {
+      phraseHits += 1
+      score += phraseEntry.weight
+    }
+  }
+
+  score += Math.min(12, verseHits * 0.85)
+  score += Math.min(8, bestVerseScore * 0.45)
+
+  return {
+    score,
+    verseHits,
+    tokenHits,
+    phraseHits,
+    bestVerse,
+  }
+}
+
+function detectColumnFromOcrText(text) {
+  if (!navigatorData?.versesByColumn || !navigatorData?.columns?.length) {
+    throw new Error("נתוני העמודות עדיין לא נטענו.")
+  }
+
+  const normalized = normalizeKey(text)
+  if (normalized.length < 18) {
+    throw new Error("לא זוהה מספיק טקסט ברור מהצילום.")
+  }
+
+  const tokenEntries = buildOcrTokenEntries(normalized)
+  if (tokenEntries.length < 4) {
+    throw new Error("זוהו מעט מדי מילים. נסה צילום חד יותר של העמודה.")
+  }
+  const phraseEntries = buildOcrPhraseEntries(normalized)
+
+  const candidates = navigatorData.columns
+    .map((columnSummary) => {
+      const verses = navigatorData.versesByColumn.get(columnSummary.column) || []
+      const scoreResult = scoreColumnFromOcr(verses, tokenEntries, phraseEntries)
+      return {
+        column: columnSummary.column,
+        ...scoreResult,
+      }
+    })
+    .filter((candidate) => candidate.score > 0)
+    .sort((a, b) => {
+      return (
+        b.score - a.score ||
+        b.phraseHits - a.phraseHits ||
+        b.verseHits - a.verseHits ||
+        a.column - b.column
+      )
+    })
+
+  const best = candidates[0]
+  if (!best) {
+    throw new Error("לא הצלחתי לזהות את העמודה מהצילום.")
+  }
+
+  const second = candidates[1] || null
+  const ratio = second && second.score > 0 ? best.score / second.score : 2
+  const minScore = Math.max(19, Math.min(58, tokenEntries.length * 1.3))
+  if (best.score < minScore) {
+    throw new Error("האיכות של הזיהוי נמוכה. נסה צילום קרוב וברור יותר.")
+  }
+
+  const confidence = ratio >= 1.45 ? "high" : ratio >= 1.2 ? "medium" : "low"
+  return {
+    column: best.column,
+    confidence,
+    bestVerse: best.bestVerse,
+    alternatives: candidates.slice(1, 4).map((candidate) => candidate.column),
+  }
+}
+
+function describeOcrConfidence(confidence) {
+  if (confidence === "high") return "דיוק גבוה"
+  if (confidence === "medium") return "דיוק בינוני"
+  return "דיוק נמוך"
+}
+
+function getOcrAlternativeColumnsLabel(columns = []) {
+  const values = columns.filter((value) => Number.isInteger(value))
+  if (!values.length) return ""
+  return `אפשרויות קרובות: ${values.join(", ")}`
+}
+
 function anchorBucket(match, anchor) {
   if (!anchor) return 0
 
@@ -3684,6 +4080,7 @@ function resetState() {
   targetInput.value = ""
   querySegmentState.current = null
   querySegmentState.target = null
+  setCurrentPhotoStatus("")
   renderAllSegmentPickers()
   resultsEl.className = "results empty-state results-placeholder"
   resultsEl.innerHTML = "<p>בחר יעד כדי לדעת כמה לגלול.</p><p>אפשר גם לפתוח יומן.</p>"
@@ -4046,6 +4443,26 @@ targetInput?.addEventListener("input", () => {
   scheduleLiveSearch()
 })
 
+currentPhotoButton?.addEventListener("click", () => {
+  if (ocrRecognizingNow) return
+  if (!currentPhotoInput) {
+    setCurrentPhotoStatus("הדפדפן לא תומך בבחירת תמונה.", "error")
+    return
+  }
+  if (!navigatorData) {
+    setCurrentPhotoStatus("עדיין טוען נתונים. נסה שוב בעוד רגע.", "error")
+    return
+  }
+  currentPhotoInput.value = ""
+  currentPhotoInput.click()
+})
+
+currentPhotoInput?.addEventListener("change", (event) => {
+  const file = readFileFromInputEvent(event)
+  if (!file) return
+  identifyCurrentColumnFromPhoto(file)
+})
+
 resetButton?.addEventListener("click", () => {
   clearTimeout(liveSearchTimer)
   resetState()
@@ -4091,6 +4508,7 @@ targetSegmentPicker?.addEventListener("click", (event) => {
 clearCurrentButton?.addEventListener("click", () => {
   currentInput.value = ""
   querySegmentState.current = null
+  setCurrentPhotoStatus("")
   renderSegmentPicker("current")
   runSearch({ live: true })
 })

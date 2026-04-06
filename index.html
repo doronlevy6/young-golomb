@@ -183,8 +183,18 @@
                     >
                       יומן
                     </button>
+                    <button
+                      class="ghost-button small-button camera-trigger"
+                      id="current-photo-button"
+                      type="button"
+                      aria-label="צלם או העלה עמודת מקור"
+                    >
+                      צלם/העלה
+                    </button>
+                    <input id="current-photo-input" type="file" accept="image/*" capture="environment" hidden />
                   </div>
                 </label>
+                <p class="compact-hint photo-status" id="current-photo-status" hidden></p>
                 <div id="current-segment-picker" class="segment-picker" hidden></div>
 
                 <label class="field field-target">
