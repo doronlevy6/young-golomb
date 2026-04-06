@@ -944,6 +944,7 @@ function createScheduledReadingRecord(item) {
     name: getHebcalReadingName(item),
     calendarLabel: getCalendarReadingLabel(item),
     typeLabel: getHebcalReadingTypeLabel(item),
+    isWeekdayReading: Boolean(item.weekday),
     summary: item.summary || "",
     rangeLabel: ranges.map((range) => formatRangeSegment(range)).join(" | "),
     segments,
@@ -954,6 +955,31 @@ function createScheduledReadingRecord(item) {
     scrollFromPrevious: null,
     segmentScrollsFromPrevious: [],
   }
+}
+
+function hasSecondBook(reading) {
+  return (reading?.segments?.length || 0) > 1
+}
+
+function getPreviousReadingsForTarget(targetReading, { includeWeekday = false } = {}) {
+  return autoReadingsState.readings.filter((reading) => {
+    if (reading.date >= targetReading.date) return false
+    if (!includeWeekday && reading.isWeekdayReading) return false
+    return true
+  })
+}
+
+function getDefaultSourceForTarget(targetReading) {
+  const candidates = getPreviousReadingsForTarget(targetReading, { includeWeekday: false })
+  if (!candidates.length) return null
+
+  let sourceReading = candidates.at(-1)
+  if (hasSecondBook(targetReading) && !hasSecondBook(sourceReading)) {
+    const latestWithSecondBook = [...candidates].reverse().find((reading) => hasSecondBook(reading))
+    if (latestWithSecondBook) sourceReading = latestWithSecondBook
+  }
+
+  return sourceReading
 }
 
 function describeScrollDelta(delta) {
@@ -1369,8 +1395,7 @@ function applyJournalReading(dateString) {
     querySegmentState.target = null
     renderSegmentPicker("target")
   } else {
-    const previousReading =
-      autoReadingsState.readings.filter((reading) => reading.date < selectedReading.date).at(-1) || null
+    const previousReading = getDefaultSourceForTarget(selectedReading)
 
     targetInput.value = formatReadingDateInputValue(selectedReading)
     querySegmentState.target = null
