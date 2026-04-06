@@ -226,6 +226,80 @@ button {
   line-height: 1.7;
 }
 
+.word-search {
+  display: grid;
+  gap: 0.8rem;
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid rgba(126, 63, 40, 0.12);
+}
+
+.mini-heading {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--muted);
+}
+
+.word-search-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.65rem;
+}
+
+.word-search-row input {
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  padding: 0.95rem 1rem;
+  background: #fffdfa;
+  color: var(--ink);
+  font: inherit;
+}
+
+.word-results {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.word-result {
+  background: white;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  padding: 0.9rem;
+  display: grid;
+  gap: 0.45rem;
+}
+
+.word-result-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: start;
+  gap: 0.8rem;
+}
+
+.word-result-title {
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.word-result-meta {
+  color: var(--muted);
+  font-size: 0.92rem;
+}
+
+.word-result-text {
+  margin: 0;
+  color: var(--ink);
+  line-height: 1.8;
+  font-size: 0.98rem;
+}
+
+.word-result-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+}
+
 .results {
   display: grid;
   gap: 1rem;
@@ -347,6 +421,12 @@ button {
   gap: 0.8rem;
 }
 
+.preview-meta {
+  display: grid;
+  gap: 0.25rem;
+  color: var(--muted);
+}
+
 .preview-stepper {
   display: inline-flex;
   gap: 0.45rem;
@@ -374,17 +454,23 @@ button {
 
 .preview-strip {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   gap: 0.45rem;
+  overflow-x: auto;
+  padding-bottom: 0.15rem;
+  scroll-snap-type: x proximity;
+  -webkit-overflow-scrolling: touch;
 }
 
 .preview-chip {
+  flex: 0 0 auto;
   border: 1px solid rgba(126, 63, 40, 0.16);
   background: #f6efe0;
   color: var(--muted);
   border-radius: 999px;
   padding: 0.45rem 0.7rem;
   font-size: 0.93rem;
+  scroll-snap-align: start;
   transition: transform 140ms ease, background 140ms ease, color 140ms ease;
 }
 
@@ -403,14 +489,181 @@ button {
   gap: 0.2rem;
 }
 
-.preview-image {
-  width: 100%;
+.preview-info {
+  display: grid;
+  gap: 0.45rem;
+  background: #faf6ed;
+  border: 1px solid rgba(126, 63, 40, 0.12);
   border-radius: 16px;
+  padding: 0.8rem;
+}
+
+.preview-info-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.55rem;
+}
+
+.preview-info-item {
+  display: grid;
+  gap: 0.15rem;
+}
+
+.preview-info-item span {
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.preview-info-item strong {
+  color: var(--ink);
+  font-size: 0.98rem;
+}
+
+.preview-open {
+  justify-self: start;
+}
+
+.preview-image-shell {
+  position: relative;
+  display: block;
+  border-radius: 16px;
+  overflow: hidden;
+  cursor: zoom-in;
+}
+
+.preview-image {
+  display: block;
+  width: 100%;
   border: 1px solid rgba(126, 63, 40, 0.14);
   background: linear-gradient(180deg, #f1ead8, #e4d8bb);
   aspect-ratio: 0.6;
   object-fit: cover;
   object-position: top;
+}
+
+.preview-image-meta {
+  position: absolute;
+  inset-inline: 0;
+  inset-block-end: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  padding: 0.7rem;
+  background: linear-gradient(180deg, transparent, rgba(28, 21, 14, 0.88));
+}
+
+.meta-pill {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  padding: 0.35rem 0.65rem;
+  background: rgba(255, 252, 245, 0.9);
+  border: 1px solid rgba(126, 63, 40, 0.12);
+  color: var(--ink);
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.viewer-modal[hidden] {
+  display: none;
+}
+
+.viewer-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  background: rgba(32, 22, 14, 0.68);
+  backdrop-filter: blur(8px);
+  padding: 0.8rem;
+}
+
+.viewer-shell {
+  width: min(1200px, 100%);
+  height: min(100%, 100dvh);
+  margin: 0 auto;
+  display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr);
+  gap: 0.75rem;
+  background: rgba(255, 251, 243, 0.98);
+  border-radius: 26px;
+  border: 1px solid rgba(126, 63, 40, 0.18);
+  padding: 0.9rem;
+  box-shadow: 0 30px 80px rgba(14, 9, 6, 0.32);
+}
+
+.viewer-top,
+.viewer-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+}
+
+.viewer-meta {
+  display: grid;
+  gap: 0.2rem;
+}
+
+.viewer-title {
+  font-family: "Frank Ruhl Libre", serif;
+  font-size: 1.5rem;
+  line-height: 1;
+}
+
+.viewer-subtitle {
+  color: var(--muted);
+  line-height: 1.6;
+}
+
+.viewer-nav {
+  display: flex;
+  gap: 0.6rem;
+}
+
+.zoom-control {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  color: var(--muted);
+  font-weight: 700;
+}
+
+.zoom-control input {
+  width: min(220px, 42vw);
+}
+
+.viewer-stage {
+  overflow: auto;
+  border-radius: 20px;
+  background:
+    linear-gradient(180deg, #f0e6d0 0%, #e6d9ba 100%);
+  border: 1px solid rgba(126, 63, 40, 0.14);
+  padding: 0.6rem;
+  overscroll-behavior: contain;
+  touch-action: pan-x pan-y pinch-zoom;
+  -webkit-overflow-scrolling: touch;
+}
+
+.viewer-stage-meta {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  width: fit-content;
+  max-width: 100%;
+  margin: 0 auto 0.6rem;
+}
+
+.viewer-image {
+  display: block;
+  margin: 0 auto;
+  width: 140%;
+  max-width: none;
+  height: auto;
+  border-radius: 18px;
+  border: 1px solid rgba(126, 63, 40, 0.1);
 }
 
 @media (max-width: 900px) {
@@ -424,6 +677,12 @@ button {
 
   .preview-grid {
     grid-template-columns: 1fr;
+  }
+
+  .viewer-top,
+  .viewer-toolbar {
+    align-items: start;
+    flex-direction: column;
   }
 }
 
@@ -449,7 +708,54 @@ button {
     flex: 1 1 100%;
   }
 
+  .word-search-row {
+    grid-template-columns: 1fr;
+  }
+
   .preview-toolbar {
     flex-direction: column;
+  }
+
+  .preview-info-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .viewer-modal {
+    padding: 0.4rem;
+  }
+
+  .viewer-shell {
+    height: min(100%, 100dvh);
+    border-radius: 20px;
+    padding: 0.65rem;
+  }
+
+  .viewer-title {
+    font-size: 1.2rem;
+  }
+
+  .zoom-control {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .zoom-control input {
+    width: 58vw;
+  }
+
+  .viewer-nav {
+    width: 100%;
+  }
+
+  .viewer-nav .secondary-button {
+    flex: 1 1 0;
+  }
+
+  .viewer-image {
+    width: 180%;
+  }
+
+  .meta-pill {
+    font-size: 0.78rem;
   }
 }

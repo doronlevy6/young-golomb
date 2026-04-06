@@ -84,6 +84,21 @@
             <code>במדבר כב ב</code>,
             <code>עמודה 81</code>
           </p>
+
+          <section class="word-search">
+            <div class="mini-heading">חיפוש לפי מילים</div>
+            <div class="word-search-row">
+              <input
+                id="word-query"
+                placeholder="למשל: והנחש היה ערום"
+                autocomplete="off"
+              />
+              <button class="secondary-button" id="word-search-button" type="button">חפש</button>
+            </div>
+            <div id="word-results" class="word-results empty-state">
+              <p>אפשר לכתוב כמה מילים ולקבל פסוקים מתאימים עם עמודה.</p>
+            </div>
+          </section>
         </section>
 
         <section class="panel results-panel">
@@ -104,6 +119,32 @@
     </div>
 
     <datalist id="query-suggestions"></datalist>
+
+    <div id="viewer-modal" class="viewer-modal" hidden>
+      <div class="viewer-shell">
+        <div class="viewer-top">
+          <div id="viewer-meta" class="viewer-meta"></div>
+          <button class="ghost-button" id="viewer-close" type="button">סגור</button>
+        </div>
+
+        <div class="viewer-toolbar">
+          <div class="viewer-nav">
+            <button class="secondary-button" id="viewer-prev" type="button">הקודם</button>
+            <button class="secondary-button" id="viewer-next" type="button">הבא</button>
+          </div>
+
+          <label class="zoom-control">
+            <span>זום</span>
+            <input id="viewer-zoom" type="range" min="1" max="3" step="0.1" value="1.4" />
+          </label>
+        </div>
+
+        <div id="viewer-stage" class="viewer-stage">
+          <div id="viewer-stage-meta" class="viewer-stage-meta"></div>
+          <img id="viewer-image" class="viewer-image" alt="" />
+        </div>
+      </div>
+    </div>
 
     <script src="./app.js" type="module"></script>
   </body>
