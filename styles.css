@@ -1211,6 +1211,67 @@ button {
   box-shadow: 0 18px 42px rgba(126, 63, 40, 0.12);
 }
 
+.summary-card-camera {
+  margin-bottom: 0.72rem;
+  background:
+    linear-gradient(135deg, rgba(126, 63, 40, 0.22), rgba(126, 63, 40, 0.08)),
+    #fffdf8;
+  border: 1px solid rgba(126, 63, 40, 0.22);
+}
+
+.camera-summary-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.33rem 0.65rem;
+  border-radius: 999px;
+  background: rgba(126, 63, 40, 0.14);
+  color: var(--accent-strong);
+  font-size: 0.82rem;
+  font-weight: 800;
+  margin-bottom: 0.4rem;
+}
+
+.camera-summary-main {
+  margin-top: 0.08rem;
+  font-family: "Frank Ruhl Libre", serif;
+  font-size: clamp(2rem, 5.7vw, 3.25rem);
+  font-weight: 900;
+  color: var(--accent-strong);
+  line-height: 1.04;
+}
+
+.camera-summary-meta {
+  margin-top: 0.6rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.42rem;
+}
+
+.camera-summary-meta span {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  border: 1px solid rgba(126, 63, 40, 0.16);
+  background: rgba(255, 255, 255, 0.88);
+  padding: 0.34rem 0.62rem;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.camera-summary-words {
+  margin: 0.58rem 0 0;
+  color: var(--accent-strong);
+  font-weight: 700;
+}
+
+.camera-summary-source {
+  margin: 0.42rem 0 0;
+  color: var(--muted);
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
 .summary-card h3,
 .location-card h3,
 .error-card h3 {
@@ -1501,6 +1562,49 @@ button {
   aspect-ratio: 0.6;
   object-fit: cover;
   object-position: top;
+}
+
+.preview-start-marker {
+  position: absolute;
+  inset-inline-start: 0.55rem;
+  inset-inline-end: 0.55rem;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: flex-start;
+  gap: 0.48rem;
+  pointer-events: none;
+}
+
+.preview-start-marker-dot {
+  inline-size: 0.78rem;
+  block-size: 0.78rem;
+  border-radius: 999px;
+  background: #d7442c;
+  border: 2px solid rgba(255, 252, 245, 0.95);
+  box-shadow: 0 0 0 3px rgba(215, 68, 44, 0.24);
+  flex: 0 0 auto;
+  margin-top: 0.22rem;
+}
+
+.preview-start-marker-copy {
+  display: grid;
+  gap: 0.14rem;
+  max-width: 100%;
+  padding: 0.38rem 0.54rem;
+  border-radius: 11px;
+  background: rgba(20, 16, 12, 0.82);
+  border: 1px solid rgba(255, 255, 255, 0.24);
+  color: #fff9ee;
+  font-size: 0.76rem;
+  line-height: 1.3;
+}
+
+.preview-start-marker-copy strong {
+  font-size: 0.79rem;
+}
+
+.preview-start-marker-words {
+  color: rgba(255, 249, 235, 0.94);
 }
 
 .preview-image-meta {
@@ -2100,6 +2204,14 @@ button {
 
   .summary-value {
     font-size: 3rem;
+  }
+
+  .camera-summary-main {
+    font-size: clamp(1.8rem, 8vw, 2.7rem);
+  }
+
+  .preview-start-marker-copy {
+    font-size: 0.7rem;
   }
 
   .calendar-modal {

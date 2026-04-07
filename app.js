@@ -206,6 +206,7 @@ let posterPreviewUrl = ""
 let ocrWorkerPromise = null
 let ocrJobToken = 0
 let ocrRecognizingNow = false
+let currentInputSource = "manual"
 let timesState = {
   selectedDate: getIsraelDateString(),
   loading: false,
@@ -301,9 +302,22 @@ function syncInlineClearButtons() {
   }
 }
 
+function setCurrentInputSource(source = "manual") {
+  currentInputSource = source === "photo" ? "photo" : "manual"
+}
+
+function tagCurrentLocationWithSource(location) {
+  if (!location) return null
+  return {
+    ...location,
+    fromPhoto: currentInputSource === "photo",
+  }
+}
+
 function clearCurrentQuery({ clearPhotoStatus = true } = {}) {
   currentInput.value = ""
   querySegmentState.current = null
+  setCurrentInputSource("manual")
   if (clearPhotoStatus) setCurrentPhotoStatus("")
   renderSegmentPicker("current")
   syncInlineClearButtons()
@@ -394,6 +408,7 @@ function getOcrStatusParts(detection) {
 function applyDetectedCurrentColumn(detection) {
   currentInput.value = `עמודה ${detection.column}`
   querySegmentState.current = null
+  setCurrentInputSource("photo")
   renderSegmentPicker("current")
   syncInlineClearButtons()
   runSearch({ live: true })
@@ -2562,6 +2577,9 @@ function createAnchoredLocation(baseLocation, anchor, { label = "", segmentIndex
   return {
     ...baseLocation,
     label: label || baseLocation.label,
+    book: anchor.book || baseLocation.book || null,
+    chapter: anchor.chapter || baseLocation.chapter || null,
+    verse: anchor.verse || baseLocation.verse || null,
     columnFloat: anchor.columnFloat,
     column: anchor.column,
     lineFloat: anchor.lineFloat,
@@ -2907,6 +2925,8 @@ function applyJournalReading(dateString) {
     const nextReading = autoReadingsState.readings.find((reading) => reading.date > selectedReading.date) || null
 
     currentInput.value = formatReadingDateInputValue(selectedReading)
+    setCurrentInputSource("manual")
+    setCurrentPhotoStatus("")
     querySegmentState.current = null
     renderSegmentPicker("current")
 
@@ -2931,6 +2951,8 @@ function applyJournalReading(dateString) {
     } else {
       currentInput.value = ""
     }
+    setCurrentInputSource("manual")
+    setCurrentPhotoStatus("")
     querySegmentState.current = null
     renderSegmentPicker("current")
   }
@@ -2968,6 +2990,9 @@ function createScheduledReadingLocation(reading, role, rawQuery = "", { fieldKey
   return {
     kind: "scheduledReading",
     label: anchorLabel,
+    book: anchor.book,
+    chapter: anchor.chapter,
+    verse: anchor.verse,
     columnFloat: anchor.columnFloat,
     column: anchor.column,
     lineFloat: anchor.lineFloat,
@@ -3035,10 +3060,12 @@ function renderReadingDefaults() {
 function applyAutoReadingDefaults() {
   let changed = false
   let targetChanged = false
+  let currentChanged = false
 
   if (!normalizeSpaces(currentInput.value) && autoReadingsState.previous) {
     currentInput.value = formatReadingInputValue("previous", autoReadingsState.previous)
     changed = true
+    currentChanged = true
   }
 
   if (!normalizeSpaces(targetInput.value) && autoReadingsState.next) {
@@ -3047,6 +3074,8 @@ function applyAutoReadingDefaults() {
     targetChanged = true
   }
 
+  if (currentChanged) setCurrentInputSource("manual")
+  if (currentChanged) setCurrentPhotoStatus("")
   if (targetChanged) preferredSplitTargetSegmentIndex = null
   renderAllSegmentPickers()
   syncInlineClearButtons()
@@ -3920,6 +3949,77 @@ function formatLocationMatch(location) {
   `
 }
 
+function getLocationReferenceLabel(location) {
+  if (!location?.book || !location?.chapter || !location?.verse) return location?.label || ""
+  return `${location.book} ${location.chapter}:${location.verse}`
+}
+
+function getLocationVerseText(location) {
+  if (!location?.book || !location?.chapter || !location?.verse) return ""
+  return (
+    navigatorData?.verseByKey?.get(`${location.book}:${location.chapter}:${location.verse}`)?.text || ""
+  )
+}
+
+function getLocationOpeningWords(location, count = 6) {
+  const verseText = normalizeSpaces(getLocationVerseText(location))
+  if (!verseText) return ""
+  return verseText.split(" ").filter(Boolean).slice(0, count).join(" ")
+}
+
+function getLocationOpeningSearchWords(location, count = 3) {
+  const words = getLocationOpeningWords(location, count)
+  return normalizeSpaces(words)
+}
+
+function getPreviewTargetStartMarker(location, previewColumn) {
+  const anchorColumn = Number(location?.column)
+  if (!Number.isFinite(anchorColumn) || anchorColumn !== previewColumn) return null
+
+  const lineFloat = Number(location?.lineFloat || 0)
+  if (!Number.isFinite(lineFloat) || lineFloat <= 0) return null
+
+  return {
+    topPercent: Math.max(3, Math.min(96, ((lineFloat - 1) / 42) * 100)),
+    reference: getLocationReferenceLabel(location),
+    words: getLocationOpeningWords(location, 6),
+  }
+}
+
+function renderCameraResultSummary({
+  absDelta,
+  direction,
+  sourceLocation,
+  targetLocation,
+  activeSegmentDiff,
+}) {
+  const segmentLabel =
+    activeSegmentDiff?.selectorLabel || targetLocation?.selectedSegmentLabel || "הספר הנבחר"
+  const scrollText =
+    absDelta < 0.25 ? "כמעט בלי גלילה" : `${formatNumber(absDelta, 1)} עמודות ${direction}`
+  const targetStartRef = getLocationReferenceLabel(targetLocation)
+  const targetStartWords = getLocationOpeningWords(targetLocation, 7)
+
+  return `
+    <article class="summary-card summary-card-camera">
+      <div class="camera-summary-eyebrow">זיהוי מקור מהמצלמה</div>
+      <h3>הוראת גלילה מדויקת</h3>
+      <div class="camera-summary-main">${scrollText}</div>
+      <div class="camera-summary-meta">
+        <span>${escapeHtml(segmentLabel)}</span>
+        <span>תחילת היעד: עמודה ${targetLocation.column}</span>
+        ${targetStartRef ? `<span>${escapeHtml(targetStartRef)}</span>` : ""}
+      </div>
+      ${
+        targetStartWords
+          ? `<p class="camera-summary-words">תחילת הקריאה: ${escapeHtml(targetStartWords)}</p>`
+          : ""
+      }
+      <p class="camera-summary-source">מקור מזוהה: עמודה ${sourceLocation.column}</p>
+    </article>
+  `
+}
+
 function renderError(message) {
   comparisonState = null
   resultsEl.className = "results"
@@ -3994,9 +4094,21 @@ function renderComparisonState() {
     absDelta < 0.25 ? "אותו מקום" : delta > 0 ? "קדימה" : "אחורה"
   const message =
     absDelta < 0.25 ? "כמעט בלי גלילה" : `${formatNumber(absDelta, 1)} עמודות ${direction}`
+  const cameraMode = Boolean(current?.fromPhoto)
 
   resultsEl.className = "results"
   resultsEl.innerHTML = `
+    ${
+      cameraMode
+        ? renderCameraResultSummary({
+            absDelta,
+            direction,
+            sourceLocation,
+            targetLocation,
+            activeSegmentDiff,
+          })
+        : ""
+    }
     <article class="summary-card summary-card-primary">
       <h3>כמה לגלול</h3>
       ${
@@ -4045,9 +4157,9 @@ function renderComparisonState() {
     sourceVisible
       ? [
           { title: "עמודת המקור", location: sourceLocation },
-          { title: "עמודת היעד", location: targetLocation },
+          { title: "עמודת היעד", location: targetLocation, highlightStart: cameraMode },
         ]
-      : [{ title: "עמודת היעד", location: targetLocation }],
+      : [{ title: "עמודת היעד", location: targetLocation, highlightStart: cameraMode }],
   )
 }
 
@@ -4064,6 +4176,7 @@ function renderPreview(items = []) {
     title: item.title,
     location: item.location,
     previewColumn: item.location.column,
+    highlightStart: Boolean(item.highlightStart),
   }))
   renderPreviewState()
 }
@@ -4076,10 +4189,11 @@ function renderPreviewState() {
     <div class="preview-grid">
       ${previewState
         .map((item, index) => {
-          const { title, location, previewColumn } = item
+          const { title, location, previewColumn, highlightStart } = item
           const nearby = [-2, -1, 0, 1, 2]
             .map((step) => clampColumn(previewColumn + step))
             .filter((value, itemIndex, values) => values.indexOf(value) === itemIndex)
+          const startMarker = highlightStart ? getPreviewTargetStartMarker(location, previewColumn) : null
 
           return `
             <article class="preview-card">
@@ -4139,6 +4253,24 @@ function renderPreviewState() {
                   data-action="open"
                   data-preview-index="${index}"
                 />
+                ${
+                  startMarker
+                    ? `
+                      <div class="preview-start-marker" style="top:${startMarker.topPercent.toFixed(2)}%;">
+                        <span class="preview-start-marker-dot"></span>
+                        <div class="preview-start-marker-copy">
+                          <strong>תחילת הקריאה</strong>
+                          ${startMarker.reference ? `<span>${escapeHtml(startMarker.reference)}</span>` : ""}
+                          ${
+                            startMarker.words
+                              ? `<span class="preview-start-marker-words">${escapeHtml(startMarker.words)}</span>`
+                              : ""
+                          }
+                        </div>
+                      </div>
+                    `
+                    : ""
+                }
                 <div
                   class="preview-image-meta"
                   data-action="open"
@@ -4158,6 +4290,7 @@ function renderPreviewState() {
 function resetState() {
   comparisonState = null
   preferredSplitTargetSegmentIndex = null
+  setCurrentInputSource("manual")
   currentInput.value = ""
   targetInput.value = ""
   querySegmentState.current = null
@@ -4198,7 +4331,9 @@ function runSearch({ live = false } = {}) {
     }
 
     if (live) {
-      const currentLocation = tryResolveQuery(currentValue, { fieldKey: "current" })
+      const currentLocation = tagCurrentLocationWithSource(
+        tryResolveQuery(currentValue, { fieldKey: "current" }),
+      )
       const targetLocation = tryResolveQuery(targetValue, { fieldKey: "target" })
 
       if (currentLocation && targetLocation) {
@@ -4223,12 +4358,13 @@ function runSearch({ live = false } = {}) {
     if (!currentValue || !targetValue) {
       const singleValue = targetValue || currentValue
       const title = targetValue ? "היעד" : "המיקום"
-      renderSingle(resolveQuery(singleValue, { fieldKey: targetValue ? "target" : "current" }), title)
+      const resolvedLocation = resolveQuery(singleValue, { fieldKey: targetValue ? "target" : "current" })
+      renderSingle(targetValue ? resolvedLocation : tagCurrentLocationWithSource(resolvedLocation), title)
       return
     }
 
     renderComparison(
-      resolveQuery(currentValue, { fieldKey: "current" }),
+      tagCurrentLocationWithSource(resolveQuery(currentValue, { fieldKey: "current" })),
       resolveQuery(targetValue, { fieldKey: "target" }),
     )
   } catch (error) {
@@ -4518,6 +4654,8 @@ formEl?.addEventListener("submit", (event) => {
 })
 
 currentInput?.addEventListener("input", () => {
+  setCurrentInputSource("manual")
+  setCurrentPhotoStatus("")
   renderSegmentPicker("current")
   syncInlineClearButtons()
   scheduleLiveSearch()
@@ -4573,6 +4711,8 @@ readingDefaultsEl?.addEventListener("click", (event) => {
 
   if (readingKey === "previous") {
     currentInput.value = formatReadingInputValue("previous", reading)
+    setCurrentInputSource("manual")
+    setCurrentPhotoStatus("")
     querySegmentState.current = null
     renderSegmentPicker("current")
   } else {
@@ -4725,11 +4865,14 @@ previewEl?.addEventListener("click", (event) => {
   }
 
   if (target.dataset.action === "open") {
+    const startSearchWords = state.highlightStart
+      ? getLocationOpeningSearchWords(state.location, 3)
+      : ""
     return openViewer({
       title: state.title,
       column: state.previewColumn,
       subtitle: state.location.label,
-      searchQuery: extractLocationSearchQuery(state.location),
+      searchQuery: startSearchWords || extractLocationSearchQuery(state.location),
     })
   }
 })
