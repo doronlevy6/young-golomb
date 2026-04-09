@@ -207,6 +207,7 @@ let viewerState = {
 }
 let touchStartX = null
 let touchStartY = null
+let viewerDragState = null
 let liveSearchTimer = null
 let timesCopyMessageTimer = null
 let posterLogoImage = null
@@ -1995,6 +1996,8 @@ function buildIndexes() {
   navigatorData.parashahByOrder = new Map()
   navigatorData.parashahByKey = new Map()
   navigatorData.verseByKey = new Map()
+  navigatorData.firstVerseByParashahKey = new Map()
+  navigatorData.firstVerseByParashahOrder = new Map()
   navigatorData.columnsByNumber = new Map()
   navigatorData.versesByColumn = new Map()
   navigatorData.verseItems = []
@@ -2032,6 +2035,9 @@ function buildIndexes() {
     item.searchTokenSet = new Set(item.searchTokens)
     item.parashahKey = normalizeKey(item.parashah)
     navigatorData.verseByKey.set(item.key, item)
+    if (item.parashahKey && !navigatorData.firstVerseByParashahKey.has(item.parashahKey)) {
+      navigatorData.firstVerseByParashahKey.set(item.parashahKey, item)
+    }
     navigatorData.verseItems.push(item)
     if (!navigatorData.versesByColumn.has(item.column)) {
       navigatorData.versesByColumn.set(item.column, [])
@@ -2050,6 +2056,30 @@ function buildIndexes() {
   navigatorData.columns.forEach((column) => {
     navigatorData.columnsByNumber.set(column.column, column)
   })
+
+  navigatorData.parashot.forEach((parashah) => {
+    const candidateKeys = [
+      normalizeKey(parashah.name_display),
+      normalizeKey(parashah.name_he),
+      normalizeKey(parashah.name_en),
+    ].flatMap((key) => {
+      const aliased = parashahAliases[key] || key
+      return aliased === key ? [key] : [key, aliased]
+    })
+
+    const firstVerse = candidateKeys
+      .map((key) => navigatorData.firstVerseByParashahKey.get(key))
+      .find(Boolean)
+
+    if (firstVerse) {
+      navigatorData.firstVerseByParashahOrder.set(parashah.order, firstVerse)
+    }
+  })
+}
+
+function getParashahFirstVerse(parashah) {
+  if (!parashah) return null
+  return navigatorData?.firstVerseByParashahOrder?.get(parashah.order) || null
 }
 
 function findDirectColumn(query) {
@@ -3724,7 +3754,30 @@ function resolveStandardQuery(query, options = {}) {
 
   const parashah = resolveParashah(value)
   if (parashah) {
-    const summary = getColumnSummary(parashah.column)
+    const firstVerse = getParashahFirstVerse(parashah)
+    const summary = getColumnSummary(firstVerse?.column || parashah.column)
+
+    if (firstVerse) {
+      return {
+        kind: "parashah",
+        label: `פרשת ${parashah.name_display}`,
+        book: firstVerse.book,
+        chapter: firstVerse.chapter,
+        verse: firstVerse.verse,
+        columnFloat: firstVerse.columnFloat,
+        column: firstVerse.column,
+        lineFloat: firstVerse.lineFloat,
+        exact: firstVerse.exact,
+        detail: `תחילת פרשה #${parashah.order} | ${formatBookChapterVerseShort(firstVerse.book, firstVerse.chapter, firstVerse.verse)} | מקור ודאי`,
+        anchorContext: {
+          columnFloat: firstVerse.columnFloat,
+          parashahKey: firstVerse.parashahKey || normalizeKey(parashah.name_display),
+          book: firstVerse.book,
+          chapter: firstVerse.chapter,
+        },
+      }
+    }
+
     return {
       kind: "parashah",
       label: `פרשת ${parashah.name_display}`,
@@ -3927,9 +3980,10 @@ function renderViewerTargetMarker() {
   const lineFloat = Number(marker.lineFloat || 0)
   if (!Number.isFinite(lineFloat) || lineFloat <= 0) return ""
   const top = Math.max(2, Math.min(98, ((lineFloat - 1) / 42) * 100))
+  const markerTitle = escapeHtml(marker.reference || "תחילת היעד")
   return `
-    <div class="viewer-highlight viewer-highlight-target" style="top:${top}%;">
-      <div class="viewer-highlight-label">תחילת היעד · ${escapeHtml(marker.reference || "")}</div>
+    <div class="viewer-highlight viewer-highlight-target" style="top:${top}%;" title="${markerTitle}">
+      <span class="viewer-highlight-dot" aria-hidden="true"></span>
     </div>
   `
 }
@@ -4194,6 +4248,7 @@ function getTargetStartEvidence(location) {
   const columnVerses = Number.isFinite(targetColumn)
     ? navigatorData?.versesByColumn?.get(targetColumn) || []
     : []
+  const explicitRefVerse = getVerseByReference(anchorToRef(location))
   const refVerse = evidence.startVerse || null
 
   const columnMatch =
@@ -4205,13 +4260,15 @@ function getTargetStartEvidence(location) {
         )[0]
       : null
 
-  const selectedVerse = columnMatch || refVerse || nearestByLine || columnVerses[0] || null
+  const selectedVerse = columnMatch || explicitRefVerse || refVerse || nearestByLine || columnVerses[0] || null
   const source = columnMatch
-    ? "טווח הקריאה + מפת עמודות"
-    : refVerse
-      ? "טווח הקריאה"
+    ? "מקור ודאי: טווח הקריאה + מפת פסוקים"
+    : explicitRefVerse
+      ? "מקור ודאי: פסוק תחילת היעד"
+      : refVerse
+        ? "מקור: טווח הקריאה"
       : selectedVerse
-        ? "מפת עמודות"
+        ? "הערכה: מפת עמודות"
         : ""
 
   return {
@@ -4539,14 +4596,24 @@ function renderPreviewState() {
                   .join("")}
               </div>
 
-              <button
-                class="secondary-button preview-open"
-                type="button"
-                data-action="open"
-                data-preview-index="${index}"
-              >
-                מסך מלא
-              </button>
+              <div class="preview-actions">
+                <button
+                  class="secondary-button preview-search-open"
+                  type="button"
+                  data-action="open-search"
+                  data-preview-index="${index}"
+                >
+                  חיפוש מילה
+                </button>
+                <button
+                  class="secondary-button preview-open"
+                  type="button"
+                  data-action="open"
+                  data-preview-index="${index}"
+                >
+                  מסך מלא
+                </button>
+              </div>
 
               <div
                 class="preview-image-shell"
@@ -4569,17 +4636,7 @@ function renderPreviewState() {
                     ? `
                       <div class="preview-start-marker" style="top:${startMarker.topPercent.toFixed(2)}%;">
                         <span class="preview-start-marker-line"></span>
-                        <span class="preview-start-marker-dot"></span>
-                        <div class="preview-start-marker-copy">
-                          <strong>תחילת הקריאה</strong>
-                          ${startMarker.reference ? `<span>${escapeHtml(startMarker.reference)}</span>` : ""}
-                          ${
-                            startMarker.words
-                              ? `<span class="preview-start-marker-words">${escapeHtml(startMarker.words)}</span>`
-                              : ""
-                          }
-                          ${startMarker.source ? `<span>${escapeHtml(startMarker.source)}</span>` : ""}
-                        </div>
+                        <span class="preview-start-marker-dot" title="${escapeHtml(startMarker.reference || "תחילת היעד")}"></span>
                       </div>
                     `
                     : ""
@@ -4592,6 +4649,11 @@ function renderPreviewState() {
                   <span class="meta-pill">עמודה ${previewColumn}</span>
                 </div>
               </div>
+              ${
+                startMarker?.reference
+                  ? `<div class="preview-target-start-ref">תחילת יעד: ${escapeHtml(startMarker.reference)}</div>`
+                  : ""
+              }
             </article>
           `
         })
@@ -4694,6 +4756,15 @@ function scheduleLiveSearch() {
   }, 140)
 }
 
+function canDragViewerStage() {
+  if (!viewerStage) return false
+  return (
+    viewerState.zoomFactor > 1.01 ||
+    viewerStage.scrollHeight > viewerStage.clientHeight + 2 ||
+    viewerStage.scrollWidth > viewerStage.clientWidth + 2
+  )
+}
+
 function getViewerFitScale() {
   if (!viewerImage.naturalWidth || !viewerImage.naturalHeight) return 1
 
@@ -4736,13 +4807,13 @@ function resetViewerPosition() {
   viewerStage.scrollLeft = 0
 }
 
-function openViewer({ title, column, subtitle = "", searchQuery = "", targetMarker = null }) {
+function openViewer({ title, column, subtitle = "", searchQuery = "", targetMarker = null, searchOpen = false }) {
   const summary = getColumnSummary(column)
   viewerState.open = true
   viewerState.column = clampColumn(column)
   viewerState.title = title
   viewerState.subtitle = subtitle
-  viewerState.searchOpen = false
+  viewerState.searchOpen = Boolean(searchOpen)
   viewerState.searchQuery = normalizeSpaces(searchQuery)
   viewerState.targetMarker = targetMarker
   viewerState.zoomFactor = 1
@@ -4753,6 +4824,11 @@ function openViewer({ title, column, subtitle = "", searchQuery = "", targetMark
   viewerModal.hidden = false
   resetViewerPosition()
   renderViewer(summary)
+  if (viewerState.searchOpen && typeof viewerSearchInput.focus === "function") {
+    setTimeout(() => {
+      viewerSearchInput.focus()
+    }, 0)
+  }
 }
 
 function closeViewer() {
@@ -5178,7 +5254,8 @@ previewEl?.addEventListener("click", (event) => {
     return renderPreviewState()
   }
 
-  if (target.dataset.action === "open") {
+  if (target.dataset.action === "open" || target.dataset.action === "open-search") {
+    const openSearch = target.dataset.action === "open-search"
     const startSearchWords = state.highlightStart
       ? getLocationOpeningSearchWords(state.location, 3)
       : ""
@@ -5203,6 +5280,7 @@ previewEl?.addEventListener("click", (event) => {
       subtitle: state.location.label,
       searchQuery: startSearchWords || extractLocationSearchQuery(state.location),
       targetMarker,
+      searchOpen: openSearch,
     })
   }
 })
@@ -5295,12 +5373,50 @@ document.addEventListener("keydown", (event) => {
 })
 
 viewerStage?.addEventListener("touchstart", (event) => {
-  touchStartX = event.changedTouches[0]?.clientX ?? null
-  touchStartY = event.changedTouches[0]?.clientY ?? null
+  const touch = event.changedTouches[0]
+  touchStartX = touch?.clientX ?? null
+  touchStartY = touch?.clientY ?? null
+  if (!touch || event.touches.length !== 1 || !canDragViewerStage()) {
+    viewerDragState = null
+    return
+  }
+  viewerDragState = {
+    startX: touch.clientX,
+    startY: touch.clientY,
+    startScrollLeft: viewerStage.scrollLeft,
+    startScrollTop: viewerStage.scrollTop,
+    moved: false,
+  }
+})
+
+viewerStage?.addEventListener(
+  "touchmove",
+  (event) => {
+    if (!viewerDragState || !canDragViewerStage()) return
+    const touch = event.changedTouches[0]
+    if (!touch) return
+    const deltaX = touch.clientX - viewerDragState.startX
+    const deltaY = touch.clientY - viewerDragState.startY
+    if (Math.abs(deltaX) > 2 || Math.abs(deltaY) > 2) {
+      viewerDragState.moved = true
+    }
+    viewerStage.scrollLeft = viewerDragState.startScrollLeft - deltaX
+    viewerStage.scrollTop = viewerDragState.startScrollTop - deltaY
+    if (viewerDragState.moved) event.preventDefault()
+  },
+  { passive: false },
+)
+
+viewerStage?.addEventListener("touchcancel", () => {
+  viewerDragState = null
+  touchStartX = null
+  touchStartY = null
 })
 
 viewerStage?.addEventListener("touchend", (event) => {
   if (touchStartX === null) return
+  const wasDragGesture = Boolean(viewerDragState?.moved)
+  viewerDragState = null
   const endX = event.changedTouches[0]?.clientX ?? null
   const endY = event.changedTouches[0]?.clientY ?? null
   if (endX === null) return
@@ -5308,6 +5424,7 @@ viewerStage?.addEventListener("touchend", (event) => {
   const deltaY = endY === null || touchStartY === null ? 0 : endY - touchStartY
   touchStartX = null
   touchStartY = null
+  if (wasDragGesture) return
   if (viewerState.zoomFactor > 1.05) return
   if (Math.abs(delta) < 28) return
   if (Math.abs(delta) < Math.abs(deltaY) * 1.15) return
