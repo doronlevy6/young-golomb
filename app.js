@@ -2982,6 +2982,9 @@ function closeCalendarModal() {
 }
 
 function applyJournalReading(dateString) {
+  if (!dateString) return
+  setJournalDate(dateString)
+
   const selectedReading = getReadingFromDateQuery(dateString)
 
   if (journalState.fieldKey === "times") {
@@ -5059,8 +5062,9 @@ calendarCloseButton?.addEventListener("click", () => {
 journalMonthsEl?.addEventListener("click", (event) => {
   const target = event.target.closest("[data-journal-date]")
   if (!target) return
+  event.preventDefault()
+  event.stopPropagation()
   const dateString = target.dataset.journalDate
-  setJournalDate(dateString)
   applyJournalReading(dateString)
 })
 
