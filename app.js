@@ -101,8 +101,15 @@ const parashahAliases = {
 
 const torahBooks = new Set(["בראשית", "שמות", "ויקרא", "במדבר", "דברים"])
 const scheduledReadingPrefixes = {
-  previous: ["קריאה קודמת", "הקריאה הקודמת", "קריאה אחרונה", "הקריאה האחרונה"],
-  next: ["קריאה הבאה", "הקריאה הבאה"],
+  previous: [
+    "קריאה קודמת",
+    "הקריאה הקודמת",
+    "קריאה אחרונה",
+    "הקריאה האחרונה",
+    "פרשה קודמת",
+    "הפרשה הקודמת",
+  ],
+  next: ["קריאה הבאה", "הקריאה הבאה", "פרשה הבאה", "הפרשה הבאה"],
 }
 const israelTimeZone = "Asia/Jerusalem"
 const bneiBrakGeoNameId = 295514
@@ -155,7 +162,7 @@ let previewState = []
 let comparisonState = null
 let preferredSplitTargetSegmentIndex = null
 let appState = {
-  mode: appModes.times,
+  mode: appModes.navigator,
 }
 let todayInfoState = {
   isoDate: getIsraelDateString(),
@@ -1583,22 +1590,22 @@ async function renderTimesPosterImage() {
   const height = canvas.height
 
   const backgroundGradient = ctx.createLinearGradient(0, 0, 0, height)
-  backgroundGradient.addColorStop(0, "#fbf6eb")
-  backgroundGradient.addColorStop(1, "#ebdfc3")
+  backgroundGradient.addColorStop(0, "#f5fcff")
+  backgroundGradient.addColorStop(1, "#d9ecf9")
   ctx.fillStyle = backgroundGradient
   ctx.fillRect(0, 0, width, height)
 
   const glow = ctx.createRadialGradient(width * 0.25, 0, 40, width * 0.25, 0, width * 0.8)
-  glow.addColorStop(0, "rgba(126, 63, 40, 0.18)")
-  glow.addColorStop(1, "rgba(126, 63, 40, 0)")
+  glow.addColorStop(0, "rgba(38, 159, 105, 0.16)")
+  glow.addColorStop(1, "rgba(38, 159, 105, 0)")
   ctx.fillStyle = glow
   ctx.fillRect(0, 0, width, height)
 
-  ctx.shadowColor = "rgba(69, 47, 30, 0.12)"
+  ctx.shadowColor = "rgba(12, 54, 97, 0.12)"
   ctx.shadowBlur = 42
   ctx.shadowOffsetY = 10
   roundedRectPath(ctx, 56, 56, width - 112, height - 112, 34)
-  ctx.fillStyle = "rgba(255, 252, 245, 0.96)"
+  ctx.fillStyle = "rgba(247, 252, 255, 0.96)"
   ctx.fill()
   ctx.shadowColor = "transparent"
 
@@ -1607,7 +1614,11 @@ async function renderTimesPosterImage() {
     const logoX = 92
     const logoY = height - 262
     const logoSize = 170
+    ctx.save()
+    roundedRectPath(ctx, logoX, logoY, logoSize, logoSize, 24)
+    ctx.clip()
     ctx.drawImage(logo, logoX, logoY, logoSize, logoSize)
+    ctx.restore()
   } catch {}
 
   const occasionMeta = getTimesOccasionMeta()
@@ -1615,17 +1626,17 @@ async function renderTimesPosterImage() {
 
   ctx.direction = "rtl"
   ctx.textAlign = "right"
-  ctx.fillStyle = "#2e2418"
+  ctx.fillStyle = "#12325f"
   ctx.font = '700 64px "Frank Ruhl Libre", serif'
   let headingBottom = drawWrappedRtlText(ctx, heading.title, width - 96, 146, width - 290, 72)
 
   if (heading.subtitle) {
-    ctx.fillStyle = "#5f2817"
+    ctx.fillStyle = "#0f4475"
     ctx.font = '700 54px "Frank Ruhl Libre", serif'
     headingBottom = drawWrappedRtlText(ctx, heading.subtitle, width - 96, headingBottom + 28, width - 290, 62)
   }
 
-  ctx.fillStyle = "#5f2817"
+  ctx.fillStyle = "#0f4475"
   ctx.font = '700 34px "Heebo", sans-serif'
   const dateLineBottom = drawWrappedRtlText(
     ctx,
@@ -1638,14 +1649,14 @@ async function renderTimesPosterImage() {
 
   let y = dateLineBottom + 42
   timesState.schedule.forEach((entry) => {
-    ctx.fillStyle = "#2e2418"
+    ctx.fillStyle = "#12325f"
     ctx.font = entry.primary ? '800 52px "Heebo", sans-serif' : '700 44px "Heebo", sans-serif'
     const lineText = entry.time ? `${entry.label}: ${entry.time}` : entry.label
     y = drawWrappedRtlText(ctx, lineText, width - 96, y, width - 170, 56)
     y += 10
   })
 
-  ctx.fillStyle = "#5f2817"
+  ctx.fillStyle = "#0f4475"
   ctx.font = '700 52px "Frank Ruhl Libre", serif'
   drawWrappedRtlText(
     ctx,
@@ -1936,8 +1947,19 @@ function getJournalMonthKeysForYear(year) {
   return getJournalMonthKeys().filter((monthKey) => monthKey.startsWith(`${year}-`))
 }
 
+function getPrimaryReadings(readings = autoReadingsState.readings || []) {
+  return readings.filter((reading) => !reading.isWeekdayReading)
+}
+
 function getReadingOnOrAfterDate(dateString) {
-  return autoReadingsState.readings.find((reading) => reading.date >= dateString) || null
+  const primaryReadings = getPrimaryReadings()
+  return primaryReadings.find((reading) => reading.date >= dateString) || primaryReadings.at(-1) || null
+}
+
+function getDefaultTargetReading(baseDate = autoReadingsState.today || getIsraelDateString()) {
+  const primaryReadings = getPrimaryReadings()
+  if (!primaryReadings.length) return null
+  return primaryReadings.find((reading) => reading.date >= baseDate) || primaryReadings.at(-1) || null
 }
 
 function getReadingFromDateQuery(query) {
@@ -2184,6 +2206,19 @@ function getHebcalReadingTypeLabel(item) {
   return "קריאת שבת"
 }
 
+function isRegularWeekdayHebcalItem(item) {
+  const typeKey = normalizeKey(String(item?.type || ""))
+  if (typeKey === "weekday") return true
+
+  const holidayType = typeKey === "holiday"
+  if (holidayType) return false
+
+  const text = normalizeKey(
+    `${getHebcalReadingName(item)} ${item?.summary || ""} ${item?.reason || ""}`,
+  )
+  return text.includes("מנחה") || text.includes("mincha")
+}
+
 function getCalendarReadingLabel(item) {
   if (item.type === "holiday") return getHebcalReadingName(item)
   if (getWeekdayIndex(item.date) === 6) return getHebcalReadingName(item)
@@ -2355,7 +2390,7 @@ function createScheduledReadingRecord(item) {
     name: getHebcalReadingName(item),
     calendarLabel: getCalendarReadingLabel(item),
     typeLabel: getHebcalReadingTypeLabel(item),
-    isWeekdayReading: Boolean(item.weekday),
+    isWeekdayReading: isRegularWeekdayHebcalItem(item),
     summary: item.summary || "",
     rangeLabel: ranges.map((range) => formatRangeSegment(range)).join(" | "),
     segments,
@@ -2912,10 +2947,10 @@ function openCalendarModal(fieldKey = "target") {
         : null
   const fallbackReading =
     journalState.fieldKey === "current"
-      ? autoReadingsState.previous || autoReadingsState.next
+      ? autoReadingsState.previous || getDefaultTargetReading()
       : journalState.fieldKey === "target"
-        ? autoReadingsState.next || autoReadingsState.previous
-        : getReadingByDate(timesState.selectedDate) || autoReadingsState.next || autoReadingsState.previous
+        ? getDefaultTargetReading() || autoReadingsState.previous
+        : getReadingByDate(timesState.selectedDate) || getDefaultTargetReading() || autoReadingsState.previous
   const selectedReading = fieldInput ? getScheduledReadingFromQuery(fieldInput.value) || fallbackReading : fallbackReading
   const targetDate =
     (fieldInput ? parseIsoDateFromQuery(fieldInput.value) : "") ||
@@ -2955,10 +2990,16 @@ function applyJournalReading(dateString) {
     return
   }
 
-  if (!selectedReading) return
+  if (!selectedReading) {
+    closeCalendarModal()
+    if (journalState.fieldKey !== "times") {
+      setAppMode(appModes.navigator)
+    }
+    return
+  }
 
   if (journalState.fieldKey === "current") {
-    const nextReading = autoReadingsState.readings.find((reading) => reading.date > selectedReading.date) || null
+    const nextReading = getPrimaryReadings().find((reading) => reading.date > selectedReading.date) || null
 
     currentInput.value = formatReadingDateInputValue(selectedReading)
     setCurrentInputSource("manual")
@@ -2995,6 +3036,7 @@ function applyJournalReading(dateString) {
 
   syncInlineClearButtons()
   closeCalendarModal()
+  setAppMode(appModes.navigator)
   runSearch({ live: true })
 }
 
@@ -3098,14 +3140,19 @@ function applyAutoReadingDefaults() {
   let targetChanged = false
   let currentChanged = false
 
-  if (!normalizeSpaces(currentInput.value) && autoReadingsState.previous) {
-    currentInput.value = formatReadingInputValue("previous", autoReadingsState.previous)
+  const defaultTargetReading = getDefaultTargetReading()
+  const defaultSourceReading = defaultTargetReading
+    ? getDefaultSourceForTarget(defaultTargetReading)
+    : autoReadingsState.previous
+
+  if (!normalizeSpaces(currentInput.value) && defaultSourceReading) {
+    currentInput.value = formatReadingDateInputValue(defaultSourceReading)
     changed = true
     currentChanged = true
   }
 
-  if (!normalizeSpaces(targetInput.value) && autoReadingsState.next) {
-    targetInput.value = formatReadingInputValue("next", autoReadingsState.next)
+  if (!normalizeSpaces(targetInput.value) && defaultTargetReading) {
+    targetInput.value = formatReadingDateInputValue(defaultTargetReading)
     changed = true
     targetChanged = true
   }
@@ -3175,16 +3222,18 @@ async function loadAutoReadings() {
       .sort((a, b) => a.date.localeCompare(b.date)),
     )
 
+    const primaryReadings = getPrimaryReadings(readings)
     autoReadingsState.readings = readings
-    autoReadingsState.previous = readings.filter((reading) => reading.date <= today).at(-1) || null
-    autoReadingsState.next = readings.find((reading) => reading.date > today) || null
+    autoReadingsState.previous = primaryReadings.filter((reading) => reading.date <= today).at(-1) || null
+    autoReadingsState.next = primaryReadings.find((reading) => reading.date >= today) || primaryReadings.at(-1) || null
+    const defaultTargetReading = getDefaultTargetReading(today)
     autoReadingsState.today = today
     autoReadingsState.rangeStart = start
     autoReadingsState.rangeEnd = end
     autoReadingsState.sourceUrl = sourceUrls[0] || ""
     journalState.selectedDate =
       getReadingByDate(journalState.selectedDate)?.date ||
-      autoReadingsState.next?.date ||
+      defaultTargetReading?.date ||
       autoReadingsState.previous?.date ||
       today
     journalState.visibleMonthKey = getMonthKey(journalState.selectedDate)
@@ -4370,14 +4419,14 @@ function renderComparisonState() {
         >
           ${sourceVisible ? "הסתר מקור" : "הצג מקור"}
         </button>
-        <label class="details-toggle">
-          <input
-            type="checkbox"
-            data-action="toggle-location-details"
-            ${showLocationDetails ? "checked" : ""}
-          />
-          <span>הצג פרטי עמודה</span>
-        </label>
+        <button
+          class="ghost-button small-button${showLocationDetails ? " is-active" : ""}"
+          type="button"
+          data-action="toggle-location-details"
+          aria-pressed="${showLocationDetails ? "true" : "false"}"
+        >
+          ${showLocationDetails ? "הסתר פרטי עמודה" : "הצג פרטי עמודה"}
+        </button>
       </div>
     </article>
     <div class="location-grid">
@@ -5054,11 +5103,7 @@ resultsEl?.addEventListener("click", (event) => {
   if (!actionTarget || !comparisonState) return
 
   if (actionTarget.dataset.action === "toggle-location-details") {
-    const checked =
-      actionTarget instanceof HTMLInputElement
-        ? actionTarget.checked
-        : Boolean(comparisonState.showLocationDetails)
-    comparisonState.showLocationDetails = checked
+    comparisonState.showLocationDetails = !comparisonState.showLocationDetails
     renderComparisonState()
     return
   }

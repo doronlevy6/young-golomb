@@ -8,6 +8,31 @@
       name="description"
       content="ניווט ספר תורה לפי פרשה, פרק, פסוק, מילים או עמודה."
     />
+    <meta property="og:title" content="ניווט ספר תורה" />
+    <meta property="og:description" content="ניווט ספר תורה לפי פרשה, פרק, פסוק, מילים או עמודה." />
+    <meta property="og:site_name" content="ניווט ספר תורה" />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://doronlevy6.github.io/young-golomb/" />
+    <meta
+      property="og:image"
+      content="https://doronlevy6.github.io/young-golomb/assets/share-gabai.png"
+    />
+    <meta
+      property="og:image:secure_url"
+      content="https://doronlevy6.github.io/young-golomb/assets/share-gabai.png"
+    />
+    <meta property="og:image:type" content="image/png" />
+    <meta property="og:image:width" content="1536" />
+    <meta property="og:image:height" content="1024" />
+    <meta property="og:image:alt" content="לוגו בית כנסת גולדמן" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="ניווט ספר תורה" />
+    <meta name="twitter:description" content="ניווט ספר תורה לפי פרשה, פרק, פסוק, מילים או עמודה." />
+    <meta
+      name="twitter:image"
+      content="https://doronlevy6.github.io/young-golomb/assets/share-gabai.png"
+    />
+    <link rel="canonical" href="https://doronlevy6.github.io/young-golomb/" />
     <link rel="icon" href="./assets/gabai.png" type="image/png" />
     <link rel="apple-touch-icon" href="./assets/gabai.png" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -33,15 +58,15 @@
 
       <main class="main-shell">
         <div class="mode-tabs" id="mode-tabs">
-          <button class="mode-tab is-active" type="button" data-tab="times">
+          <button class="mode-tab" type="button" data-tab="times">
             זמני שבת/חג
           </button>
-          <button class="mode-tab" type="button" data-tab="navigator">
+          <button class="mode-tab is-active" type="button" data-tab="navigator">
             ניווט ספר תורה
           </button>
         </div>
 
-        <section id="times-view" class="tab-view">
+        <section id="times-view" class="tab-view" hidden>
           <div class="times-layout">
             <section class="panel times-panel">
               <section id="today-info" class="today-info" aria-live="polite">
@@ -161,7 +186,7 @@
           </div>
         </section>
 
-        <section id="navigator-view" class="tab-view" hidden>
+        <section id="navigator-view" class="tab-view">
           <div class="layout">
             <section class="panel search-panel">
               <form id="navigator-form" class="search-form">

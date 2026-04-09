@@ -1,16 +1,16 @@
 :root {
-  --bg: #f7f1e4;
-  --bg-strong: #e8dcc0;
-  --paper: rgba(255, 252, 245, 0.92);
-  --ink: #2e2418;
-  --muted: #6c5b47;
-  --accent: #7e3f28;
-  --accent-strong: #5f2817;
-  --accent-soft: rgba(126, 63, 40, 0.12);
-  --line: rgba(76, 54, 32, 0.18);
-  --success: #3d6a48;
-  --error: #992d22;
-  --shadow: 0 24px 60px rgba(69, 47, 30, 0.12);
+  --bg: #e8f3f7;
+  --bg-strong: #d5eaf2;
+  --paper: rgba(255, 255, 255, 0.93);
+  --ink: #12325f;
+  --muted: #406387;
+  --accent: #155c99;
+  --accent-strong: #0f4475;
+  --accent-soft: rgba(20, 90, 150, 0.12);
+  --line: rgba(21, 92, 153, 0.2);
+  --success: #269f69;
+  --error: #b03535;
+  --shadow: 0 24px 60px rgba(12, 54, 97, 0.12);
   --radius-lg: 28px;
   --radius-md: 18px;
 }
@@ -25,8 +25,9 @@ body {
   font-family: "Heebo", sans-serif;
   color: var(--ink);
   background:
-    radial-gradient(circle at top, rgba(126, 63, 40, 0.18), transparent 28%),
-    linear-gradient(180deg, #faf5ea 0%, #efe4cc 100%);
+    radial-gradient(circle at top, rgba(38, 159, 105, 0.16), transparent 30%),
+    radial-gradient(circle at 15% 15%, rgba(21, 92, 153, 0.16), transparent 35%),
+    linear-gradient(180deg, #f5fcff 0%, #e5f2f8 100%);
 }
 
 code {
@@ -64,8 +65,9 @@ mark {
   width: 74px;
   height: 74px;
   display: block;
-  object-fit: contain;
-  overflow: visible;
+  object-fit: cover;
+  border-radius: 18px;
+  box-shadow: 0 8px 18px rgba(12, 54, 97, 0.16);
 }
 
 .brand-copy {
@@ -93,12 +95,12 @@ mark {
   gap: 0.95rem;
   margin-top: 1rem;
   padding: 1rem 1.1rem;
-  border: 1px solid rgba(126, 63, 40, 0.14);
+  border: 1px solid rgba(20, 90, 150, 0.14);
   border-radius: calc(var(--radius-lg) - 2px);
   background:
-    radial-gradient(circle at top left, rgba(126, 63, 40, 0.14), transparent 34%),
-    linear-gradient(135deg, rgba(255, 252, 245, 0.98), rgba(249, 242, 229, 0.95));
-  box-shadow: 0 18px 44px rgba(69, 47, 30, 0.1);
+    radial-gradient(circle at top left, rgba(20, 90, 150, 0.14), transparent 34%),
+    linear-gradient(135deg, rgba(247, 252, 255, 0.98), rgba(232, 244, 252, 0.95));
+  box-shadow: 0 18px 44px rgba(12, 54, 97, 0.1);
 }
 
 .today-copy {
@@ -142,7 +144,7 @@ mark {
   display: grid;
   gap: 0.18rem;
   padding: 0.72rem 0.78rem;
-  border: 1px solid rgba(126, 63, 40, 0.12);
+  border: 1px solid rgba(20, 90, 150, 0.12);
   border-radius: 18px;
   background: rgba(255, 255, 255, 0.74);
 }
@@ -214,7 +216,7 @@ mark {
   margin-top: 0.9rem;
   padding: 0.8rem;
   border-radius: 18px;
-  border: 1px solid rgba(126, 63, 40, 0.12);
+  border: 1px solid rgba(20, 90, 150, 0.12);
   background: rgba(255, 255, 255, 0.75);
 }
 
@@ -222,7 +224,7 @@ mark {
   margin-top: 0.9rem;
   padding: 0.8rem;
   border-radius: 18px;
-  border: 1px solid rgba(126, 63, 40, 0.12);
+  border: 1px solid rgba(20, 90, 150, 0.12);
   background: rgba(255, 255, 255, 0.78);
 }
 
@@ -251,7 +253,7 @@ mark {
   border: 1px solid var(--line);
   border-radius: 14px;
   padding: 0.68rem 0.78rem;
-  background: #fffdfa;
+  background: #fafdff;
   color: var(--ink);
   font: inherit;
 }
@@ -302,7 +304,7 @@ mark {
   border: 1px solid var(--line);
   border-radius: 14px;
   padding: 0.7rem 0.8rem;
-  background: #fffdfa;
+  background: #fafdff;
   color: var(--ink);
   font: inherit;
 }
@@ -323,12 +325,12 @@ mark {
 .times-card {
   display: grid;
   gap: 0.7rem;
-  border: 1px solid rgba(126, 63, 40, 0.12);
+  border: 1px solid rgba(20, 90, 150, 0.12);
   border-radius: 22px;
   padding: 0.95rem 1rem;
   background:
-    radial-gradient(circle at top left, rgba(126, 63, 40, 0.1), transparent 34%),
-    linear-gradient(180deg, rgba(255, 252, 246, 0.98), rgba(248, 240, 226, 0.95));
+    radial-gradient(circle at top left, rgba(20, 90, 150, 0.1), transparent 34%),
+    linear-gradient(180deg, rgba(247, 252, 255, 0.98), rgba(248, 240, 226, 0.95));
 }
 
 .times-card-head {
@@ -356,7 +358,7 @@ mark {
   align-items: center;
   border-radius: 999px;
   padding: 0.35rem 0.72rem;
-  background: rgba(126, 63, 40, 0.1);
+  background: rgba(20, 90, 150, 0.1);
   color: var(--accent-strong);
   font-size: 0.88rem;
   font-weight: 700;
@@ -380,7 +382,7 @@ mark {
   align-items: baseline;
   gap: 0.6rem;
   border-radius: 14px;
-  border: 1px solid rgba(126, 63, 40, 0.1);
+  border: 1px solid rgba(20, 90, 150, 0.1);
   background: rgba(255, 255, 255, 0.74);
   padding: 0.62rem 0.75rem;
 }
@@ -444,8 +446,8 @@ mark {
   width: 100%;
   display: block;
   border-radius: 18px;
-  border: 1px solid rgba(126, 63, 40, 0.14);
-  background: linear-gradient(180deg, #f3ecdc, #e8dcc2);
+  border: 1px solid rgba(20, 90, 150, 0.14);
+  background: linear-gradient(180deg, #e8f5ff, #d9ecf9);
 }
 
 .times-poster-canvas {
@@ -470,10 +472,10 @@ mark {
   padding: 0.38rem;
   width: max-content;
   max-width: 100%;
-  border: 1px solid rgba(126, 63, 40, 0.14);
+  border: 1px solid rgba(20, 90, 150, 0.14);
   border-radius: 999px;
-  background: rgba(255, 252, 245, 0.78);
-  box-shadow: 0 12px 28px rgba(69, 47, 30, 0.08);
+  background: rgba(247, 252, 255, 0.78);
+  box-shadow: 0 12px 28px rgba(12, 54, 97, 0.08);
   backdrop-filter: blur(10px);
 }
 
@@ -488,12 +490,12 @@ mark {
 .mode-tab.is-active {
   background: var(--accent);
   color: white;
-  box-shadow: 0 10px 18px rgba(126, 63, 40, 0.22);
+  box-shadow: 0 10px 18px rgba(20, 90, 150, 0.22);
 }
 
 .panel {
   background: var(--paper);
-  border: 1px solid rgba(126, 63, 40, 0.14);
+  border: 1px solid rgba(20, 90, 150, 0.14);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow);
   backdrop-filter: blur(10px);
@@ -529,12 +531,12 @@ mark {
 }
 
 .status-pill.ready {
-  background: rgba(61, 106, 72, 0.12);
+  background: rgba(38, 162, 107, 0.12);
   color: var(--success);
 }
 
 .status-pill.error {
-  background: rgba(153, 45, 34, 0.12);
+  background: rgba(176, 53, 53, 0.12);
   color: var(--error);
 }
 
@@ -547,8 +549,8 @@ mark {
   position: sticky;
   top: 1rem;
   background:
-    radial-gradient(circle at top left, rgba(126, 63, 40, 0.08), transparent 34%),
-    rgba(255, 252, 245, 0.96);
+    radial-gradient(circle at top left, rgba(20, 90, 150, 0.08), transparent 34%),
+    rgba(247, 252, 255, 0.96);
 }
 
 .field {
@@ -565,9 +567,9 @@ mark {
 }
 
 .field-target .field-inline input {
-  border-color: rgba(126, 63, 40, 0.24);
-  background: linear-gradient(180deg, #fffdfa, #fff8ef);
-  box-shadow: 0 10px 24px rgba(126, 63, 40, 0.05);
+  border-color: rgba(20, 90, 150, 0.24);
+  background: linear-gradient(180deg, #fafdff, #eff8ff);
+  box-shadow: 0 10px 24px rgba(20, 90, 150, 0.05);
 }
 
 .field-secondary {
@@ -593,7 +595,7 @@ mark {
   border: 1px solid var(--line);
   border-radius: var(--radius-md);
   padding: 0.95rem 1rem;
-  background: #fffdfa;
+  background: #fafdff;
   color: var(--ink);
   font: inherit;
 }
@@ -601,8 +603,8 @@ mark {
 .field input:focus,
 .field-inline input:focus,
 .field select:focus {
-  outline: 2px solid rgba(126, 63, 40, 0.18);
-  border-color: rgba(126, 63, 40, 0.45);
+  outline: 2px solid rgba(20, 90, 150, 0.18);
+  border-color: rgba(20, 90, 150, 0.45);
 }
 
 .calendar-trigger,
@@ -694,7 +696,7 @@ mark {
 }
 
 .segment-chip {
-  border: 1px solid rgba(126, 63, 40, 0.16);
+  border: 1px solid rgba(20, 90, 150, 0.16);
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.72);
   color: var(--muted);
@@ -704,8 +706,8 @@ mark {
 }
 
 .segment-chip.is-active {
-  background: rgba(126, 63, 40, 0.12);
-  border-color: rgba(126, 63, 40, 0.3);
+  background: rgba(20, 90, 150, 0.12);
+  border-color: rgba(20, 90, 150, 0.3);
   color: var(--accent-strong);
 }
 
@@ -723,13 +725,13 @@ mark {
   gap: 0.18rem;
   width: 100%;
   padding: 0.8rem 0.95rem;
-  border: 1px solid rgba(126, 63, 40, 0.14);
+  border: 1px solid rgba(20, 90, 150, 0.14);
   border-radius: 18px;
   background:
-    linear-gradient(135deg, rgba(250, 240, 223, 0.95), rgba(255, 252, 246, 0.98));
+    linear-gradient(135deg, rgba(228, 243, 255, 0.95), rgba(247, 252, 255, 0.98));
   color: var(--ink);
   text-align: start;
-  box-shadow: 0 10px 24px rgba(71, 42, 21, 0.05);
+  box-shadow: 0 10px 24px rgba(12, 54, 97, 0.05);
 }
 
 .reading-pill strong {
@@ -758,14 +760,14 @@ mark {
   gap: 0.2rem;
   padding: 0.72rem 0.8rem;
   border-radius: 18px;
-  border: 1px solid rgba(126, 63, 40, 0.12);
+  border: 1px solid rgba(20, 90, 150, 0.12);
   background: rgba(255, 255, 255, 0.72);
 }
 
 .reading-segment-diff.is-active {
-  border-color: rgba(126, 63, 40, 0.32);
-  background: linear-gradient(180deg, rgba(250, 240, 223, 0.96), rgba(255, 252, 246, 0.98));
-  box-shadow: 0 8px 20px rgba(71, 42, 21, 0.08);
+  border-color: rgba(20, 90, 150, 0.32);
+  background: linear-gradient(180deg, rgba(228, 243, 255, 0.96), rgba(247, 252, 255, 0.98));
+  box-shadow: 0 8px 20px rgba(12, 54, 97, 0.08);
 }
 
 .reading-segment span,
@@ -808,11 +810,11 @@ mark {
   display: grid;
   gap: 0.75rem;
   padding: 1rem 1.05rem;
-  border: 1px solid rgba(126, 63, 40, 0.14);
+  border: 1px solid rgba(20, 90, 150, 0.14);
   border-radius: 24px;
   background:
-    radial-gradient(circle at top left, rgba(126, 63, 40, 0.1), transparent 34%),
-    linear-gradient(180deg, rgba(255, 252, 246, 0.98), rgba(248, 240, 226, 0.95));
+    radial-gradient(circle at top left, rgba(20, 90, 150, 0.1), transparent 34%),
+    linear-gradient(180deg, rgba(247, 252, 255, 0.98), rgba(248, 240, 226, 0.95));
 }
 
 .journal-summary-head {
@@ -846,7 +848,7 @@ mark {
   padding: 0.8rem 0.9rem;
   border-radius: 18px;
   background: rgba(255, 255, 255, 0.72);
-  border: 1px solid rgba(126, 63, 40, 0.12);
+  border: 1px solid rgba(20, 90, 150, 0.12);
 }
 
 .journal-stat span {
@@ -866,7 +868,7 @@ mark {
   width: max-content;
   padding: 0.46rem 0.8rem;
   border-radius: 999px;
-  background: rgba(126, 63, 40, 0.1);
+  background: rgba(20, 90, 150, 0.1);
   color: var(--accent-strong);
   font-weight: 700;
 }
@@ -882,7 +884,7 @@ mark {
   gap: 0.55rem;
   padding: 0.72rem;
   border-radius: 20px;
-  border: 1px solid rgba(126, 63, 40, 0.12);
+  border: 1px solid rgba(20, 90, 150, 0.12);
   background: rgba(255, 255, 255, 0.62);
 }
 
@@ -913,7 +915,7 @@ mark {
 }
 
 .journal-day-empty {
-  background: rgba(126, 63, 40, 0.04);
+  background: rgba(20, 90, 150, 0.04);
 }
 
 .journal-day {
@@ -921,7 +923,7 @@ mark {
   align-content: start;
   gap: 0.18rem;
   padding: 0.34rem 0.3rem;
-  border: 1px solid rgba(126, 63, 40, 0.08);
+  border: 1px solid rgba(20, 90, 150, 0.08);
   background: rgba(255, 255, 255, 0.78);
   text-align: start;
 }
@@ -931,7 +933,7 @@ mark {
 }
 
 .journal-day.is-disabled {
-  background: rgba(126, 63, 40, 0.04);
+  background: rgba(20, 90, 150, 0.04);
   color: var(--muted);
 }
 
@@ -940,21 +942,21 @@ mark {
 }
 
 .journal-day.is-reading {
-  border-color: rgba(126, 63, 40, 0.14);
-  background: linear-gradient(180deg, rgba(250, 240, 223, 0.95), rgba(255, 252, 246, 0.96));
+  border-color: rgba(20, 90, 150, 0.14);
+  background: linear-gradient(180deg, rgba(228, 243, 255, 0.95), rgba(247, 252, 255, 0.96));
 }
 
 .journal-day.has-label {
-  border-color: rgba(126, 63, 40, 0.22);
+  border-color: rgba(20, 90, 150, 0.22);
 }
 
 .journal-day.is-selected {
   border-color: rgba(95, 40, 23, 0.38);
-  box-shadow: 0 10px 22px rgba(126, 63, 40, 0.12);
+  box-shadow: 0 10px 22px rgba(20, 90, 150, 0.12);
 }
 
 .journal-day.is-today {
-  outline: 2px solid rgba(61, 106, 72, 0.18);
+  outline: 2px solid rgba(38, 162, 107, 0.18);
 }
 
 .journal-day-number {
@@ -987,7 +989,7 @@ mark {
   height: 0.42rem;
   margin-top: auto;
   border-radius: 999px;
-  background: rgba(126, 63, 40, 0.45);
+  background: rgba(20, 90, 150, 0.45);
 }
 
 .calendar-modal[hidden] {
@@ -1012,11 +1014,11 @@ mark {
   display: grid;
   grid-template-rows: auto auto minmax(0, 1fr);
   padding: 0.85rem;
-  border: 1px solid rgba(126, 63, 40, 0.14);
+  border: 1px solid rgba(20, 90, 150, 0.14);
   border-radius: 28px;
   background:
-    radial-gradient(circle at top left, rgba(126, 63, 40, 0.1), transparent 34%),
-    linear-gradient(180deg, rgba(255, 252, 246, 0.98), rgba(247, 239, 225, 0.97));
+    radial-gradient(circle at top left, rgba(20, 90, 150, 0.1), transparent 34%),
+    linear-gradient(180deg, rgba(247, 252, 255, 0.98), rgba(247, 239, 225, 0.97));
   box-shadow: 0 28px 70px rgba(42, 27, 17, 0.2);
 }
 
@@ -1138,7 +1140,7 @@ button {
 }
 
 .secondary-button {
-  border: 1px solid rgba(126, 63, 40, 0.25);
+  border: 1px solid rgba(20, 90, 150, 0.25);
   background: transparent;
   color: var(--accent-strong);
   padding: 0.85rem 1.15rem;
@@ -1147,13 +1149,19 @@ button {
 
 .ghost-button,
 .example-chip {
-  border: 1px solid rgba(126, 63, 40, 0.18);
+  border: 1px solid rgba(20, 90, 150, 0.18);
   background: rgba(255, 255, 255, 0.7);
   color: var(--ink);
 }
 
 .ghost-button {
   padding: 0.55rem 0.9rem;
+}
+
+.ghost-button.is-active {
+  background: rgba(20, 90, 150, 0.16);
+  border-color: rgba(20, 90, 150, 0.34);
+  color: var(--accent-strong);
 }
 
 .small-button {
@@ -1202,21 +1210,21 @@ button {
 
 .summary-card {
   background:
-    linear-gradient(135deg, rgba(126, 63, 40, 0.12), rgba(126, 63, 40, 0.04)),
+    linear-gradient(135deg, rgba(20, 90, 150, 0.12), rgba(20, 90, 150, 0.04)),
     white;
-  border: 1px solid rgba(126, 63, 40, 0.14);
+  border: 1px solid rgba(20, 90, 150, 0.14);
 }
 
 .summary-card-primary {
-  box-shadow: 0 18px 42px rgba(126, 63, 40, 0.12);
+  box-shadow: 0 18px 42px rgba(20, 90, 150, 0.12);
 }
 
 .summary-card-camera {
   margin-bottom: 0.72rem;
   background:
-    linear-gradient(135deg, rgba(126, 63, 40, 0.22), rgba(126, 63, 40, 0.08)),
-    #fffdf8;
-  border: 1px solid rgba(126, 63, 40, 0.22);
+    linear-gradient(135deg, rgba(20, 90, 150, 0.22), rgba(20, 90, 150, 0.08)),
+    #f7fcff;
+  border: 1px solid rgba(20, 90, 150, 0.22);
 }
 
 .camera-summary-eyebrow {
@@ -1224,7 +1232,7 @@ button {
   align-items: center;
   padding: 0.33rem 0.65rem;
   border-radius: 999px;
-  background: rgba(126, 63, 40, 0.14);
+  background: rgba(20, 90, 150, 0.14);
   color: var(--accent-strong);
   font-size: 0.82rem;
   font-weight: 800;
@@ -1258,7 +1266,7 @@ button {
   display: inline-flex;
   align-items: center;
   border-radius: 999px;
-  border: 1px solid rgba(126, 63, 40, 0.16);
+  border: 1px solid rgba(20, 90, 150, 0.16);
   background: rgba(255, 255, 255, 0.88);
   padding: 0.34rem 0.62rem;
   font-size: 0.85rem;
@@ -1289,7 +1297,7 @@ button {
 .camera-location-card {
   border-radius: 14px;
   padding: 0.65rem 0.7rem;
-  border: 1px solid rgba(126, 63, 40, 0.16);
+  border: 1px solid rgba(20, 90, 150, 0.16);
   background: rgba(255, 255, 255, 0.82);
 }
 
@@ -1373,7 +1381,7 @@ button {
   padding: 0.38rem 0.7rem;
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.78);
-  border: 1px solid rgba(126, 63, 40, 0.14);
+  border: 1px solid rgba(20, 90, 150, 0.14);
   color: var(--accent-strong);
   font-size: 0.84rem;
   font-weight: 700;
@@ -1416,7 +1424,7 @@ button {
   gap: 0.38rem;
   padding: 0.42rem 0.72rem;
   border-radius: 999px;
-  border: 1px solid rgba(126, 63, 40, 0.16);
+  border: 1px solid rgba(20, 90, 150, 0.16);
   background: rgba(255, 255, 255, 0.7);
   color: var(--ink);
   font-size: 0.9rem;
@@ -1485,7 +1493,7 @@ button {
   gap: 0.35rem;
   margin-top: 0.1rem;
   padding: 0.75rem 0.8rem;
-  border: 1px solid rgba(126, 63, 40, 0.12);
+  border: 1px solid rgba(20, 90, 150, 0.12);
   border-radius: 16px;
   background: #faf6ed;
 }
@@ -1503,8 +1511,8 @@ button {
 }
 
 .error-card {
-  background: rgba(153, 45, 34, 0.06);
-  border: 1px solid rgba(153, 45, 34, 0.12);
+  background: rgba(176, 53, 53, 0.06);
+  border: 1px solid rgba(176, 53, 53, 0.12);
   color: var(--error);
 }
 
@@ -1560,7 +1568,7 @@ button {
 }
 
 .icon-button {
-  border: 1px solid rgba(126, 63, 40, 0.18);
+  border: 1px solid rgba(20, 90, 150, 0.18);
   background: rgba(248, 244, 232, 0.96);
   color: var(--ink);
   min-width: 2.55rem;
@@ -1591,7 +1599,7 @@ button {
 
 .preview-chip {
   flex: 0 0 auto;
-  border: 1px solid rgba(126, 63, 40, 0.16);
+  border: 1px solid rgba(20, 90, 150, 0.16);
   background: #f6efe0;
   color: var(--muted);
   border-radius: 999px;
@@ -1631,7 +1639,7 @@ button {
 .preview-image {
   display: block;
   width: 100%;
-  border: 1px solid rgba(126, 63, 40, 0.14);
+  border: 1px solid rgba(20, 90, 150, 0.14);
   background: linear-gradient(180deg, #f1ead8, #e4d8bb);
   aspect-ratio: 0.6;
   object-fit: contain;
@@ -1663,7 +1671,7 @@ button {
   block-size: 0.78rem;
   border-radius: 999px;
   background: #d7442c;
-  border: 2px solid rgba(255, 252, 245, 0.95);
+  border: 2px solid rgba(247, 252, 255, 0.95);
   box-shadow: 0 0 0 3px rgba(215, 68, 44, 0.24);
   flex: 0 0 auto;
   margin-top: 0.22rem;
@@ -1706,8 +1714,8 @@ button {
   align-items: center;
   border-radius: 999px;
   padding: 0.35rem 0.65rem;
-  background: rgba(255, 252, 245, 0.9);
-  border: 1px solid rgba(126, 63, 40, 0.12);
+  background: rgba(247, 252, 255, 0.9);
+  border: 1px solid rgba(20, 90, 150, 0.12);
   color: var(--ink);
   font-size: 0.82rem;
   font-weight: 700;
@@ -1762,7 +1770,7 @@ button {
   width: max-content;
   max-width: calc(100vw - 1.2rem);
   padding: 0.55rem 0.7rem;
-  border: 1px solid rgba(255, 252, 245, 0.16);
+  border: 1px solid rgba(247, 252, 255, 0.16);
   border-radius: 999px;
   background: rgba(10, 7, 5, 0.72);
   box-shadow: 0 16px 36px rgba(0, 0, 0, 0.28);
@@ -1779,7 +1787,7 @@ button {
   gap: 0.2rem;
   max-width: min(66vw, 620px);
   padding: 0.7rem 0.9rem;
-  border: 1px solid rgba(255, 252, 245, 0.15);
+  border: 1px solid rgba(247, 252, 255, 0.15);
   border-radius: 22px;
   background: rgba(10, 7, 5, 0.64);
   color: rgba(255, 247, 233, 0.96);
@@ -1801,15 +1809,15 @@ button {
 
 .viewer-top .ghost-button,
 .viewer-toolbar .secondary-button {
-  background: rgba(255, 252, 245, 0.12);
-  border-color: rgba(255, 252, 245, 0.18);
+  background: rgba(247, 252, 255, 0.12);
+  border-color: rgba(247, 252, 255, 0.18);
   color: white;
   backdrop-filter: blur(8px);
 }
 
 .viewer-top .ghost-button:hover,
 .viewer-toolbar .secondary-button:hover {
-  background: rgba(255, 252, 245, 0.2);
+  background: rgba(247, 252, 255, 0.2);
 }
 
 .zoom-control {
@@ -1829,10 +1837,10 @@ button {
 }
 
 .viewer-column-picker input {
-  border: 1px solid rgba(255, 252, 245, 0.18);
+  border: 1px solid rgba(247, 252, 255, 0.18);
   border-radius: 999px;
   padding: 0.62rem 0.82rem;
-  background: rgba(255, 252, 245, 0.12);
+  background: rgba(247, 252, 255, 0.12);
   color: white;
   font: inherit;
   text-align: center;
@@ -1871,7 +1879,7 @@ button {
   transform: translateY(-50%);
   width: clamp(3.8rem, 8vw, 6rem);
   height: clamp(9rem, 34vh, 18rem);
-  border: 1px solid rgba(255, 252, 245, 0.14);
+  border: 1px solid rgba(247, 252, 255, 0.14);
   border-radius: 30px;
   background: rgba(15, 11, 8, 0.22);
   color: rgba(255, 247, 233, 0.92);
@@ -1912,7 +1920,7 @@ button {
   display: grid;
   gap: 0.7rem;
   padding: 0.9rem;
-  border: 1px solid rgba(255, 252, 245, 0.16);
+  border: 1px solid rgba(247, 252, 255, 0.16);
   border-radius: 28px;
   background: rgba(10, 7, 5, 0.76);
   box-shadow: 0 16px 36px rgba(0, 0, 0, 0.24);
@@ -1931,10 +1939,10 @@ button {
 
 .viewer-search-field input {
   width: 100%;
-  border: 1px solid rgba(255, 252, 245, 0.18);
+  border: 1px solid rgba(247, 252, 255, 0.18);
   border-radius: 18px;
   padding: 0.85rem 0.95rem;
-  background: rgba(255, 252, 245, 0.12);
+  background: rgba(247, 252, 255, 0.12);
   color: white;
   font: inherit;
 }
@@ -1955,8 +1963,8 @@ button {
 .viewer-search-empty,
 .viewer-search-hint {
   border-radius: 20px;
-  border: 1px solid rgba(255, 252, 245, 0.12);
-  background: rgba(255, 252, 245, 0.08);
+  border: 1px solid rgba(247, 252, 255, 0.12);
+  background: rgba(247, 252, 255, 0.08);
   color: rgba(255, 247, 233, 0.92);
 }
 
@@ -1969,7 +1977,7 @@ button {
 }
 
 .viewer-search-hit.is-current {
-  background: rgba(61, 106, 72, 0.22);
+  background: rgba(38, 162, 107, 0.22);
   border-color: rgba(132, 201, 149, 0.26);
 }
 
@@ -2024,13 +2032,13 @@ button {
   border-radius: 18px;
   background: linear-gradient(90deg, rgba(255, 224, 122, 0.16), rgba(255, 224, 122, 0.34), rgba(255, 224, 122, 0.16));
   border: 1px solid rgba(255, 224, 122, 0.42);
-  box-shadow: 0 0 0 1px rgba(82, 47, 11, 0.08), 0 0 22px rgba(255, 224, 122, 0.18);
+  box-shadow: 0 0 0 1px rgba(12, 54, 97, 0.08), 0 0 22px rgba(255, 224, 122, 0.18);
 }
 
 .viewer-highlight-target {
   background: linear-gradient(90deg, rgba(215, 68, 44, 0.16), rgba(215, 68, 44, 0.36), rgba(215, 68, 44, 0.16));
   border-color: rgba(215, 68, 44, 0.56);
-  box-shadow: 0 0 0 1px rgba(82, 47, 11, 0.08), 0 0 24px rgba(215, 68, 44, 0.24);
+  box-shadow: 0 0 0 1px rgba(12, 54, 97, 0.08), 0 0 24px rgba(215, 68, 44, 0.24);
 }
 
 .viewer-highlight-label {
@@ -2044,7 +2052,7 @@ button {
   max-width: calc(100% - 1.4rem);
   padding: 0.26rem 0.5rem;
   border-radius: 999px;
-  background: rgba(82, 47, 11, 0.74);
+  background: rgba(12, 54, 97, 0.74);
   color: rgba(255, 247, 233, 0.96);
   font-size: 0.78rem;
   font-weight: 700;
