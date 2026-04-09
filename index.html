@@ -51,7 +51,7 @@
       href="https://fonts.googleapis.com/css2?family=Frank+Ruhl+Libre:wght@500;700&family=Heebo:wght@400;500;700&display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="./styles.css?v=20260409-6" />
+    <link rel="stylesheet" href="./styles.css?v=20260410-1" />
   </head>
   <body>
     <div class="page-shell">
@@ -203,21 +203,24 @@
                 <label class="field field-secondary">
                   <span>אני נמצא ב</span>
                   <div class="field-inline">
-                    <input
-                      id="current-query"
-                      name="current"
-                      list="query-suggestions"
-                      placeholder="מיקום נוכחי או השאר אוטומטי"
-                      autocomplete="off"
-                    />
-                    <button
-                      class="ghost-button small-button inline-clear-button"
-                      id="clear-current-inline"
-                      type="button"
-                      aria-label="נקה מיקום נוכחי"
-                    >
-                      ×
-                    </button>
+                    <div class="field-input-wrap">
+                      <input
+                        id="current-query"
+                        name="current"
+                        list="query-suggestions"
+                        placeholder="מיקום נוכחי או השאר אוטומטי"
+                        autocomplete="off"
+                      />
+                      <button
+                        class="field-inline-clear"
+                        id="clear-current-inline"
+                        type="button"
+                        aria-label="נקה מיקום נוכחי"
+                        hidden
+                      >
+                        ×
+                      </button>
+                    </div>
                     <button
                       class="ghost-button small-button calendar-trigger"
                       id="current-calendar-button"
@@ -243,21 +246,24 @@
                 <label class="field field-target">
                   <span>רוצה להגיע ל</span>
                   <div class="field-inline">
-                    <input
-                      id="target-query"
-                      name="target"
-                      list="query-suggestions"
-                      placeholder="תאריך / פרשה / שמות כ / עמודה"
-                      autocomplete="off"
-                    />
-                    <button
-                      class="ghost-button small-button inline-clear-button"
-                      id="clear-target-inline"
-                      type="button"
-                      aria-label="נקה יעד"
-                    >
-                      ×
-                    </button>
+                    <div class="field-input-wrap">
+                      <input
+                        id="target-query"
+                        name="target"
+                        list="query-suggestions"
+                        placeholder="תאריך / פרשה / שמות כ / עמודה"
+                        autocomplete="off"
+                      />
+                      <button
+                        class="field-inline-clear"
+                        id="clear-target-inline"
+                        type="button"
+                        aria-label="נקה יעד"
+                        hidden
+                      >
+                        ×
+                      </button>
+                    </div>
                     <button
                       class="ghost-button small-button calendar-trigger"
                       id="target-calendar-button"
@@ -410,6 +416,6 @@
       </div>
     </div>
 
-    <script src="./app.js?v=20260409-6" type="module"></script>
+    <script src="./app.js?v=20260410-1" type="module"></script>
   </body>
 </html>

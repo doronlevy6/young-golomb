@@ -587,6 +587,11 @@ mark {
   grid-template-columns: minmax(0, 1fr) auto auto;
 }
 
+.field-input-wrap {
+  position: relative;
+  min-width: 0;
+}
+
 #current-photo-button {
   grid-column: 2 / 4;
 }
@@ -608,6 +613,10 @@ mark {
   font: inherit;
 }
 
+.field-input-wrap input {
+  padding-inline-end: 2.6rem;
+}
+
 .field input:focus,
 .field-inline input:focus,
 .field select:focus {
@@ -620,16 +629,31 @@ mark {
   white-space: nowrap;
 }
 
-.inline-clear-button {
-  min-width: 2.5rem;
-  padding-inline: 0.7rem;
-  font-size: 1.2rem;
+.field-inline-clear {
+  position: absolute;
+  inset-inline-end: 0.46rem;
+  inset-block-start: 50%;
+  transform: translateY(-50%);
+  width: 1.95rem;
+  height: 1.95rem;
+  border-radius: 999px;
+  border: 1px solid rgba(20, 90, 150, 0.2);
+  background: rgba(247, 252, 255, 0.92);
+  color: var(--accent-strong);
+  padding: 0;
+  font-size: 1.15rem;
   line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
-.inline-clear-button:disabled {
-  opacity: 0.45;
-  cursor: default;
+.field-inline-clear:hover {
+  background: white;
+}
+
+.field-inline-clear[hidden] {
+  display: none;
 }
 
 .target-hint {
@@ -2312,8 +2336,7 @@ button {
   }
 
   .calendar-trigger,
-  .camera-trigger,
-  .inline-clear-button {
+  .camera-trigger {
     width: 100%;
   }
 

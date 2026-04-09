@@ -306,10 +306,14 @@ function setCurrentPhotoBusyState(isBusy) {
 
 function syncInlineClearButtons() {
   if (clearCurrentInlineButton) {
-    clearCurrentInlineButton.disabled = !normalizeSpaces(currentInput?.value || "")
+    const hasCurrentValue = Boolean(normalizeSpaces(currentInput?.value || ""))
+    clearCurrentInlineButton.hidden = !hasCurrentValue
+    clearCurrentInlineButton.disabled = !hasCurrentValue
   }
   if (clearTargetInlineButton) {
-    clearTargetInlineButton.disabled = !normalizeSpaces(targetInput?.value || "")
+    const hasTargetValue = Boolean(normalizeSpaces(targetInput?.value || ""))
+    clearTargetInlineButton.hidden = !hasTargetValue
+    clearTargetInlineButton.disabled = !hasTargetValue
   }
 }
 
@@ -5353,8 +5357,11 @@ viewerSearchResults?.addEventListener("click", (event) => {
   const target = event.target.closest("[data-column]")
   if (!target) return
   const nextColumn = Number(target.dataset.column)
-  if (!nextColumn || nextColumn === viewerState.column) return
-  setViewerColumn(nextColumn)
+  if (nextColumn && nextColumn !== viewerState.column) {
+    setViewerColumn(nextColumn)
+  }
+  viewerState.searchOpen = false
+  renderViewerSearch()
 })
 
 viewerZoomInput?.addEventListener("input", () => {
