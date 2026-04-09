@@ -1721,13 +1721,6 @@ button {
   font-weight: 700;
 }
 
-.preview-target-start-ref {
-  margin-top: 0.45rem;
-  font-size: 0.82rem;
-  color: var(--accent-strong);
-  font-weight: 700;
-}
-
 .viewer-modal[hidden] {
   display: none;
 }
@@ -2405,12 +2398,17 @@ button {
   }
 
   .preview-stepper,
-  .preview-open {
+  .preview-open,
+  .preview-search-open {
     width: 100%;
   }
 
   .preview-stepper {
     justify-content: stretch;
+  }
+
+  .preview-actions {
+    grid-template-columns: 1fr;
   }
 
   .preview-stepper .icon-button {

@@ -208,6 +208,7 @@ let viewerState = {
 let touchStartX = null
 let touchStartY = null
 let viewerDragState = null
+let lastJournalSelectionAt = 0
 let liveSearchTimer = null
 let timesCopyMessageTimer = null
 let posterLogoImage = null
@@ -3980,9 +3981,8 @@ function renderViewerTargetMarker() {
   const lineFloat = Number(marker.lineFloat || 0)
   if (!Number.isFinite(lineFloat) || lineFloat <= 0) return ""
   const top = Math.max(2, Math.min(98, ((lineFloat - 1) / 42) * 100))
-  const markerTitle = escapeHtml(marker.reference || "תחילת היעד")
   return `
-    <div class="viewer-highlight viewer-highlight-target" style="top:${top}%;" title="${markerTitle}">
+    <div class="viewer-highlight viewer-highlight-target" style="top:${top}%;">
       <span class="viewer-highlight-dot" aria-hidden="true"></span>
     </div>
   `
@@ -4636,7 +4636,7 @@ function renderPreviewState() {
                     ? `
                       <div class="preview-start-marker" style="top:${startMarker.topPercent.toFixed(2)}%;">
                         <span class="preview-start-marker-line"></span>
-                        <span class="preview-start-marker-dot" title="${escapeHtml(startMarker.reference || "תחילת היעד")}"></span>
+                        <span class="preview-start-marker-dot"></span>
                       </div>
                     `
                     : ""
@@ -4649,11 +4649,6 @@ function renderPreviewState() {
                   <span class="meta-pill">עמודה ${previewColumn}</span>
                 </div>
               </div>
-              ${
-                startMarker?.reference
-                  ? `<div class="preview-target-start-ref">תחילת יעד: ${escapeHtml(startMarker.reference)}</div>`
-                  : ""
-              }
             </article>
           `
         })
@@ -5159,17 +5154,50 @@ calendarCloseButton?.addEventListener("click", () => {
   closeCalendarModal()
 })
 
-journalMonthsEl?.addEventListener("click", (event) => {
-  const target = event.target.closest("[data-journal-date]")
+function handleJournalDaySelection(event, { fromTouch = false } = {}) {
+  const origin =
+    event.target instanceof Element
+      ? event.target
+      : event.target instanceof Node
+        ? event.target.parentElement
+        : null
+  const target = origin?.closest?.("[data-journal-date]")
   if (!target) return
+  const now = Date.now()
+  if (now - lastJournalSelectionAt < 240) return
+  lastJournalSelectionAt = now
+  if (fromTouch) event.preventDefault()
   event.preventDefault()
   event.stopPropagation()
   const dateString = target.dataset.journalDate
   applyJournalReading(dateString)
+}
+
+journalMonthsEl?.addEventListener("click", (event) => {
+  handleJournalDaySelection(event)
+})
+
+journalMonthsEl?.addEventListener(
+  "touchend",
+  (event) => {
+    handleJournalDaySelection(event, { fromTouch: true })
+  },
+  { passive: false },
+)
+
+journalMonthsEl?.addEventListener("pointerup", (event) => {
+  if (event.pointerType !== "touch") return
+  handleJournalDaySelection(event, { fromTouch: true })
 })
 
 journalMonthsEl?.addEventListener("mouseover", (event) => {
-  const target = event.target.closest("[data-journal-date]")
+  const origin =
+    event.target instanceof Element
+      ? event.target
+      : event.target instanceof Node
+        ? event.target.parentElement
+        : null
+  const target = origin?.closest?.("[data-journal-date]")
   if (!target) return
   setJournalDate(target.dataset.journalDate)
 })
