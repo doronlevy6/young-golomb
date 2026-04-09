@@ -578,9 +578,17 @@ mark {
 
 .field-inline {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto auto auto;
+  grid-template-columns: minmax(0, 1fr) auto auto;
   gap: 0.55rem;
   align-items: center;
+}
+
+.field-secondary .field-inline {
+  grid-template-columns: minmax(0, 1fr) auto auto;
+}
+
+#current-photo-button {
+  grid-column: 2 / 4;
 }
 
 .field span {
@@ -1662,17 +1670,22 @@ button {
   inset-inline-start: 0;
   inset-inline-end: 0;
   top: 0.62rem;
-  border-top: 2px solid rgba(215, 68, 44, 0.78);
-  opacity: 0.9;
+  border-top: 3px solid rgba(255, 231, 96, 0.96);
+  box-shadow:
+    0 0 0 1px rgba(15, 34, 58, 0.42),
+    0 0 18px rgba(255, 231, 96, 0.6);
+  opacity: 1;
 }
 
 .preview-start-marker-dot {
   inline-size: 0.78rem;
   block-size: 0.78rem;
   border-radius: 999px;
-  background: #d7442c;
-  border: 2px solid rgba(247, 252, 255, 0.95);
-  box-shadow: 0 0 0 3px rgba(215, 68, 44, 0.24);
+  background: #ffe760;
+  border: 2px solid rgba(15, 34, 58, 0.88);
+  box-shadow:
+    0 0 0 3px rgba(255, 231, 96, 0.34),
+    0 0 14px rgba(255, 231, 96, 0.72);
   flex: 0 0 auto;
   margin-top: 0.22rem;
 }
@@ -2036,9 +2049,11 @@ button {
 }
 
 .viewer-highlight-target {
-  background: linear-gradient(90deg, rgba(215, 68, 44, 0.16), rgba(215, 68, 44, 0.36), rgba(215, 68, 44, 0.16));
-  border-color: rgba(215, 68, 44, 0.56);
-  box-shadow: 0 0 0 1px rgba(12, 54, 97, 0.08), 0 0 24px rgba(215, 68, 44, 0.24);
+  background: linear-gradient(90deg, rgba(255, 231, 96, 0.2), rgba(255, 231, 96, 0.42), rgba(255, 231, 96, 0.2));
+  border-color: rgba(255, 231, 96, 0.85);
+  box-shadow:
+    0 0 0 1px rgba(12, 54, 97, 0.12),
+    0 0 26px rgba(255, 231, 96, 0.42);
 }
 
 .viewer-highlight-label {
@@ -2227,6 +2242,10 @@ button {
 
   .field-inline {
     grid-template-columns: 1fr;
+  }
+
+  #current-photo-button {
+    grid-column: auto;
   }
 
   .times-settings {

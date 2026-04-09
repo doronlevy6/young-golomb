@@ -1574,7 +1574,7 @@ function getPosterLogoImage() {
       resolve(image)
     }
     image.onerror = reject
-    image.src = "./assets/gabai.png"
+    image.src = "./assets/golomb.png"
   })
 }
 
@@ -1855,7 +1855,10 @@ function formatReadingInputValue(role, reading) {
 
 function formatVerseReferenceLabel(verse) {
   const parashahLabel = verse.parashah ? ` (${verse.parashah})` : ""
-  return `${verse.book} ${verse.chapter}:${verse.verse}${parashahLabel}`
+  const refLabel =
+    formatBookChapterVerseShort(verse.book, verse.chapter, verse.verse) ||
+    `${verse.book} ${verse.chapter}:${verse.verse}`
+  return `${refLabel}${parashahLabel}`
 }
 
 function getCalendarRange(today) {
@@ -2187,12 +2190,17 @@ function getTorahRangesFromHebcalItem(item) {
 }
 
 function formatRangeSegment(range) {
+  const startChapter = formatHebrewRefNumber(range.start.chapter)
+  const startVerse = formatHebrewRefNumber(range.start.verse)
+  const endChapter = formatHebrewRefNumber(range.end.chapter)
+  const endVerse = formatHebrewRefNumber(range.end.verse)
+
   const endLabel =
     range.start.chapter === range.end.chapter
-      ? String(range.end.verse)
-      : `${range.end.chapter}:${range.end.verse}`
+      ? endVerse || String(range.end.verse)
+      : `${endChapter || range.end.chapter}:${endVerse || range.end.verse}`
 
-  return `${range.book} ${range.start.chapter}:${range.start.verse}-${endLabel}`
+  return `${range.book} ${startChapter || range.start.chapter}:${startVerse || range.start.verse}-${endLabel}`
 }
 
 function getHebcalReadingName(item) {
@@ -2262,12 +2270,25 @@ function formatHebrewChapterVerseShort(chapter, verse) {
   return `${chapterHeb}:${verseHeb}`
 }
 
+function formatBookChapterVerseShort(book, chapter, verse) {
+  const bookLabel = normalizeSpaces(String(book || ""))
+  const chapterLabel = formatHebrewRefNumber(chapter) || normalizeSpaces(String(chapter || ""))
+  const verseLabel = formatHebrewRefNumber(verse) || normalizeSpaces(String(verse || ""))
+  if (!bookLabel || !chapterLabel || !verseLabel) return ""
+  return `${bookLabel} ${chapterLabel}:${verseLabel}`
+}
+
+function formatReferenceTokenToHebrew(refToken) {
+  const ref = parseReference(refToken)
+  if (!ref) return refToken
+  return formatBookChapterVerseShort(ref.book, ref.chapter, ref.verse) || refToken
+}
+
 function formatSegmentAnchorBrief(anchor) {
   if (!anchor) return ""
 
   const parashahName = getParashahNameFromKey(anchor.parashahKey)
-  const chapterVerseLabel = formatHebrewChapterVerseShort(anchor.chapter, anchor.verse)
-  const refLabel = anchor.book && chapterVerseLabel ? `${anchor.book} ${chapterVerseLabel}` : ""
+  const refLabel = formatBookChapterVerseShort(anchor.book, anchor.chapter, anchor.verse)
 
   if (parashahName && refLabel) return `${parashahName} · ${refLabel}`
   return parashahName || refLabel || ""
@@ -3806,23 +3827,23 @@ function getColumnSummary(column) {
 
 function chapterLabel(summary) {
   if (!summary || !summary.chapters?.length) return "לא זמין"
-  return summary.chapters.length === 1
-    ? summary.chapters[0]
-    : `${summary.chapters[0]}–${summary.chapters.at(-1)}`
+  const firstChapter = formatHebrewRefNumber(summary.chapters[0]) || summary.chapters[0]
+  const lastChapter = formatHebrewRefNumber(summary.chapters.at(-1)) || summary.chapters.at(-1)
+  return summary.chapters.length === 1 ? firstChapter : `${firstChapter}–${lastChapter}`
 }
 
 function formatRange(summary) {
   if (!summary) return "לא זמין"
-  return summary.first_ref === summary.last_ref
-    ? summary.first_ref
-    : `${summary.first_ref} – ${summary.last_ref}`
+  const firstRef = formatReferenceTokenToHebrew(summary.first_ref)
+  const lastRef = formatReferenceTokenToHebrew(summary.last_ref)
+  return summary.first_ref === summary.last_ref ? firstRef : `${firstRef} – ${lastRef}`
 }
 
 function viewerRangeText(summary) {
   if (!summary) return "לא זמין"
-  return summary.first_ref === summary.last_ref
-    ? summary.first_ref
-    : `${summary.first_ref} עד ${summary.last_ref}`
+  const firstRef = formatReferenceTokenToHebrew(summary.first_ref)
+  const lastRef = formatReferenceTokenToHebrew(summary.last_ref)
+  return summary.first_ref === summary.last_ref ? firstRef : `${firstRef} עד ${lastRef}`
 }
 
 function viewerWatermarkHtml(summary) {
@@ -3932,9 +3953,10 @@ function renderViewerHighlights() {
     matches
     .map((match) => {
       const top = Math.max(2, Math.min(98, ((match.lineFloat - 1) / 42) * 100))
+      const matchRefLabel = formatBookChapterVerseShort(match.book, match.chapter, match.verse)
       return `
         <div class="viewer-highlight" style="top:${top}%;">
-          <div class="viewer-highlight-label">${escapeHtml(query)} · ${match.book} ${match.chapter}:${match.verse}</div>
+          <div class="viewer-highlight-label">${escapeHtml(query)} · ${escapeHtml(matchRefLabel)}</div>
         </div>
       `
     })
@@ -3978,7 +4000,7 @@ function renderViewerSearch(summary = getColumnSummary(viewerState.column)) {
           data-column="${match.column}"
         >
           <div class="viewer-search-hit-head">
-            <strong>${match.book} ${match.chapter}:${match.verse}</strong>
+            <strong>${escapeHtml(formatBookChapterVerseShort(match.book, match.chapter, match.verse))}</strong>
             <span>${placeLabel}</span>
           </div>
           <div class="viewer-search-hit-text">${highlightMatchText(match.text, match, query)}</div>
@@ -4066,7 +4088,7 @@ function formatHebrewRefNumber(value) {
   const number = Number(value)
   if (!Number.isInteger(number) || number <= 0) return ""
   const letters = addHebrewGershayim(numberToHebrewLetters(number))
-  return letters ? `${letters} (${number})` : String(number)
+  return letters || String(number)
 }
 
 function formatHebrewReferenceLabel(ref) {
@@ -4311,11 +4333,11 @@ function renderError(message) {
   renderPreview()
 }
 
-function renderSingle(location, title = "היעד") {
+function renderSingle(location, title = "היעד", { highlightStart = false } = {}) {
   comparisonState = null
   resultsEl.className = "results"
   resultsEl.innerHTML = formatLocation(location)
-  renderPreview([{ title, location }])
+  renderPreview([{ title, location, highlightStart }])
 }
 
 function renderComparison(current, target, { sourceVisible = false } = {}) {
@@ -4446,9 +4468,9 @@ function renderComparisonState() {
     sourceVisible
       ? [
           { title: "עמודת המקור", location: sourceLocation },
-          { title: "עמודת היעד", location: targetLocation, highlightStart: cameraMode },
+          { title: "עמודת היעד", location: targetLocation, highlightStart: true },
         ]
-      : [{ title: "עמודת היעד", location: targetLocation, highlightStart: cameraMode }],
+      : [{ title: "עמודת היעד", location: targetLocation, highlightStart: true }],
   )
 }
 
@@ -4638,7 +4660,7 @@ function runSearch({ live = false } = {}) {
       }
 
       if (targetLocation) {
-        renderSingle(targetLocation, "היעד")
+        renderSingle(targetLocation, "היעד", { highlightStart: true })
         return
       }
 
@@ -4650,7 +4672,9 @@ function runSearch({ live = false } = {}) {
       const singleValue = targetValue || currentValue
       const title = targetValue ? "היעד" : "המיקום"
       const resolvedLocation = resolveQuery(singleValue, { fieldKey: targetValue ? "target" : "current" })
-      renderSingle(targetValue ? resolvedLocation : tagCurrentLocationWithSource(resolvedLocation), title)
+      renderSingle(targetValue ? resolvedLocation : tagCurrentLocationWithSource(resolvedLocation), title, {
+        highlightStart: Boolean(targetValue),
+      })
       return
     }
 
