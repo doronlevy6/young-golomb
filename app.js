@@ -70,6 +70,7 @@ const viewerSearchToggleButton = document.getElementById("viewer-search-toggle")
 const viewerSearchPanel = document.getElementById("viewer-search-panel")
 const viewerSearchInput = document.getElementById("viewer-search-input")
 const viewerSearchClearButton = document.getElementById("viewer-search-clear")
+const viewerSearchCollapseButton = document.getElementById("viewer-search-collapse")
 const viewerSearchResults = document.getElementById("viewer-search-results")
 const viewerZoomInput = document.getElementById("viewer-zoom")
 const viewerColumnInput = document.getElementById("viewer-column-input")
@@ -5372,6 +5373,16 @@ viewerSearchInput?.addEventListener("input", () => {
   renderViewerHighlights()
 })
 
+viewerSearchInput?.addEventListener("keydown", (event) => {
+  if (event.key !== "Enter") return
+  event.preventDefault()
+  viewerState.searchQuery = normalizeSpaces(viewerSearchInput.value)
+  viewerState.searchOpen = false
+  renderViewerSearch()
+  renderViewerHighlights()
+  viewerSearchInput.blur()
+})
+
 viewerSearchClearButton?.addEventListener("click", () => {
   viewerState.searchQuery = ""
   if (viewerSearchInput) viewerSearchInput.value = ""
@@ -5389,6 +5400,13 @@ viewerSearchResults?.addEventListener("click", (event) => {
   }
   viewerState.searchOpen = false
   renderViewerSearch()
+  viewerSearchInput?.blur()
+})
+
+viewerSearchCollapseButton?.addEventListener("click", () => {
+  viewerState.searchOpen = false
+  renderViewerSearch()
+  viewerSearchInput?.blur()
 })
 
 viewerZoomInput?.addEventListener("input", () => {

@@ -51,7 +51,7 @@
       href="https://fonts.googleapis.com/css2?family=Frank+Ruhl+Libre:wght@500;700&family=Heebo:wght@400;500;700&display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="./styles.css?v=20260410-2" />
+    <link rel="stylesheet" href="./styles.css?v=20260410-3" />
   </head>
   <body>
     <div class="page-shell">
@@ -390,8 +390,18 @@
           </button>
           <div id="viewer-watermark" class="viewer-watermark"></div>
           <div class="viewer-search-panel" id="viewer-search-panel" hidden>
-            <label class="viewer-search-field">
+            <div class="viewer-search-head">
               <span>מילה קרובה</span>
+              <button
+                id="viewer-search-collapse"
+                class="viewer-search-collapse"
+                type="button"
+                aria-label="הסתר תיבת חיפוש"
+              >
+                הסתר
+              </button>
+            </div>
+            <label class="viewer-search-field">
               <div class="viewer-search-input-wrap">
                 <input
                   id="viewer-search-input"
@@ -421,6 +431,6 @@
       </div>
     </div>
 
-    <script src="./app.js?v=20260410-2" type="module"></script>
+    <script src="./app.js?v=20260410-3" type="module"></script>
   </body>
 </html>
