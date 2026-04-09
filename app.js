@@ -194,6 +194,7 @@ let viewerState = {
   subtitle: "",
   searchOpen: false,
   searchQuery: "",
+  targetMarker: null,
   zoomFactor: 1,
   fitScale: 1,
 }
@@ -1566,7 +1567,7 @@ function getPosterLogoImage() {
       resolve(image)
     }
     image.onerror = reject
-    image.src = "./assets/goldmann-logo.png"
+    image.src = "./assets/gabai.png"
   })
 }
 
@@ -2208,6 +2209,35 @@ function getSegmentLabel(index) {
   return labels[index] || `ספר ${index + 1}`
 }
 
+function getParashahNameFromKey(parashahKey) {
+  const key = normalizeSpaces(String(parashahKey || ""))
+  if (!key || !navigatorData?.parashahByKey?.has(key)) return ""
+  return navigatorData.parashahByKey.get(key)?.name_display || ""
+}
+
+function formatHebrewChapterVerseShort(chapter, verse) {
+  const chapterNumber = Number(chapter)
+  const verseNumber = Number(verse)
+  if (!Number.isInteger(chapterNumber) || chapterNumber <= 0) return ""
+  if (!Number.isInteger(verseNumber) || verseNumber <= 0) return ""
+
+  const chapterHeb = addHebrewGershayim(numberToHebrewLetters(chapterNumber))
+  const verseHeb = addHebrewGershayim(numberToHebrewLetters(verseNumber))
+  if (!chapterHeb || !verseHeb) return ""
+  return `${chapterHeb}:${verseHeb}`
+}
+
+function formatSegmentAnchorBrief(anchor) {
+  if (!anchor) return ""
+
+  const parashahName = getParashahNameFromKey(anchor.parashahKey)
+  const chapterVerseLabel = formatHebrewChapterVerseShort(anchor.chapter, anchor.verse)
+  const refLabel = anchor.book && chapterVerseLabel ? `${anchor.book} ${chapterVerseLabel}` : ""
+
+  if (parashahName && refLabel) return `${parashahName} · ${refLabel}`
+  return parashahName || refLabel || ""
+}
+
 function buildSegmentLabels(segments) {
   const countsByBook = segments.reduce((counts, segment) => {
     counts.set(segment.book, (counts.get(segment.book) || 0) + 1)
@@ -2252,6 +2282,7 @@ function getSegmentScrollDiffs(sourceSegments = [], targetSegments = []) {
     const source = sourceSegments[index]
     const target = targetSegments[index]
     if (!source || !target) continue
+    const sourceBrief = formatSegmentAnchorBrief(source.end)
 
     diffs.push({
       index,
@@ -2266,7 +2297,9 @@ function getSegmentScrollDiffs(sourceSegments = [], targetSegments = []) {
       sourceAnchorLabel: `סוף ${source.label}`,
       targetAnchorLabel: `תחילת ${target.label}`,
       delta: target.start.columnFloat - source.end.columnFloat,
-      contextLabel: `מול ${source.label} הקודם`,
+      contextLabel: sourceBrief
+        ? `מול ${source.label} הקודם · ${sourceBrief}`
+        : `מול ${source.label} הקודם`,
     })
   }
 
@@ -2275,6 +2308,7 @@ function getSegmentScrollDiffs(sourceSegments = [], targetSegments = []) {
     for (let index = pairCount; index < targetSegments.length; index += 1) {
       const target = targetSegments[index]
       if (!target || target.index === 0 || !baseTarget) continue
+      const baseTargetBrief = formatSegmentAnchorBrief(baseTarget.end)
 
       diffs.push({
         index,
@@ -2289,7 +2323,9 @@ function getSegmentScrollDiffs(sourceSegments = [], targetSegments = []) {
         sourceAnchorLabel: `סוף ${baseTarget.label}`,
         targetAnchorLabel: `תחילת ${target.label}`,
         delta: target.start.columnFloat - baseTarget.end.columnFloat,
-        contextLabel: `אחרי ${baseTarget.label} הבא`,
+        contextLabel: baseTargetBrief
+          ? `אחרי ${baseTarget.label} הבא · ${baseTargetBrief}`
+          : `אחרי ${baseTarget.label} הבא`,
       })
     }
   }
@@ -3812,20 +3848,36 @@ function getViewerCurrentColumnMatches(query, limit = 4) {
     .slice(0, limit)
 }
 
+function renderViewerTargetMarker() {
+  const marker = viewerState.targetMarker
+  if (!marker || marker.column !== viewerState.column) return ""
+  const lineFloat = Number(marker.lineFloat || 0)
+  if (!Number.isFinite(lineFloat) || lineFloat <= 0) return ""
+  const top = Math.max(2, Math.min(98, ((lineFloat - 1) / 42) * 100))
+  return `
+    <div class="viewer-highlight viewer-highlight-target" style="top:${top}%;">
+      <div class="viewer-highlight-label">תחילת היעד · ${escapeHtml(marker.reference || "")}</div>
+    </div>
+  `
+}
+
 function renderViewerHighlights() {
+  const targetMarkerHtml = renderViewerTargetMarker()
   const query = normalizeSpaces(viewerState.searchQuery)
   if (!query) {
-    viewerHighlights.innerHTML = ""
+    viewerHighlights.innerHTML = targetMarkerHtml
     return
   }
 
   const matches = getViewerCurrentColumnMatches(query)
   if (!matches.length) {
-    viewerHighlights.innerHTML = ""
+    viewerHighlights.innerHTML = targetMarkerHtml
     return
   }
 
-  viewerHighlights.innerHTML = matches
+  viewerHighlights.innerHTML =
+    targetMarkerHtml +
+    matches
     .map((match) => {
       const top = Math.max(2, Math.min(98, ((match.lineFloat - 1) / 42) * 100))
       return `
@@ -3892,6 +3944,11 @@ function formatLocation(location, { showDetails = true } = {}) {
   const lineText = location.exact
     ? String(Math.round(location.lineFloat))
     : formatNumber(location.lineFloat, 1)
+  const evidence = getLocationRangeEvidence(location)
+  const parashahLabel = getLocationParashahLabel(location)
+  const anchorRefLabel = formatHebrewReferenceLabel(evidence.startRef)
+  const firstVerseText = normalizeSpaces(evidence.startVerse?.text || "")
+  const lastVerseText = normalizeSpaces(evidence.endVerse?.text || firstVerseText)
 
   if (!showDetails) {
     return `
@@ -3928,10 +3985,14 @@ function formatLocation(location, { showDetails = true } = {}) {
         ${location.selectedSegmentLabel ? `<div>ספר נבחר: ${location.selectedSegmentLabel}</div>` : ""}
         ${location.segmentRangeLabel ? `<div>טווח הספר: ${location.segmentRangeLabel}</div>` : ""}
         ${location.anchorLabel ? `<div>עוגן: ${location.anchorLabel}</div>` : ""}
+        ${anchorRefLabel ? `<div>נקודת ייחוס: ${escapeHtml(anchorRefLabel)}</div>` : ""}
+        <div>פרשה: ${escapeHtml(parashahLabel)}</div>
         <div>עמודה ${columnText}</div>
         <div>שורה ${lineText}</div>
         <div>${location.detail}</div>
         ${renderReadingSegments(location.readingSegments)}
+        ${firstVerseText ? `<p class="location-verse"><strong>פסוק ראשון:</strong> ${escapeHtml(firstVerseText)}</p>` : ""}
+        ${lastVerseText ? `<p class="location-verse"><strong>פסוק אחרון:</strong> ${escapeHtml(lastVerseText)}</p>` : ""}
         ${location.verseTextHtml ? `<p class="location-verse">${location.verseTextHtml}</p>` : ""}
       </div>
     </article>
@@ -3949,20 +4010,101 @@ function formatLocationMatch(location) {
   `
 }
 
-function getLocationReferenceLabel(location) {
-  if (!location?.book || !location?.chapter || !location?.verse) return location?.label || ""
-  return `${location.book} ${location.chapter}:${location.verse}`
+function formatHebrewRefNumber(value) {
+  const number = Number(value)
+  if (!Number.isInteger(number) || number <= 0) return ""
+  const letters = addHebrewGershayim(numberToHebrewLetters(number))
+  return letters ? `${letters} (${number})` : String(number)
 }
 
-function getLocationVerseText(location) {
-  if (!location?.book || !location?.chapter || !location?.verse) return ""
-  return (
-    navigatorData?.verseByKey?.get(`${location.book}:${location.chapter}:${location.verse}`)?.text || ""
-  )
+function formatHebrewReferenceLabel(ref) {
+  if (!ref?.book || !ref?.chapter || !ref?.verse) return ""
+  const chapterLabel = formatHebrewRefNumber(ref.chapter)
+  const verseLabel = formatHebrewRefNumber(ref.verse)
+  return `${ref.book} · פרק ${chapterLabel} · פסוק ${verseLabel}`
+}
+
+function anchorToRef(anchor) {
+  if (!anchor?.book || !anchor?.chapter || !anchor?.verse) return null
+  return {
+    book: anchor.book,
+    chapter: anchor.chapter,
+    verse: anchor.verse,
+  }
+}
+
+function parseReferenceLabelToRef(label) {
+  if (!label) return null
+  return parseReference(String(label).replace(/[()]/g, " ")) || null
+}
+
+function getVerseByReference(ref) {
+  if (!ref?.book || !ref?.chapter || !ref?.verse) return null
+  return navigatorData?.verseByKey?.get(`${ref.book}:${ref.chapter}:${ref.verse}`) || null
+}
+
+function getLocationRangeEvidence(location) {
+  const selectedSegment =
+    Number.isInteger(location?.selectedSegmentIndex) && Array.isArray(location?.readingSegments)
+      ? location.readingSegments[location.selectedSegmentIndex] || null
+      : null
+  const selectedRangeStartRef = selectedSegment ? anchorToRef(selectedSegment.start) : null
+  const selectedRangeEndRef = selectedSegment ? anchorToRef(selectedSegment.end) : null
+
+  const locationRef = anchorToRef(location)
+  const parsedSegmentStartRef = parseReferenceLabelToRef(location?.segmentStartRef)
+  const parsedSegmentEndRef = parseReferenceLabelToRef(location?.segmentEndRef)
+  const parsedReadingStartRef = parseReferenceLabelToRef(location?.readingStartRef)
+  const parsedReadingEndRef = parseReferenceLabelToRef(location?.readingEndRef)
+
+  const startRef =
+    selectedRangeStartRef || parsedSegmentStartRef || locationRef || parsedReadingStartRef || null
+  const endRef =
+    selectedRangeEndRef || parsedSegmentEndRef || locationRef || parsedReadingEndRef || startRef || null
+
+  let startVerse = getVerseByReference(startRef)
+  let endVerse = getVerseByReference(endRef)
+  let resolvedStartRef = startRef
+  let resolvedEndRef = endRef
+
+  if ((!startVerse || !endVerse) && Number.isFinite(location?.column)) {
+    const columnVerses = [...(navigatorData?.versesByColumn?.get(Number(location.column)) || [])].sort(
+      (a, b) => a.lineFloat - b.lineFloat || a.verse - b.verse,
+    )
+    if (columnVerses.length) {
+      if (!startVerse) {
+        startVerse = columnVerses[0]
+        resolvedStartRef = anchorToRef(startVerse)
+      }
+      if (!endVerse) {
+        endVerse = columnVerses.at(-1)
+        resolvedEndRef = anchorToRef(endVerse)
+      }
+    }
+  }
+
+  return {
+    startRef: resolvedStartRef,
+    endRef: resolvedEndRef || resolvedStartRef,
+    startVerse,
+    endVerse,
+    selectedSegment,
+  }
+}
+
+function getLocationReferenceLabel(location) {
+  const evidence = getLocationRangeEvidence(location)
+  return formatHebrewReferenceLabel(evidence.startRef) || location?.label || ""
+}
+
+function getLocationVerseText(location, edge = "start") {
+  const evidence = getLocationRangeEvidence(location)
+  const verse = edge === "end" ? evidence.endVerse || evidence.startVerse : evidence.startVerse || evidence.endVerse
+  return normalizeSpaces(verse?.text || "")
 }
 
 function getLocationOpeningWords(location, count = 6) {
-  const verseText = normalizeSpaces(getLocationVerseText(location))
+  const verseText = getLocationVerseText(location, "start")
   if (!verseText) return ""
   return verseText.split(" ").filter(Boolean).slice(0, count).join(" ")
 }
@@ -3972,18 +4114,97 @@ function getLocationOpeningSearchWords(location, count = 3) {
   return normalizeSpaces(words)
 }
 
+function getTargetStartEvidence(location) {
+  const evidence = getLocationRangeEvidence(location)
+  const targetColumn = Number(location?.column)
+  const columnVerses = Number.isFinite(targetColumn)
+    ? navigatorData?.versesByColumn?.get(targetColumn) || []
+    : []
+  const refVerse = evidence.startVerse || null
+
+  const columnMatch =
+    refVerse && columnVerses.length ? columnVerses.find((verse) => verse.key === refVerse.key) || null : null
+  const nearestByLine =
+    columnVerses.length && Number.isFinite(location?.lineFloat)
+      ? [...columnVerses].sort(
+          (a, b) => Math.abs(a.lineFloat - location.lineFloat) - Math.abs(b.lineFloat - location.lineFloat),
+        )[0]
+      : null
+
+  const selectedVerse = columnMatch || refVerse || nearestByLine || columnVerses[0] || null
+  const source = columnMatch
+    ? "טווח הקריאה + מפת עמודות"
+    : refVerse
+      ? "טווח הקריאה"
+      : selectedVerse
+        ? "מפת עמודות"
+        : ""
+
+  return {
+    ...evidence,
+    selectedVerse,
+    source,
+  }
+}
+
 function getPreviewTargetStartMarker(location, previewColumn) {
   const anchorColumn = Number(location?.column)
   if (!Number.isFinite(anchorColumn) || anchorColumn !== previewColumn) return null
 
-  const lineFloat = Number(location?.lineFloat || 0)
+  const targetEvidence = getTargetStartEvidence(location)
+  const markerVerse = targetEvidence.selectedVerse || targetEvidence.startVerse
+  const lineFloat = Number(markerVerse?.lineFloat || location?.lineFloat || 0)
   if (!Number.isFinite(lineFloat) || lineFloat <= 0) return null
 
   return {
     topPercent: Math.max(3, Math.min(96, ((lineFloat - 1) / 42) * 100)),
-    reference: getLocationReferenceLabel(location),
-    words: getLocationOpeningWords(location, 6),
+    reference:
+      formatHebrewReferenceLabel(targetEvidence.startRef) ||
+      formatHebrewReferenceLabel(anchorToRef(markerVerse)) ||
+      "",
+    words: normalizeSpaces(markerVerse?.text || getLocationOpeningWords(location, 6)),
+    source: targetEvidence.source,
   }
+}
+
+function getLocationParashahLabel(location) {
+  const targetEvidence = getLocationRangeEvidence(location)
+  if (targetEvidence.startVerse?.parashah) return targetEvidence.startVerse.parashah
+  if (targetEvidence.endVerse?.parashah) return targetEvidence.endVerse.parashah
+  const parashahKey = normalizeSpaces(location?.anchorContext?.parashahKey || "")
+  if (parashahKey && navigatorData?.parashahByKey?.has(parashahKey)) {
+    return navigatorData.parashahByKey.get(parashahKey).name_display
+  }
+  const columnSummary = getColumnSummary(Number(location?.column || 0))
+  if (columnSummary?.parashot?.length) return columnSummary.parashot.join(" · ")
+  return "לא זמין"
+}
+
+function renderCameraLocationDetails(title, location) {
+  const evidence = getLocationRangeEvidence(location)
+  const firstRefLabel = formatHebrewReferenceLabel(evidence.startRef)
+  const lastRefLabel = formatHebrewReferenceLabel(evidence.endRef)
+  const firstVerseText = normalizeSpaces(evidence.startVerse?.text || "")
+  const lastVerseText = normalizeSpaces(evidence.endVerse?.text || firstVerseText)
+  const chapterLabel = evidence.startRef ? formatHebrewRefNumber(evidence.startRef.chapter) : "לא זמין"
+  const verseLabel = evidence.startRef ? formatHebrewRefNumber(evidence.startRef.verse) : "לא זמין"
+  const parashah = getLocationParashahLabel(location)
+
+  return `
+    <article class="camera-location-card">
+      <h4>${escapeHtml(title)}</h4>
+      <div class="camera-location-grid">
+        <div><span>פרשה</span><strong>${escapeHtml(parashah)}</strong></div>
+        <div><span>עמודה</span><strong>${escapeHtml(String(location.column || "—"))}</strong></div>
+        <div><span>פרק</span><strong>${escapeHtml(chapterLabel)}</strong></div>
+        <div><span>פסוק</span><strong>${escapeHtml(verseLabel)}</strong></div>
+      </div>
+      ${firstRefLabel ? `<div class="camera-location-ref">תחילת הקטע: ${escapeHtml(firstRefLabel)}</div>` : ""}
+      ${lastRefLabel ? `<div class="camera-location-ref">סוף הקטע: ${escapeHtml(lastRefLabel)}</div>` : ""}
+      ${firstVerseText ? `<p class="camera-location-verse"><span>פסוק ראשון:</span> ${escapeHtml(firstVerseText)}</p>` : ""}
+      ${lastVerseText ? `<p class="camera-location-verse"><span>פסוק אחרון:</span> ${escapeHtml(lastVerseText)}</p>` : ""}
+    </article>
+  `
 }
 
 function renderCameraResultSummary({
@@ -3997,17 +4218,19 @@ function renderCameraResultSummary({
     activeSegmentDiff?.selectorLabel || targetLocation?.selectedSegmentLabel || "הספר הנבחר"
   const scrollText =
     absDelta < 0.25 ? "כמעט בלי גלילה" : `${formatNumber(absDelta, 1)} עמודות ${direction}`
-  const targetStartRef = getLocationReferenceLabel(targetLocation)
-  const targetStartWords = getLocationOpeningWords(targetLocation, 7)
+  const targetMarker = getTargetStartEvidence(targetLocation)
+  const targetStartRef = formatHebrewReferenceLabel(targetMarker.startRef || anchorToRef(targetMarker.selectedVerse))
+  const targetStartWords = normalizeSpaces(targetMarker.selectedVerse?.text || getLocationOpeningWords(targetLocation, 7))
+  const targetColumnText = Number.isFinite(targetLocation?.column) ? String(targetLocation.column) : "—"
 
   return `
     <article class="summary-card summary-card-camera">
       <div class="camera-summary-eyebrow">זיהוי מקור מהמצלמה</div>
       <h3>הוראת גלילה מדויקת</h3>
       <div class="camera-summary-main">${scrollText}</div>
+      <div class="camera-summary-target-column">עמודת יעד: ${escapeHtml(targetColumnText)}</div>
       <div class="camera-summary-meta">
         <span>${escapeHtml(segmentLabel)}</span>
-        <span>תחילת היעד: עמודה ${targetLocation.column}</span>
         ${targetStartRef ? `<span>${escapeHtml(targetStartRef)}</span>` : ""}
       </div>
       ${
@@ -4015,7 +4238,11 @@ function renderCameraResultSummary({
           ? `<p class="camera-summary-words">תחילת הקריאה: ${escapeHtml(targetStartWords)}</p>`
           : ""
       }
-      <p class="camera-summary-source">מקור מזוהה: עמודה ${sourceLocation.column}</p>
+      ${targetMarker.source ? `<p class="camera-summary-source">הצלבה: ${escapeHtml(targetMarker.source)}</p>` : ""}
+      <div class="camera-locations">
+        ${renderCameraLocationDetails("מקור", sourceLocation)}
+        ${renderCameraLocationDetails("יעד", targetLocation)}
+      </div>
     </article>
   `
 }
@@ -4095,6 +4322,29 @@ function renderComparisonState() {
   const message =
     absDelta < 0.25 ? "כמעט בלי גלילה" : `${formatNumber(absDelta, 1)} עמודות ${direction}`
   const cameraMode = Boolean(current?.fromPhoto)
+  const summaryBodyHtml = cameraMode
+    ? `
+        ${
+          hasSplitScroll
+            ? `
+              <div class="summary-camera-picker-label">בחר ספר לחישוב (המספר הגדול מתעדכן מיד)</div>
+              ${renderSplitSegmentSelector(segmentDiffs, activeSplitIndex)}
+            `
+            : `<p class="summary-camera-picker-label">חישוב לפי הספר היחיד של היעד.</p>`
+        }
+      `
+    : hasSplitScroll
+      ? `
+          ${renderSplitSegmentSelector(segmentDiffs, activeSplitIndex)}
+          ${renderReadingSegmentDiffs(segmentDiffs, { activeIndex: activeSplitIndex })}
+        `
+      : `
+          <div class="summary-main">
+            <span class="summary-value">${formatNumber(absDelta, 1)}</span>
+            <span class="summary-direction">${direction}</span>
+          </div>
+          <p class="summary-note">${message}</p>
+        `
 
   resultsEl.className = "results"
   resultsEl.innerHTML = `
@@ -4110,21 +4360,8 @@ function renderComparisonState() {
         : ""
     }
     <article class="summary-card summary-card-primary">
-      <h3>כמה לגלול</h3>
-      ${
-        hasSplitScroll
-          ? `
-            ${renderSplitSegmentSelector(segmentDiffs, activeSplitIndex)}
-            ${renderReadingSegmentDiffs(segmentDiffs, { activeIndex: activeSplitIndex })}
-          `
-          : `
-            <div class="summary-main">
-              <span class="summary-value">${formatNumber(absDelta, 1)}</span>
-              <span class="summary-direction">${direction}</span>
-            </div>
-            <p class="summary-note">${message}</p>
-          `
-      }
+      <h3>${cameraMode ? "הגדרות תצוגה" : "כמה לגלול"}</h3>
+      ${summaryBodyHtml}
       <div class="summary-actions">
         <button
           class="ghost-button small-button"
@@ -4257,6 +4494,7 @@ function renderPreviewState() {
                   startMarker
                     ? `
                       <div class="preview-start-marker" style="top:${startMarker.topPercent.toFixed(2)}%;">
+                        <span class="preview-start-marker-line"></span>
                         <span class="preview-start-marker-dot"></span>
                         <div class="preview-start-marker-copy">
                           <strong>תחילת הקריאה</strong>
@@ -4266,6 +4504,7 @@ function renderPreviewState() {
                               ? `<span class="preview-start-marker-words">${escapeHtml(startMarker.words)}</span>`
                               : ""
                           }
+                          ${startMarker.source ? `<span>${escapeHtml(startMarker.source)}</span>` : ""}
                         </div>
                       </div>
                     `
@@ -4421,7 +4660,7 @@ function resetViewerPosition() {
   viewerStage.scrollLeft = 0
 }
 
-function openViewer({ title, column, subtitle = "", searchQuery = "" }) {
+function openViewer({ title, column, subtitle = "", searchQuery = "", targetMarker = null }) {
   const summary = getColumnSummary(column)
   viewerState.open = true
   viewerState.column = clampColumn(column)
@@ -4429,6 +4668,7 @@ function openViewer({ title, column, subtitle = "", searchQuery = "" }) {
   viewerState.subtitle = subtitle
   viewerState.searchOpen = false
   viewerState.searchQuery = normalizeSpaces(searchQuery)
+  viewerState.targetMarker = targetMarker
   viewerState.zoomFactor = 1
   viewerSearchInput.value = viewerState.searchQuery
   viewerZoomInput.value = "1"
@@ -4443,6 +4683,7 @@ function closeViewer() {
   viewerState.open = false
   viewerState.searchOpen = false
   viewerState.searchQuery = ""
+  viewerState.targetMarker = null
   document.body.style.overflow = ""
   viewerModal.hidden = true
 }
@@ -4868,11 +5109,27 @@ previewEl?.addEventListener("click", (event) => {
     const startSearchWords = state.highlightStart
       ? getLocationOpeningSearchWords(state.location, 3)
       : ""
+    const targetMarker =
+      state.highlightStart && state.previewColumn === Number(state.location?.column)
+        ? (() => {
+            const evidence = getTargetStartEvidence(state.location)
+            const markerVerse = evidence.selectedVerse || evidence.startVerse
+            if (!markerVerse) return null
+            return {
+              column: state.previewColumn,
+              lineFloat: markerVerse.lineFloat || state.location?.lineFloat || 0,
+              reference:
+                formatHebrewReferenceLabel(evidence.startRef || anchorToRef(markerVerse)) ||
+                formatVerseReferenceLabel(markerVerse),
+            }
+          })()
+        : null
     return openViewer({
       title: state.title,
       column: state.previewColumn,
       subtitle: state.location.label,
       searchQuery: startSearchWords || extractLocationSearchQuery(state.location),
+      targetMarker,
     })
   }
 })

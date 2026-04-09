@@ -1234,10 +1234,17 @@ button {
 .camera-summary-main {
   margin-top: 0.08rem;
   font-family: "Frank Ruhl Libre", serif;
-  font-size: clamp(2rem, 5.7vw, 3.25rem);
+  font-size: clamp(2.45rem, 7.2vw, 4.4rem);
   font-weight: 900;
   color: var(--accent-strong);
   line-height: 1.04;
+}
+
+.camera-summary-target-column {
+  margin-top: 0.18rem;
+  font-size: clamp(1.2rem, 3.8vw, 1.75rem);
+  font-weight: 900;
+  color: var(--ink);
 }
 
 .camera-summary-meta {
@@ -1270,6 +1277,73 @@ button {
   color: var(--muted);
   font-size: 0.9rem;
   font-weight: 700;
+}
+
+.camera-locations {
+  margin-top: 0.7rem;
+  display: grid;
+  gap: 0.6rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.camera-location-card {
+  border-radius: 14px;
+  padding: 0.65rem 0.7rem;
+  border: 1px solid rgba(126, 63, 40, 0.16);
+  background: rgba(255, 255, 255, 0.82);
+}
+
+.camera-location-card h4 {
+  margin: 0;
+  font-size: 0.93rem;
+  color: var(--accent-strong);
+}
+
+.camera-location-grid {
+  margin-top: 0.36rem;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.3rem 0.45rem;
+}
+
+.camera-location-grid div {
+  display: grid;
+  gap: 0.08rem;
+}
+
+.camera-location-grid span {
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
+.camera-location-grid strong {
+  font-size: 0.88rem;
+  color: var(--ink);
+}
+
+.camera-location-ref {
+  margin-top: 0.36rem;
+  font-size: 0.82rem;
+  color: var(--accent-strong);
+  font-weight: 700;
+}
+
+.camera-location-verse {
+  margin: 0.34rem 0 0;
+  font-size: 0.84rem;
+  line-height: 1.45;
+}
+
+.camera-location-verse span {
+  color: var(--muted);
+  font-weight: 700;
+}
+
+.summary-camera-picker-label {
+  margin: 0;
+  color: var(--accent-strong);
+  font-weight: 700;
+  font-size: 0.92rem;
 }
 
 .summary-card h3,
@@ -1560,7 +1634,7 @@ button {
   border: 1px solid rgba(126, 63, 40, 0.14);
   background: linear-gradient(180deg, #f1ead8, #e4d8bb);
   aspect-ratio: 0.6;
-  object-fit: cover;
+  object-fit: contain;
   object-position: top;
 }
 
@@ -1573,6 +1647,15 @@ button {
   align-items: flex-start;
   gap: 0.48rem;
   pointer-events: none;
+}
+
+.preview-start-marker-line {
+  position: absolute;
+  inset-inline-start: 0;
+  inset-inline-end: 0;
+  top: 0.62rem;
+  border-top: 2px solid rgba(215, 68, 44, 0.78);
+  opacity: 0.9;
 }
 
 .preview-start-marker-dot {
@@ -1944,6 +2027,12 @@ button {
   box-shadow: 0 0 0 1px rgba(82, 47, 11, 0.08), 0 0 22px rgba(255, 224, 122, 0.18);
 }
 
+.viewer-highlight-target {
+  background: linear-gradient(90deg, rgba(215, 68, 44, 0.16), rgba(215, 68, 44, 0.36), rgba(215, 68, 44, 0.16));
+  border-color: rgba(215, 68, 44, 0.56);
+  box-shadow: 0 0 0 1px rgba(82, 47, 11, 0.08), 0 0 24px rgba(215, 68, 44, 0.24);
+}
+
 .viewer-highlight-label {
   position: absolute;
   top: 50%;
@@ -2208,6 +2297,14 @@ button {
 
   .camera-summary-main {
     font-size: clamp(1.8rem, 8vw, 2.7rem);
+  }
+
+  .camera-summary-target-column {
+    font-size: 1.08rem;
+  }
+
+  .camera-locations {
+    grid-template-columns: 1fr;
   }
 
   .preview-start-marker-copy {
