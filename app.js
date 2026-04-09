@@ -74,6 +74,10 @@ const viewerSearchCollapseButton = document.getElementById("viewer-search-collap
 const viewerSearchResults = document.getElementById("viewer-search-results")
 const viewerZoomInput = document.getElementById("viewer-zoom")
 const viewerColumnInput = document.getElementById("viewer-column-input")
+const viewportMetaTag =
+  typeof document !== "undefined"
+    ? document.querySelector('meta[name="viewport"]')
+    : null
 
 const bookAliases = {
   בראשית: "בראשית",
@@ -223,6 +227,8 @@ let ocrWorkerPromise = null
 let ocrJobToken = 0
 let ocrRecognizingNow = false
 let currentInputSource = "manual"
+let viewerScaleLockedForKeyboard = false
+let viewportMetaOriginalContent = ""
 let timesState = {
   selectedDate: getIsraelDateString(),
   loading: false,
@@ -343,6 +349,32 @@ function syncInlineClearButtons() {
     clearTargetInlineButton.disabled = !hasTargetValue
   }
   syncInlineFieldLayout()
+}
+
+function setViewerKeyboardFocusState(isFocused) {
+  viewerScaleLockedForKeyboard = Boolean(isFocused)
+
+  if (!viewportMetaTag) return
+  const userAgent = typeof navigator !== "undefined" ? navigator.userAgent || "" : ""
+  const isIOS = /iP(hone|od|ad)/i.test(userAgent)
+  if (!isIOS) return
+
+  if (viewerScaleLockedForKeyboard) {
+    if (!viewportMetaOriginalContent) {
+      viewportMetaOriginalContent =
+        viewportMetaTag.getAttribute("content") || "width=device-width, initial-scale=1.0"
+    }
+    const baseContent = viewportMetaOriginalContent
+      .replace(/,\s*maximum-scale\s*=\s*[^,]+/gi, "")
+      .replace(/,\s*user-scalable\s*=\s*[^,]+/gi, "")
+      .trim()
+    viewportMetaTag.setAttribute("content", `${baseContent}, maximum-scale=1`)
+    return
+  }
+
+  if (viewportMetaOriginalContent) {
+    viewportMetaTag.setAttribute("content", viewportMetaOriginalContent)
+  }
 }
 
 function setCurrentInputSource(source = "manual") {
@@ -4865,6 +4897,8 @@ function closeViewer() {
   viewerState.searchOpen = false
   viewerState.searchQuery = ""
   viewerState.targetMarker = null
+  viewerSearchInput?.blur()
+  setViewerKeyboardFocusState(false)
   document.body.style.overflow = ""
   viewerModal.hidden = true
 }
@@ -5364,6 +5398,8 @@ viewerSearchToggleButton?.addEventListener("click", () => {
   renderViewerSearch()
   if (viewerState.searchOpen && typeof viewerSearchInput.focus === "function") {
     viewerSearchInput.focus()
+  } else {
+    viewerSearchInput?.blur()
   }
 })
 
@@ -5371,6 +5407,10 @@ viewerSearchInput?.addEventListener("input", () => {
   viewerState.searchQuery = normalizeSpaces(viewerSearchInput.value)
   renderViewerSearch()
   renderViewerHighlights()
+})
+
+viewerSearchInput?.addEventListener("focus", () => {
+  setViewerKeyboardFocusState(true)
 })
 
 viewerSearchInput?.addEventListener("keydown", (event) => {
@@ -5381,6 +5421,15 @@ viewerSearchInput?.addEventListener("keydown", (event) => {
   renderViewerSearch()
   renderViewerHighlights()
   viewerSearchInput.blur()
+})
+
+viewerSearchInput?.addEventListener("blur", () => {
+  setViewerKeyboardFocusState(false)
+  if (viewerState.open) {
+    setTimeout(() => {
+      syncViewerScale()
+    }, 120)
+  }
 })
 
 viewerSearchClearButton?.addEventListener("click", () => {
@@ -5529,6 +5578,7 @@ if (typeof window !== "undefined" && typeof window.addEventListener === "functio
   window.addEventListener("resize", () => {
     syncInlineFieldLayout()
     if (!viewerState.open) return
+    if (viewerScaleLockedForKeyboard) return
     syncViewerScale()
   })
 }
