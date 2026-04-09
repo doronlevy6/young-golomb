@@ -13,6 +13,10 @@ const currentPhotoInput = document.getElementById("current-photo-input")
 const currentPhotoStatusEl = document.getElementById("current-photo-status")
 const clearCurrentInlineButton = document.getElementById("clear-current-inline")
 const clearTargetInlineButton = document.getElementById("clear-target-inline")
+const currentInlineRow = document.getElementById("current-inline")
+const targetInlineRow = document.getElementById("target-inline")
+const currentInlineActions = document.getElementById("current-inline-actions")
+const targetInlineActions = document.getElementById("target-inline-actions")
 const resetButton = document.getElementById("reset-button")
 const suggestionsEl = document.getElementById("query-suggestions")
 const readingDefaultsEl = document.getElementById("reading-defaults")
@@ -301,7 +305,29 @@ function setCurrentPhotoStatus(message = "", tone = "") {
 function setCurrentPhotoBusyState(isBusy) {
   if (!currentPhotoButton) return
   currentPhotoButton.disabled = Boolean(isBusy)
-  currentPhotoButton.textContent = isBusy ? "מזהה..." : "צלם/העלה"
+  const label = currentPhotoButton.querySelector(".button-label")
+  if (label) {
+    label.textContent = isBusy ? "מזהה..." : "צלם/העלה"
+  } else {
+    currentPhotoButton.textContent = isBusy ? "מזהה..." : "צלם/העלה"
+  }
+}
+
+function syncInlineFieldLayout() {
+  if (!currentInlineRow || !targetInlineRow) return
+  const rowWidth = Math.min(currentInlineRow.clientWidth || 0, targetInlineRow.clientWidth || 0)
+  if (!rowWidth) return
+
+  const currentLength = normalizeSpaces(currentInput?.value || "").length
+  const targetLength = normalizeSpaces(targetInput?.value || "").length
+  const longestLength = Math.max(currentLength, targetLength, 18)
+  const desiredInputWidth = Math.min(520, Math.max(250, longestLength * 10.5))
+  const actionsWidth = Math.max(currentInlineActions?.scrollWidth || 0, targetInlineActions?.scrollWidth || 0)
+  const requiredInlineWidth = desiredInputWidth + actionsWidth + 26
+  const shouldStack = rowWidth < requiredInlineWidth
+
+  currentInlineRow.classList.toggle("is-stacked", shouldStack)
+  targetInlineRow.classList.toggle("is-stacked", shouldStack)
 }
 
 function syncInlineClearButtons() {
@@ -315,6 +341,7 @@ function syncInlineClearButtons() {
     clearTargetInlineButton.hidden = !hasTargetValue
     clearTargetInlineButton.disabled = !hasTargetValue
   }
+  syncInlineFieldLayout()
 }
 
 function setCurrentInputSource(source = "manual") {
@@ -5482,6 +5509,7 @@ viewerImage?.addEventListener("load", () => {
 
 if (typeof window !== "undefined" && typeof window.addEventListener === "function") {
   window.addEventListener("resize", () => {
+    syncInlineFieldLayout()
     if (!viewerState.open) return
     syncViewerScale()
   })

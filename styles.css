@@ -578,13 +578,9 @@ mark {
 
 .field-inline {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto auto;
+  grid-template-columns: minmax(0, 1fr) auto;
   gap: 0.55rem;
   align-items: center;
-}
-
-.field-secondary .field-inline {
-  grid-template-columns: minmax(0, 1fr) auto auto;
 }
 
 .field-input-wrap {
@@ -592,8 +588,25 @@ mark {
   min-width: 0;
 }
 
-#current-photo-button {
-  grid-column: 2 / 4;
+.field-inline-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  flex-wrap: nowrap;
+}
+
+.field-inline.is-stacked {
+  grid-template-columns: 1fr;
+}
+
+.field-inline.is-stacked .field-inline-actions {
+  width: 100%;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.field-inline.is-stacked .field-inline-actions.single-action {
+  grid-template-columns: 1fr;
 }
 
 .field span {
@@ -627,6 +640,18 @@ mark {
 .calendar-trigger,
 .camera-trigger {
   white-space: nowrap;
+}
+
+.camera-trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.32rem;
+}
+
+.button-icon {
+  font-size: 0.94rem;
+  line-height: 1;
 }
 
 .field-inline-clear {

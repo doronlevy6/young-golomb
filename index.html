@@ -51,7 +51,7 @@
       href="https://fonts.googleapis.com/css2?family=Frank+Ruhl+Libre:wght@500;700&family=Heebo:wght@400;500;700&display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="./styles.css?v=20260410-1" />
+    <link rel="stylesheet" href="./styles.css?v=20260410-2" />
   </head>
   <body>
     <div class="page-shell">
@@ -202,7 +202,7 @@
               <form id="navigator-form" class="search-form">
                 <label class="field field-secondary">
                   <span>אני נמצא ב</span>
-                  <div class="field-inline">
+                  <div class="field-inline" id="current-inline">
                     <div class="field-input-wrap">
                       <input
                         id="current-query"
@@ -221,22 +221,25 @@
                         ×
                       </button>
                     </div>
-                    <button
-                      class="ghost-button small-button calendar-trigger"
-                      id="current-calendar-button"
-                      type="button"
-                      aria-label="פתח יומן מיקום נוכחי"
-                    >
-                      יומן
-                    </button>
-                    <button
-                      class="ghost-button small-button camera-trigger"
-                      id="current-photo-button"
-                      type="button"
-                      aria-label="צלם או העלה עמודת מיקום נוכחי"
-                    >
-                      צלם/העלה
-                    </button>
+                    <div class="field-inline-actions" id="current-inline-actions">
+                      <button
+                        class="ghost-button small-button calendar-trigger"
+                        id="current-calendar-button"
+                        type="button"
+                        aria-label="פתח יומן מיקום נוכחי"
+                      >
+                        יומן
+                      </button>
+                      <button
+                        class="ghost-button small-button camera-trigger"
+                        id="current-photo-button"
+                        type="button"
+                        aria-label="צלם או העלה עמודת מיקום נוכחי"
+                      >
+                        <span class="button-icon" aria-hidden="true">📷</span>
+                        <span class="button-label">צלם/העלה</span>
+                      </button>
+                    </div>
                     <input id="current-photo-input" type="file" accept="image/*" capture="environment" hidden />
                   </div>
                 </label>
@@ -245,7 +248,7 @@
 
                 <label class="field field-target">
                   <span>רוצה להגיע ל</span>
-                  <div class="field-inline">
+                  <div class="field-inline" id="target-inline">
                     <div class="field-input-wrap">
                       <input
                         id="target-query"
@@ -264,14 +267,16 @@
                         ×
                       </button>
                     </div>
-                    <button
-                      class="ghost-button small-button calendar-trigger"
-                      id="target-calendar-button"
-                      type="button"
-                      aria-label="פתח יומן יעד"
-                    >
-                      יומן
-                    </button>
+                    <div class="field-inline-actions single-action" id="target-inline-actions">
+                      <button
+                        class="ghost-button small-button calendar-trigger"
+                        id="target-calendar-button"
+                        type="button"
+                        aria-label="פתח יומן יעד"
+                      >
+                        יומן
+                      </button>
+                    </div>
                   </div>
                 </label>
                 <p class="target-hint">הכי פשוט: בוחרים יעד, ורואים כמה לגלול.</p>
@@ -416,6 +421,6 @@
       </div>
     </div>
 
-    <script src="./app.js?v=20260410-1" type="module"></script>
+    <script src="./app.js?v=20260410-2" type="module"></script>
   </body>
 </html>
