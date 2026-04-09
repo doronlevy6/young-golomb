@@ -65,6 +65,7 @@ const viewerCloseButton = document.getElementById("viewer-close")
 const viewerSearchToggleButton = document.getElementById("viewer-search-toggle")
 const viewerSearchPanel = document.getElementById("viewer-search-panel")
 const viewerSearchInput = document.getElementById("viewer-search-input")
+const viewerSearchClearButton = document.getElementById("viewer-search-clear")
 const viewerSearchResults = document.getElementById("viewer-search-results")
 const viewerZoomInput = document.getElementById("viewer-zoom")
 const viewerColumnInput = document.getElementById("viewer-column-input")
@@ -2630,7 +2631,7 @@ function createAnchorFromLocation(location, fallbackLabel = "עמודה") {
 }
 
 function getManualSourceToTargetSegmentDiffs(sourceLocation, targetSegments = []) {
-  const sourceAnchor = createAnchorFromLocation(sourceLocation, "מקור")
+  const sourceAnchor = createAnchorFromLocation(sourceLocation, "מיקום נוכחי")
   return targetSegments
     .filter(Boolean)
     .map((targetSegment, index) => ({
@@ -2646,7 +2647,7 @@ function getManualSourceToTargetSegmentDiffs(sourceLocation, targetSegments = []
       sourceAnchorLabel: sourceLocation?.label || `עמודה ${sourceAnchor.column}`,
       targetAnchorLabel: `תחילת ${targetSegment.label}`,
       delta: targetSegment.start.columnFloat - sourceAnchor.columnFloat,
-      contextLabel: "מול המקור שבחרת",
+      contextLabel: "מול המיקום הנוכחי שבחרת",
     }))
 }
 
@@ -3018,7 +3019,7 @@ function openCalendarModal(fieldKey = "target") {
       calendarSubtitleEl.textContent = "בחירת יום תעדכן את זמני היום ותזהה שבת/חג לפי הקריאה."
     } else {
       calendarTitleEl.textContent = "בחר תאריך יעד"
-      calendarSubtitleEl.textContent = "בחירת יום תמלא יעד ומקור. אם אין קריאה באותו יום, נבחרת הקריאה הקרובה שאחריו."
+      calendarSubtitleEl.textContent = "בחירת יום תמלא יעד ומיקום נוכחי. אם אין קריאה באותו יום, נבחרת הקריאה הקרובה שאחריו."
     }
   }
   journalState.open = true
@@ -3769,7 +3770,7 @@ function resolveStandardQuery(query, options = {}) {
         column: firstVerse.column,
         lineFloat: firstVerse.lineFloat,
         exact: firstVerse.exact,
-        detail: `תחילת פרשה #${parashah.order} | ${formatBookChapterVerseShort(firstVerse.book, firstVerse.chapter, firstVerse.verse)} | מקור ודאי`,
+        detail: `תחילת פרשה #${parashah.order} | ${formatBookChapterVerseShort(firstVerse.book, firstVerse.chapter, firstVerse.verse)} | ודאי`,
         anchorContext: {
           columnFloat: firstVerse.columnFloat,
           parashahKey: firstVerse.parashahKey || normalizeKey(parashah.name_display),
@@ -4007,10 +4008,8 @@ function renderViewerHighlights() {
     matches
     .map((match) => {
       const top = Math.max(2, Math.min(98, ((match.lineFloat - 1) / 42) * 100))
-      const matchRefLabel = formatBookChapterVerseShort(match.book, match.chapter, match.verse)
       return `
         <div class="viewer-highlight" style="top:${top}%;">
-          <div class="viewer-highlight-label">${escapeHtml(query)} · ${escapeHtml(matchRefLabel)}</div>
         </div>
       `
     })
@@ -4021,6 +4020,9 @@ function renderViewerSearch(summary = getColumnSummary(viewerState.column)) {
   viewerSearchPanel.hidden = !viewerState.searchOpen
   viewerSearchToggleButton.classList.toggle("is-active", viewerState.searchOpen)
   viewerSearchToggleButton.textContent = viewerState.searchOpen ? "סגור חיפוש" : "חיפוש מילה"
+  if (viewerSearchClearButton) {
+    viewerSearchClearButton.hidden = !normalizeSpaces(viewerState.searchQuery)
+  }
   if (!viewerState.searchOpen) return
 
   viewerSearchInput.value = viewerState.searchQuery
@@ -4262,11 +4264,11 @@ function getTargetStartEvidence(location) {
 
   const selectedVerse = columnMatch || explicitRefVerse || refVerse || nearestByLine || columnVerses[0] || null
   const source = columnMatch
-    ? "מקור ודאי: טווח הקריאה + מפת פסוקים"
+    ? "ודאי: טווח הקריאה + מפת פסוקים"
     : explicitRefVerse
-      ? "מקור ודאי: פסוק תחילת היעד"
+      ? "ודאי: פסוק תחילת היעד"
       : refVerse
-        ? "מקור: טווח הקריאה"
+        ? "טווח הקריאה"
       : selectedVerse
         ? "הערכה: מפת עמודות"
         : ""
@@ -4341,7 +4343,6 @@ function renderCameraLocationDetails(title, location) {
 function renderCameraResultSummary({
   absDelta,
   direction,
-  sourceLocation,
   targetLocation,
   activeSegmentDiff,
 }) {
@@ -4356,7 +4357,7 @@ function renderCameraResultSummary({
 
   return `
     <article class="summary-card summary-card-camera">
-      <div class="camera-summary-eyebrow">זיהוי מקור מהמצלמה</div>
+      <div class="camera-summary-eyebrow">זיהוי מיקום נוכחי מהמצלמה</div>
       <h3>הוראת גלילה מדויקת</h3>
       <div class="camera-summary-main">${scrollText}</div>
       <div class="camera-summary-target-column">עמודת יעד: ${escapeHtml(targetColumnText)}</div>
@@ -4366,14 +4367,9 @@ function renderCameraResultSummary({
       </div>
       ${
         targetStartWords
-          ? `<p class="camera-summary-words">תחילת הקריאה: ${escapeHtml(targetStartWords)}</p>`
+          ? `<p class="camera-summary-words">תחילת היעד: ${escapeHtml(targetStartWords)}</p>`
           : ""
       }
-      ${targetMarker.source ? `<p class="camera-summary-source">הצלבה: ${escapeHtml(targetMarker.source)}</p>` : ""}
-      <div class="camera-locations">
-        ${renderCameraLocationDetails("מקור", sourceLocation)}
-        ${renderCameraLocationDetails("יעד", targetLocation)}
-      </div>
     </article>
   `
 }
@@ -4453,6 +4449,7 @@ function renderComparisonState() {
   const message =
     absDelta < 0.25 ? "כמעט בלי גלילה" : `${formatNumber(absDelta, 1)} עמודות ${direction}`
   const cameraMode = Boolean(current?.fromPhoto)
+  const shouldRenderLocationGrid = cameraMode ? showLocationDetails : true
   const summaryBodyHtml = cameraMode
     ? `
         ${
@@ -4484,14 +4481,13 @@ function renderComparisonState() {
         ? renderCameraResultSummary({
             absDelta,
             direction,
-            sourceLocation,
             targetLocation,
             activeSegmentDiff,
           })
         : ""
     }
     <article class="summary-card summary-card-primary">
-      <h3>${cameraMode ? "הגדרות תצוגה" : "כמה לגלול"}</h3>
+      <h3>${cameraMode ? "אפשרויות תצוגה" : "כמה לגלול"}</h3>
       ${summaryBodyHtml}
       <div class="summary-actions">
         <button
@@ -4499,7 +4495,7 @@ function renderComparisonState() {
           type="button"
           data-action="toggle-source"
         >
-          ${sourceVisible ? "הסתר מקור" : "הצג מקור"}
+          ${sourceVisible ? "הסתר מיקום נוכחי" : "הצג מיקום נוכחי"}
         </button>
         <button
           class="ghost-button small-button${showLocationDetails ? " is-active" : ""}"
@@ -4511,20 +4507,26 @@ function renderComparisonState() {
         </button>
       </div>
     </article>
-    <div class="location-grid">
-      ${
-        sourceVisible
-          ? `<div class="location-slot location-slot-source">${formatLocation(sourceLocation, { showDetails: showLocationDetails })}</div>`
-          : ""
-      }
-      <div class="location-slot location-slot-target">${formatLocation(targetLocation, { showDetails: showLocationDetails })}</div>
-    </div>
+    ${
+      shouldRenderLocationGrid
+        ? `
+          <div class="location-grid">
+            ${
+              sourceVisible
+                ? `<div class="location-slot location-slot-source">${formatLocation(sourceLocation, { showDetails: showLocationDetails })}</div>`
+                : ""
+            }
+            <div class="location-slot location-slot-target">${formatLocation(targetLocation, { showDetails: showLocationDetails })}</div>
+          </div>
+        `
+        : ""
+    }
   `
 
   renderPreview(
     sourceVisible
       ? [
-          { title: "עמודת המקור", location: sourceLocation },
+          { title: "עמודת המיקום הנוכחי", location: sourceLocation },
           { title: "עמודת היעד", location: targetLocation, highlightStart: true },
         ]
       : [{ title: "עמודת היעד", location: targetLocation, highlightStart: true }],
@@ -4712,7 +4714,7 @@ function runSearch({ live = false } = {}) {
       }
 
       if (currentLocation) {
-        renderSingle(currentLocation, "המיקום")
+        renderSingle(currentLocation, "המיקום הנוכחי")
         return
       }
 
@@ -4727,7 +4729,7 @@ function runSearch({ live = false } = {}) {
 
     if (!currentValue || !targetValue) {
       const singleValue = targetValue || currentValue
-      const title = targetValue ? "היעד" : "המיקום"
+      const title = targetValue ? "היעד" : "המיקום הנוכחי"
       const resolvedLocation = resolveQuery(singleValue, { fieldKey: targetValue ? "target" : "current" })
       renderSingle(targetValue ? resolvedLocation : tagCurrentLocationWithSource(resolvedLocation), title, {
         highlightStart: Boolean(targetValue),
@@ -5337,6 +5339,14 @@ viewerSearchInput?.addEventListener("input", () => {
   viewerState.searchQuery = normalizeSpaces(viewerSearchInput.value)
   renderViewerSearch()
   renderViewerHighlights()
+})
+
+viewerSearchClearButton?.addEventListener("click", () => {
+  viewerState.searchQuery = ""
+  if (viewerSearchInput) viewerSearchInput.value = ""
+  renderViewerSearch()
+  renderViewerHighlights()
+  if (typeof viewerSearchInput?.focus === "function") viewerSearchInput.focus()
 })
 
 viewerSearchResults?.addEventListener("click", (event) => {

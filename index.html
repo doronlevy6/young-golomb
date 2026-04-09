@@ -51,7 +51,7 @@
       href="https://fonts.googleapis.com/css2?family=Frank+Ruhl+Libre:wght@500;700&family=Heebo:wght@400;500;700&display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="./styles.css?v=20260409-5" />
+    <link rel="stylesheet" href="./styles.css?v=20260409-6" />
   </head>
   <body>
     <div class="page-shell">
@@ -214,7 +214,7 @@
                       class="ghost-button small-button inline-clear-button"
                       id="clear-current-inline"
                       type="button"
-                      aria-label="נקה מקור"
+                      aria-label="נקה מיקום נוכחי"
                     >
                       ×
                     </button>
@@ -222,7 +222,7 @@
                       class="ghost-button small-button calendar-trigger"
                       id="current-calendar-button"
                       type="button"
-                      aria-label="פתח יומן מקור"
+                      aria-label="פתח יומן מיקום נוכחי"
                     >
                       יומן
                     </button>
@@ -230,7 +230,7 @@
                       class="ghost-button small-button camera-trigger"
                       id="current-photo-button"
                       type="button"
-                      aria-label="צלם או העלה עמודת מקור"
+                      aria-label="צלם או העלה עמודת מיקום נוכחי"
                     >
                       צלם/העלה
                     </button>
@@ -303,7 +303,7 @@
         <div class="calendar-header">
           <div class="calendar-copy">
             <h2 id="calendar-title">בחר תאריך יעד</h2>
-            <p id="calendar-subtitle">בחירת יום תמלא יעד ומקור. אם אין קריאה באותו יום, נבחרת הקריאה הקרובה שאחריו.</p>
+            <p id="calendar-subtitle">בחירת יום תמלא יעד ומיקום נוכחי. אם אין קריאה באותו יום, נבחרת הקריאה הקרובה שאחריו.</p>
           </div>
           <button class="ghost-button" id="calendar-close" type="button">סגור</button>
         </div>
@@ -381,13 +381,24 @@
           <div class="viewer-search-panel" id="viewer-search-panel" hidden>
             <label class="viewer-search-field">
               <span>מילה קרובה</span>
-              <input
-                id="viewer-search-input"
-                type="text"
-                placeholder="חפש באותה עמודה או ליד"
-                autocomplete="off"
-                inputmode="search"
-              />
+              <div class="viewer-search-input-wrap">
+                <input
+                  id="viewer-search-input"
+                  type="text"
+                  placeholder="חפש באותה עמודה או ליד"
+                  autocomplete="off"
+                  inputmode="search"
+                />
+                <button
+                  id="viewer-search-clear"
+                  class="viewer-search-clear"
+                  type="button"
+                  aria-label="נקה חיפוש מילה"
+                  hidden
+                >
+                  ×
+                </button>
+              </div>
             </label>
             <div id="viewer-search-results" class="viewer-search-results"></div>
           </div>
@@ -399,6 +410,6 @@
       </div>
     </div>
 
-    <script src="./app.js?v=20260409-5" type="module"></script>
+    <script src="./app.js?v=20260409-6" type="module"></script>
   </body>
 </html>
