@@ -3083,7 +3083,7 @@ function openCalendarModal(fieldKey = "target") {
       calendarSubtitleEl.textContent = "בחירת יום תעדכן את זמני היום ותזהה שבת/חג לפי הקריאה."
     } else {
       calendarTitleEl.textContent = "בחר תאריך יעד"
-      calendarSubtitleEl.textContent = "בחירת יום תמלא יעד ומיקום נוכחי. אם אין קריאה באותו יום, נבחרת הקריאה הקרובה שאחריו."
+      calendarSubtitleEl.textContent = "בחירת יום תעדכן רק את השדה שנבחר. אם אין קריאה באותו יום, נבחרת הקריאה הקרובה שאחריו."
     }
   }
   journalState.open = true
@@ -3119,39 +3119,16 @@ function applyJournalReading(dateString) {
   }
 
   if (journalState.fieldKey === "current") {
-    const nextReading = getPrimaryReadings().find((reading) => reading.date > selectedReading.date) || null
-
     currentInput.value = formatReadingDateInputValue(selectedReading)
     setCurrentInputSource("manual")
     setCurrentPhotoStatus("")
     querySegmentState.current = null
     renderSegmentPicker("current")
-
-    if (nextReading) {
-      targetInput.value = formatReadingDateInputValue(nextReading)
-    } else {
-      targetInput.value = ""
-    }
-    preferredSplitTargetSegmentIndex = null
-    querySegmentState.target = null
-    renderSegmentPicker("target")
   } else {
-    const previousReading = getDefaultSourceForTarget(selectedReading)
-
     targetInput.value = formatReadingDateInputValue(selectedReading)
     preferredSplitTargetSegmentIndex = null
     querySegmentState.target = null
     renderSegmentPicker("target")
-
-    if (previousReading) {
-      currentInput.value = formatReadingDateInputValue(previousReading)
-    } else {
-      currentInput.value = ""
-    }
-    setCurrentInputSource("manual")
-    setCurrentPhotoStatus("")
-    querySegmentState.current = null
-    renderSegmentPicker("current")
   }
 
   syncInlineClearButtons()
