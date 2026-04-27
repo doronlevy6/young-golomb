@@ -746,6 +746,24 @@ function formatHebrewDate(isoDate) {
 
 function formatHebrewDay(isoDate) {
   try {
+    const parts = new Intl.DateTimeFormat("he-IL-u-ca-hebrew", {
+      timeZone: israelTimeZone,
+      day: "numeric",
+      month: "short",
+    }).formatToParts(getIsraelDateObject(isoDate))
+    const dayNumber = Number(parts.find((part) => part.type === "day")?.value || "")
+    const monthLabel = normalizeSpaces(parts.find((part) => part.type === "month")?.value || "")
+    if (!dayNumber || !monthLabel) return formatHebrewDayNumeric(isoDate)
+    const dayLabel = numberToHebrewLetters(dayNumber)
+    if (!dayLabel) return formatHebrewDayNumeric(isoDate)
+    return `${dayLabel} ${monthLabel}`
+  } catch {
+    return formatHebrewDayNumeric(isoDate)
+  }
+}
+
+function formatHebrewDayNumeric(isoDate) {
+  try {
     return new Intl.DateTimeFormat("he-IL-u-ca-hebrew", {
       timeZone: israelTimeZone,
       day: "numeric",
@@ -792,7 +810,8 @@ function getReadingFromHebrewPrefixQuery(query) {
   return (
     autoReadingsState.readings.find((reading) => {
       const readingPrefixKey = normalizeKey(formatHebrewDay(reading.date))
-      if (readingPrefixKey !== prefixKey) return false
+      const readingPrefixNumericKey = normalizeKey(formatHebrewDayNumeric(reading.date))
+      if (readingPrefixKey !== prefixKey && readingPrefixNumericKey !== prefixKey) return false
       if (!nameKey) return true
       return normalizeKey(reading.name) === nameKey
     }) || null
