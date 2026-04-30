@@ -489,12 +489,16 @@ mark {
   color: var(--muted);
   padding: 0.72rem 1.1rem;
   font-weight: 700;
+  border-radius: 14px;
+  transition: background 180ms ease, color 180ms ease, box-shadow 180ms ease;
 }
 
 .mode-tab.is-active {
   background: var(--accent);
   color: white;
-  box-shadow: 0 10px 18px rgba(20, 90, 150, 0.22);
+  box-shadow:
+    0 8px 16px rgba(20, 90, 150, 0.2),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.14);
 }
 
 .panel {
