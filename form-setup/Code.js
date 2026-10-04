@@ -15,9 +15,10 @@ const CATEGORIES = [
 ]
 
 const APPROVED_HEADER = "מאושר"
+const FORM_TITLE = "עסקים בקהילת גולומב"
 
 function setupCommunityDirectory() {
-  const form = FormApp.create("עסקים בקהילה")
+  const form = FormApp.create(FORM_TITLE)
   form.setDescription(
     "מלאו את הפרטים והעסק שלכם יופיע במדריך העסקים של הקהילה. " +
       "השדות המסומנים בכוכבית הם חובה. כל השאר אופציונלי, אבל ממולץ.",
@@ -130,7 +131,8 @@ function completeSetup(form) {
 }
 
 function adoptExisting() {
-  const forms = DriveApp.getFilesByName("עסקים בקהילה")
+  let forms = DriveApp.getFilesByName(FORM_TITLE)
+  if (!forms.hasNext()) forms = DriveApp.getFilesByName("עסקים בקהילה")
   if (!forms.hasNext()) return null
   return completeSetup(FormApp.openById(forms.next().getId()))
 }
@@ -141,7 +143,9 @@ function ensureSetup() {
 
 function doGet(event) {
   const params = (event && event.parameter) || {}
-  ensureSetup()
+  const config = ensureSetup()
+  const form = FormApp.openById(config.formId)
+  if (form.getTitle() !== FORM_TITLE) form.setTitle(FORM_TITLE)
   return dataResponse(params)
 }
 

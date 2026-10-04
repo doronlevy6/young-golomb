@@ -1210,9 +1210,9 @@ function setAppMode(mode) {
   const isBusiness = appState.mode === appModes.business
   const heroTitleEl = document.querySelector(".hero h1")
   const heroEyebrowEl = document.querySelector(".hero .eyebrow")
-  if (heroTitleEl) heroTitleEl.textContent = isBusiness ? "עסקים בקהילה" : "ניווט ספר תורה"
+  if (heroTitleEl) heroTitleEl.textContent = isBusiness ? "עסקים בקהילת גולומב" : "ניווט ספר תורה"
   if (heroEyebrowEl) heroEyebrowEl.hidden = isBusiness
-  document.title = isBusiness ? "עסקים בקהילה" : "ניווט ספר תורה"
+  document.title = isBusiness ? "עסקים בקהילת גולומב" : "ניווט ספר תורה"
   if (isBusiness) {
     history.replaceState(null, "", "#business")
   } else if (location.hash === "#business") {
