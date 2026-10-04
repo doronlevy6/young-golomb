@@ -421,16 +421,51 @@ async function loadWithRetry(attempts = 3) {
   throw lastError
 }
 
+const CACHE_KEY = "bizDirectoryCache"
+
+function readCache() {
+  try {
+    const raw = localStorage.getItem(CACHE_KEY)
+    return raw ? JSON.parse(raw) : null
+  } catch {
+    return null
+  }
+}
+
+function applyData(businesses, isSample) {
+  state.businesses = shuffle(businesses.filter((b) => b.name))
+  sampleNoteEl.hidden = !isSample
+  viewEl.classList.toggle("is-sample", isSample)
+  render()
+}
+
 async function ensureLoaded() {
   if (state.loaded) return
   state.loaded = true
+
+  const cached = readCache()
+  if (cached && DATA_URL) {
+    applyData(cached, false)
+    loadWithRetry()
+      .then(({ businesses }) => {
+        applyData(businesses, false)
+        try {
+          localStorage.setItem(CACHE_KEY, JSON.stringify(businesses))
+        } catch {}
+      })
+      .catch(() => {})
+    return
+  }
+
   gridEl.replaceChildren(el("p", "biz-empty", "טוען עסקים..."))
   try {
     const { businesses, isSample } = await loadWithRetry()
-    state.businesses = shuffle(businesses.filter((b) => b.name))
-    sampleNoteEl.hidden = !isSample
-    viewEl.classList.toggle("is-sample", isSample)
-    render()
+    applyData(businesses, isSample)
+    if (DATA_URL && !isSample) {
+      try {
+        localStorage.setItem(CACHE_KEY, JSON.stringify(businesses))
+      } catch {}
+    }
   } catch (error) {
     console.error(error)
     state.loaded = false
