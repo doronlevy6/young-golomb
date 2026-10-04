@@ -2631,3 +2631,326 @@ button {
     max-height: min(34vh, 230px);
   }
 }
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.biz-intro {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+  padding: 1.15rem 1.25rem;
+}
+
+.biz-intro h2 {
+  margin: 0 0 0.3rem;
+  font-family: "Frank Ruhl Libre", serif;
+  font-size: clamp(1.4rem, 3vw, 2rem);
+}
+
+.biz-intro p {
+  margin: 0;
+  max-width: 46ch;
+  color: var(--muted);
+  line-height: 1.55;
+}
+
+.biz-add-button {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.8rem 1.3rem;
+  border-radius: 999px;
+  background: var(--accent);
+  color: #fff;
+  font-weight: 700;
+  text-decoration: none;
+  box-shadow: 0 8px 16px rgba(20, 90, 150, 0.2);
+  transition: background 180ms ease;
+}
+
+.biz-add-button:hover {
+  background: var(--accent-strong);
+}
+
+.biz-add-button[hidden] {
+  display: none;
+}
+
+.biz-controls {
+  display: grid;
+  gap: 0.8rem;
+  padding: 1rem 1.15rem;
+}
+
+.biz-search input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 0.85rem 1.1rem;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: #fff;
+  color: var(--ink);
+  font: inherit;
+  font-size: 1.05rem;
+}
+
+.biz-search input:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.biz-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.biz-chip {
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: #fff;
+  color: var(--muted);
+  padding: 0.4rem 0.85rem;
+  font: inherit;
+  font-size: 0.92rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 160ms ease, color 160ms ease;
+}
+
+.biz-chip:hover {
+  background: var(--accent-soft);
+}
+
+.biz-chip.is-active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+.biz-count {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.biz-sample-note {
+  margin: 0;
+  padding: 0.7rem 1rem;
+  border-radius: var(--radius-md);
+  background: rgba(176, 112, 43, 0.12);
+  color: #7a4a14;
+  font-weight: 700;
+  font-size: 0.92rem;
+}
+
+.biz-sample-note[hidden],
+.biz-empty[hidden] {
+  display: none;
+}
+
+.biz-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
+  gap: 1rem;
+}
+
+.biz-card {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--paper);
+  border: 1px solid rgba(20, 90, 150, 0.14);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow);
+}
+
+.biz-media {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 150px;
+  background: var(--bg-strong);
+}
+
+.biz-photo {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.biz-avatar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 78px;
+  height: 78px;
+  border-radius: 50%;
+  color: #fff;
+  font-family: "Frank Ruhl Libre", serif;
+  font-size: 2.1rem;
+  font-weight: 700;
+}
+
+.biz-body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 0.45rem;
+  padding: 1rem 1.1rem 1.1rem;
+}
+
+.biz-category {
+  align-self: flex-start;
+  padding: 0.2rem 0.65rem;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent-strong);
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.biz-name {
+  margin: 0;
+  font-family: "Frank Ruhl Libre", serif;
+  font-size: 1.3rem;
+  line-height: 1.2;
+}
+
+.biz-tagline {
+  margin: 0;
+  color: var(--accent);
+  font-weight: 700;
+}
+
+.biz-desc,
+.biz-contact {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.55;
+}
+
+.biz-meta {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 0.15rem;
+  font-size: 0.92rem;
+}
+
+.biz-meta strong {
+  color: var(--ink);
+}
+
+.biz-thumbs {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.biz-thumb img {
+  display: block;
+  width: 64px;
+  height: 64px;
+  border-radius: 12px;
+  object-fit: cover;
+  border: 1px solid var(--line);
+}
+
+.biz-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  margin-top: auto;
+  padding-top: 0.5rem;
+}
+
+.biz-action {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.5rem 0.95rem;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: #fff;
+  color: var(--accent-strong);
+  font-size: 0.92rem;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.biz-action:hover {
+  background: var(--accent-soft);
+}
+
+.biz-action.is-primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+.biz-action.is-primary:hover {
+  background: var(--accent-strong);
+}
+
+.biz-action.is-whatsapp {
+  background: #25a35a;
+  border-color: #25a35a;
+  color: #fff;
+}
+
+.biz-action.is-whatsapp:hover {
+  background: #1d8a4a;
+}
+
+.biz-empty {
+  margin: 1rem 0;
+  text-align: center;
+  color: var(--muted);
+  font-weight: 700;
+}
+
+@media (max-width: 640px) {
+  .mode-tabs {
+    width: 100%;
+    gap: 0.2rem;
+  }
+
+  .mode-tab {
+    flex: 1;
+    padding: 0.7rem 0.4rem;
+    font-size: 0.9rem;
+  }
+
+  .biz-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.biz-card {
+  position: relative;
+}
+
+.is-sample .biz-card::after {
+  content: "דוגמא";
+  position: absolute;
+  top: 42%;
+  right: 50%;
+  transform: translate(50%, -50%) rotate(-22deg);
+  font-family: "Frank Ruhl Libre", serif;
+  font-size: 2.4rem;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  color: rgba(21, 92, 153, 0.1);
+  pointer-events: none;
+}

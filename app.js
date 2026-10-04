@@ -33,6 +33,7 @@ const journalNextMonthButton = document.getElementById("journal-next-month")
 const modeTabsEl = document.getElementById("mode-tabs")
 const timesViewEl = document.getElementById("times-view")
 const navigatorViewEl = document.getElementById("navigator-view")
+const businessViewEl = document.getElementById("business-view")
 const todayInfoEl = document.getElementById("today-info")
 const timesDateInput = document.getElementById("times-date-input")
 const timesCalendarButton = document.getElementById("times-calendar-button")
@@ -135,6 +136,7 @@ const featuredZmanim = [
 const appModes = {
   times: "times",
   navigator: "navigator",
+  business: "business",
 }
 const timesSettingsStorageKey = "torah-scroll-navigator.times-settings.v1"
 const defaultTimesGreeting = "שבת שלום ומועדים לשמחה!"
@@ -1193,13 +1195,28 @@ function setTimesCopyStatus(message, mode = "") {
 }
 
 function setAppMode(mode) {
-  appState.mode = mode === appModes.navigator ? appModes.navigator : appModes.times
+  appState.mode = Object.values(appModes).includes(mode) ? mode : appModes.times
 
   if (timesViewEl) {
     timesViewEl.hidden = appState.mode !== appModes.times
   }
   if (navigatorViewEl) {
     navigatorViewEl.hidden = appState.mode !== appModes.navigator
+  }
+  if (businessViewEl) {
+    businessViewEl.hidden = appState.mode !== appModes.business
+  }
+
+  const isBusiness = appState.mode === appModes.business
+  const heroTitleEl = document.querySelector(".hero h1")
+  const heroEyebrowEl = document.querySelector(".hero .eyebrow")
+  if (heroTitleEl) heroTitleEl.textContent = isBusiness ? "עסקים בקהילה" : "ניווט ספר תורה"
+  if (heroEyebrowEl) heroEyebrowEl.hidden = isBusiness
+  document.title = isBusiness ? "עסקים בקהילה" : "ניווט ספר תורה"
+  if (isBusiness) {
+    history.replaceState(null, "", "#business")
+  } else if (location.hash === "#business") {
+    history.replaceState(null, "", location.pathname + location.search)
   }
 
   modeTabsEl?.querySelectorAll(".mode-tab").forEach((button) => {
@@ -5096,7 +5113,7 @@ async function init() {
   try {
     setStatus("טוען...")
     loadTimesSettings()
-    setAppMode(appState.mode)
+    setAppMode(location.hash === "#business" ? appModes.business : appState.mode)
     renderTimesSummary()
     renderJournal()
     renderTodayInfo()
@@ -5123,6 +5140,10 @@ modeTabsEl?.addEventListener("click", (event) => {
   const target = event.target.closest("[data-tab]")
   if (!target) return
   setAppMode(target.dataset.tab)
+})
+
+window.addEventListener("hashchange", () => {
+  setAppMode(location.hash === "#business" ? appModes.business : appState.mode)
 })
 
 timesDateInput?.addEventListener("change", () => {

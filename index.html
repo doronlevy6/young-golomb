@@ -51,7 +51,7 @@
       href="https://fonts.googleapis.com/css2?family=Frank+Ruhl+Libre:wght@500;700&family=Heebo:wght@400;500;700&display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="./styles.css?v=20260521155928" />
+    <link rel="stylesheet" href="./styles.css?v=20261004213625" />
   </head>
   <body>
     <div class="page-shell">
@@ -74,7 +74,52 @@
           <button class="mode-tab is-active" type="button" data-tab="navigator">
             ניווט ספר תורה
           </button>
+          <button class="mode-tab" type="button" data-tab="business">
+            עסקים בקהילה
+          </button>
         </div>
+
+        <section id="business-view" class="tab-view" hidden>
+          <section class="panel biz-intro">
+            <div class="biz-intro-copy">
+              <h2>עסקים בקהילה</h2>
+              <p>
+                מצאו בעל מקצוע מהקהילה, או הציגו את העסק שלכם. מתווכים, רופאים, מתקינים ועוד.
+                צאו והתפרנסו זה מזה.
+              </p>
+            </div>
+            <a
+              id="biz-add-link"
+              class="biz-add-button"
+              href="#"
+              target="_blank"
+              rel="noopener noreferrer"
+              hidden
+            >
+              + הוסיפו את העסק שלכם
+            </a>
+          </section>
+
+          <section class="panel biz-controls">
+            <label class="biz-search">
+              <span class="visually-hidden">חיפוש עסק</span>
+              <input
+                id="biz-search"
+                type="search"
+                placeholder="חפשו לפי שם, מקצוע, אזור או שירות"
+                autocomplete="off"
+              />
+            </label>
+            <div id="biz-chips" class="biz-chips" role="group" aria-label="סינון לפי קטגוריה"></div>
+            <p id="biz-count" class="biz-count" aria-live="polite"></p>
+          </section>
+
+          <p id="biz-sample-note" class="biz-sample-note" hidden>
+            אלה נתוני דוגמה בלבד. העסקים האמיתיים יופיעו כאן אחרי חיבור הטופס.
+          </p>
+          <div id="biz-grid" class="biz-grid"></div>
+          <p id="biz-empty" class="biz-empty" hidden>לא נמצאו עסקים שמתאימים לחיפוש.</p>
+        </section>
 
         <section id="times-view" class="tab-view" hidden>
           <div class="times-layout">
@@ -429,6 +474,7 @@
       </div>
     </div>
 
-    <script src="./app.js?v=20260521155928" type="module"></script>
+    <script src="./app.js?v=20261004213625" type="module"></script>
+    <script src="./directory.js?v=20261004213625" type="module"></script>
   </body>
 </html>

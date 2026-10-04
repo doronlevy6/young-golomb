@@ -21,6 +21,7 @@ asset_version = sys.argv[1]
 path = Path("index.html")
 text = path.read_text()
 text = re.sub(r'(app\.js\?v=)[^"\']+', rf'\g<1>{asset_version}', text)
+text = re.sub(r'(directory\.js\?v=)[^"\']+', rf'\g<1>{asset_version}', text)
 text = re.sub(r'(styles\.css\?v=)[^"\']+', rf'\g<1>{asset_version}', text)
 path.write_text(text)
 PY
