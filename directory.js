@@ -408,12 +408,25 @@ async function loadBusinesses() {
   return { businesses: data.map(normalizeBusiness), isSample: true }
 }
 
+async function loadWithRetry(attempts = 3) {
+  let lastError
+  for (let i = 0; i < attempts; i += 1) {
+    try {
+      return await loadBusinesses()
+    } catch (error) {
+      lastError = error
+      await new Promise((resolve) => setTimeout(resolve, 1200 * (i + 1)))
+    }
+  }
+  throw lastError
+}
+
 async function ensureLoaded() {
   if (state.loaded) return
   state.loaded = true
   gridEl.replaceChildren(el("p", "biz-empty", "טוען עסקים..."))
   try {
-    const { businesses, isSample } = await loadBusinesses()
+    const { businesses, isSample } = await loadWithRetry()
     state.businesses = shuffle(businesses.filter((b) => b.name))
     sampleNoteEl.hidden = !isSample
     viewEl.classList.toggle("is-sample", isSample)
@@ -421,7 +434,11 @@ async function ensureLoaded() {
   } catch (error) {
     console.error(error)
     state.loaded = false
-    gridEl.replaceChildren(el("p", "biz-empty", "לא הצלחנו לטעון את רשימת העסקים. נסו לרענן את הדף."))
+    const message = el("p", "biz-empty", "לא הצלחנו לטעון את רשימת העסקים.")
+    const retry = el("button", "biz-chip", "נסו שוב")
+    retry.type = "button"
+    retry.addEventListener("click", () => ensureLoaded())
+    gridEl.replaceChildren(message, retry)
   }
 }
 
