@@ -10,7 +10,21 @@ ASSET_VERSION="$(date '+%Y%m%d%H%M%S')"
 PAGES_URL="https://doronlevy6.github.io/young-golomb/"
 
 node --check app.js
+node --check directory.js
 bash -n "$0"
+
+DATA_ENDPOINT="https://script.google.com/macros/s/AKfycby2BP4KiA4I6GVrvRgY-OoCrw9JSsEmcI45Wxh91PXGOwHmI4w5y6E0hL2JekJfz7zu4Q/exec?action=data"
+echo "Refreshing baked directory snapshot..."
+if curl -fsSL --max-time 90 "$DATA_ENDPOINT" -o data/businesses.json.tmp; then
+  if python3 -c "import json,sys; d=json.load(open('data/businesses.json.tmp')); assert isinstance(d.get('rows'), list)"; then
+    mv data/businesses.json.tmp data/businesses.json
+  else
+    echo "WARN: snapshot was not valid JSON, keeping the existing one"
+    rm -f data/businesses.json.tmp
+  fi
+else
+  echo "WARN: could not refresh data/businesses.json, keeping the existing one"
+fi
 
 python3 - "$ASSET_VERSION" <<'PY'
 from pathlib import Path

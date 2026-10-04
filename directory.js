@@ -1,6 +1,7 @@
 const DATA_URL =
   "https://script.google.com/macros/s/AKfycby2BP4KiA4I6GVrvRgY-OoCrw9JSsEmcI45Wxh91PXGOwHmI4w5y6E0hL2JekJfz7zu4Q/exec?action=data"
 const FORM_URL = ""
+const STATIC_DATA_URL = "./data/businesses.json"
 const SAMPLE_DATA_URL = "./data/businesses-sample.json"
 
 const HEADER_ALIASES = {
@@ -393,34 +394,6 @@ function render() {
   renderChips()
 }
 
-async function loadBusinesses() {
-  if (DATA_URL) {
-    const payload = await loadJsonp(DATA_URL)
-    if (payload.formUrl) setFormUrl(payload.formUrl)
-    return {
-      businesses: businessesFromRows(payload.headers, payload.rows),
-      isSample: false,
-    }
-  }
-  const response = await fetch(SAMPLE_DATA_URL)
-  if (!response.ok) throw new Error(`sample ${response.status}`)
-  const data = await response.json()
-  return { businesses: data.map(normalizeBusiness), isSample: true }
-}
-
-async function loadWithRetry(attempts = 3) {
-  let lastError
-  for (let i = 0; i < attempts; i += 1) {
-    try {
-      return await loadBusinesses()
-    } catch (error) {
-      lastError = error
-      await new Promise((resolve) => setTimeout(resolve, 1200 * (i + 1)))
-    }
-  }
-  throw lastError
-}
-
 const CACHE_KEY = "bizDirectoryCache"
 
 function readCache() {
@@ -439,41 +412,81 @@ function applyData(businesses, isSample) {
   render()
 }
 
+async function loadLive() {
+  const payload = await loadJsonp(DATA_URL)
+  if (payload.formUrl) setFormUrl(payload.formUrl)
+  return businessesFromRows(payload.headers, payload.rows)
+}
+
+async function loadLiveWithRetry(attempts = 3) {
+  let lastError
+  for (let i = 0; i < attempts; i += 1) {
+    try {
+      return await loadLive()
+    } catch (error) {
+      lastError = error
+      await new Promise((resolve) => setTimeout(resolve, 1200 * (i + 1)))
+    }
+  }
+  throw lastError
+}
+
+function showLoadError() {
+  const message = el("p", "biz-empty", "לא הצלחנו לטעון את רשימת העסקים.")
+  const retry = el("button", "biz-chip", "נסו שוב")
+  retry.type = "button"
+  retry.addEventListener("click", () => {
+    state.loaded = false
+    ensureLoaded()
+  })
+  gridEl.replaceChildren(message, retry)
+}
+
 async function ensureLoaded() {
   if (state.loaded) return
   state.loaded = true
+  viewEl.classList.remove("is-sample")
+  sampleNoteEl.hidden = true
 
-  const cached = readCache()
-  if (cached && DATA_URL) {
+  const cached = DATA_URL ? readCache() : null
+  if (cached && cached.length) {
     applyData(cached, false)
-    loadWithRetry()
-      .then(({ businesses }) => {
-        applyData(businesses, false)
-        try {
-          localStorage.setItem(CACHE_KEY, JSON.stringify(businesses))
-        } catch {}
-      })
-      .catch(() => {})
+  } else {
+    gridEl.replaceChildren(el("p", "biz-empty", "טוען עסקים..."))
+    try {
+      const response = await fetch(STATIC_DATA_URL)
+      if (response.ok) {
+        const payload = await response.json()
+        if (payload.formUrl) setFormUrl(payload.formUrl)
+        const businesses = businessesFromRows(payload.headers, payload.rows)
+        if (businesses.length) applyData(businesses, false)
+      }
+    } catch {}
+  }
+
+  if (!DATA_URL) {
+    try {
+      const response = await fetch(SAMPLE_DATA_URL)
+      const data = await response.json()
+      applyData(data.map(normalizeBusiness), true)
+    } catch {
+      showLoadError()
+    }
     return
   }
 
-  gridEl.replaceChildren(el("p", "biz-empty", "טוען עסקים..."))
   try {
-    const { businesses, isSample } = await loadWithRetry()
-    applyData(businesses, isSample)
-    if (DATA_URL && !isSample) {
-      try {
-        localStorage.setItem(CACHE_KEY, JSON.stringify(businesses))
-      } catch {}
-    }
+    const businesses = await loadLiveWithRetry()
+    applyData(businesses, false)
+    try {
+      localStorage.setItem(CACHE_KEY, JSON.stringify(businesses))
+    } catch {}
   } catch (error) {
     console.error(error)
-    state.loaded = false
-    const message = el("p", "biz-empty", "לא הצלחנו לטעון את רשימת העסקים.")
-    const retry = el("button", "biz-chip", "נסו שוב")
-    retry.type = "button"
-    retry.addEventListener("click", () => ensureLoaded())
-    gridEl.replaceChildren(message, retry)
+    if (!state.businesses.length) {
+      state.loaded = false
+      showLoadError()
+    }
   }
 }
 
