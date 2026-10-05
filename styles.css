@@ -2954,3 +2954,56 @@ button {
   color: rgba(21, 92, 153, 0.1);
   pointer-events: none;
 }
+
+.biz-admin-toggle {
+  justify-self: center;
+  margin-top: 0.5rem;
+  padding: 0.3rem 0.8rem;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: 0.8rem;
+  opacity: 0.55;
+  cursor: pointer;
+}
+
+.biz-admin-toggle:hover {
+  opacity: 1;
+}
+
+.biz-admin-bar {
+  display: flex;
+  gap: 0.4rem;
+  padding: 0.5rem 0.7rem;
+  background: rgba(176, 112, 43, 0.14);
+}
+
+.biz-admin-button {
+  flex: 1;
+  padding: 0.35rem 0.5rem;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #fff;
+  color: var(--accent-strong);
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.biz-admin-button:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.biz-admin-button.is-danger {
+  border-color: #b03535;
+  background: #b03535;
+  color: #fff;
+}
+
+.biz-grid.is-busy {
+  opacity: 0.5;
+  pointer-events: none;
+}

@@ -1,5 +1,6 @@
-const DATA_URL =
-  "https://script.google.com/macros/s/AKfycby2BP4KiA4I6GVrvRgY-OoCrw9JSsEmcI45Wxh91PXGOwHmI4w5y6E0hL2JekJfz7zu4Q/exec?action=data"
+const EXEC_URL =
+  "https://script.google.com/macros/s/AKfycby2BP4KiA4I6GVrvRgY-OoCrw9JSsEmcI45Wxh91PXGOwHmI4w5y6E0hL2JekJfz7zu4Q/exec"
+const DATA_URL = `${EXEC_URL}?action=data`
 const FORM_URL = ""
 const STATIC_DATA_URL = "./data/businesses.json"
 const SAMPLE_DATA_URL = "./data/businesses-sample.json"
@@ -8,7 +9,7 @@ const HEADER_ALIASES = {
   name: ["שם העסק", "שם העוסק"],
   category: ["קטגוריה", "תחום", "מקצוע"],
   tagline: ["משפט פתיחה", "סלוגן"],
-  description: ["תיאור", "מה אני מציע", "שירותים"],
+  description: ["מה אתם מציעים", "תיאור", "מה אני מציע", "שירותים"],
   contactName: ["שם איש הקשר", "איש קשר"],
   phone: ["טלפון", "נייד"],
   area: ["אזור שירות", "אזור"],
@@ -19,10 +20,8 @@ const HEADER_ALIASES = {
   facebook: ["פייסבוק"],
   images: ["תמונה", "תמונות", "לוגו"],
   tags: ["תגיות", "מילות חיפוש"],
-  approved: ["מאושר"],
 }
 
-const APPROVED_VALUES = ["כן", "מאושר", "yes", "true", "v", "✓", "1"]
 const AVATAR_COLORS = ["#155c99", "#269f69", "#b0702b", "#7a4bb3", "#b03561", "#2f8a9e"]
 const MAX_THUMBS = 2
 
@@ -34,46 +33,14 @@ const gridEl = document.getElementById("biz-grid")
 const emptyEl = document.getElementById("biz-empty")
 const sampleNoteEl = document.getElementById("biz-sample-note")
 const addLinkEl = document.getElementById("biz-add-link")
+const adminToggleEl = document.getElementById("biz-admin-toggle")
 
-const state = { businesses: [], category: "", query: "", loaded: false }
-
-function parseCsv(text) {
-  const rows = []
-  let row = []
-  let cell = ""
-  let inQuotes = false
-
-  for (let i = 0; i < text.length; i += 1) {
-    const char = text[i]
-    if (inQuotes) {
-      if (char === '"' && text[i + 1] === '"') {
-        cell += '"'
-        i += 1
-      } else if (char === '"') {
-        inQuotes = false
-      } else {
-        cell += char
-      }
-    } else if (char === '"') {
-      inQuotes = true
-    } else if (char === ",") {
-      row.push(cell)
-      cell = ""
-    } else if (char === "\n" || char === "\r") {
-      if (char === "\r" && text[i + 1] === "\n") i += 1
-      row.push(cell)
-      rows.push(row)
-      row = []
-      cell = ""
-    } else {
-      cell += char
-    }
-  }
-  if (cell !== "" || row.length) {
-    row.push(cell)
-    rows.push(row)
-  }
-  return rows.filter((r) => r.some((value) => value.trim() !== ""))
+const state = {
+  businesses: [],
+  category: "",
+  query: "",
+  loaded: false,
+  adminCode: sessionStorage.getItem("bizAdminCode") || "",
 }
 
 function mapColumns(headers) {
@@ -137,6 +104,7 @@ function toInternationalPhone(raw) {
 
 function normalizeBusiness(source) {
   return {
+    id: source.id || null,
     name: String(source.name || "").trim(),
     category: String(source.category || "").trim() || "אחר",
     tagline: String(source.tagline || "").trim(),
@@ -176,12 +144,12 @@ function loadJsonp(url) {
   })
 }
 
-function businessesFromRows(headers, rows) {
+function businessesFromRows(headers, rows, ids = []) {
   if (!Array.isArray(headers) || !headers.length) return []
   const columns = mapColumns(headers.map((header) => String(header).trim()))
   if (columns.name === undefined) return []
-  return rows.map((row) => {
-    const source = {}
+  return rows.map((row, i) => {
+    const source = { id: ids[i] }
     Object.entries(columns).forEach(([field, index]) => {
       source[field] = row[index]
     })
@@ -195,35 +163,6 @@ function setFormUrl(url) {
     addLinkEl.href = safe
     addLinkEl.hidden = false
   }
-}
-
-function businessesFromCsv(text) {
-  const [headerRow, ...dataRows] = parseCsv(text)
-  if (!headerRow) return []
-  const columns = mapColumns(headerRow.map((header) => header.trim()))
-  if (columns.name === undefined) return []
-
-  return dataRows
-    .filter((row) => {
-      if (columns.approved === undefined) return true
-      return APPROVED_VALUES.includes(String(row[columns.approved] || "").trim().toLowerCase())
-    })
-    .map((row) => {
-      const source = {}
-      Object.entries(columns).forEach(([field, index]) => {
-        source[field] = row[index]
-      })
-      return normalizeBusiness(source)
-    })
-}
-
-function shuffle(items) {
-  const copy = [...items]
-  for (let i = copy.length - 1; i > 0; i -= 1) {
-    const j = Math.floor(Math.random() * (i + 1))
-    ;[copy[i], copy[j]] = [copy[j], copy[i]]
-  }
-  return copy
 }
 
 function haystack(business) {
@@ -344,8 +283,28 @@ function buildActions(business) {
   return actions
 }
 
+function buildAdminBar(business, index, total) {
+  const bar = el("div", "biz-admin-bar")
+  const canMove = !state.category && !state.query.trim()
+  const add = (label, handler, disabled, extra) => {
+    const button = el("button", `biz-admin-button ${extra || ""}`.trim(), label)
+    button.type = "button"
+    button.disabled = disabled
+    button.addEventListener("click", handler)
+    bar.append(button)
+  }
+  add("הקדם", () => runAdmin({ action: "move", position: index }, business), !canMove || index === 0)
+  add("אחר", () => runAdmin({ action: "move", position: index + 2 }, business), !canMove || index === total - 1)
+  add("מחק", () => runAdmin({ action: "remove" }, business), false, "is-danger")
+  return bar
+}
+
 function buildCard(business) {
   const card = el("article", "biz-card")
+  if (state.adminCode && business.id) {
+    const index = state.businesses.indexOf(business)
+    card.append(buildAdminBar(business, index, state.businesses.length))
+  }
   card.append(buildMedia(business))
 
   const body = el("div", "biz-body")
@@ -394,7 +353,7 @@ function render() {
   renderChips()
 }
 
-const CACHE_KEY = "bizDirectoryCache"
+const CACHE_KEY = "bizDirectoryCache2"
 
 function readCache() {
   try {
@@ -406,7 +365,7 @@ function readCache() {
 }
 
 function applyData(businesses, isSample) {
-  state.businesses = shuffle(businesses.filter((b) => b.name))
+  state.businesses = businesses.filter((b) => b.name)
   sampleNoteEl.hidden = !isSample
   viewEl.classList.toggle("is-sample", isSample)
   render()
@@ -415,7 +374,7 @@ function applyData(businesses, isSample) {
 async function loadLive() {
   const payload = await loadJsonp(DATA_URL)
   if (payload.formUrl) setFormUrl(payload.formUrl)
-  return businessesFromRows(payload.headers, payload.rows)
+  return businessesFromRows(payload.headers, payload.rows, payload.ids)
 }
 
 async function loadLiveWithRetry(attempts = 3) {
@@ -458,7 +417,7 @@ async function ensureLoaded() {
       if (response.ok) {
         const payload = await response.json()
         if (payload.formUrl) setFormUrl(payload.formUrl)
-        const businesses = businessesFromRows(payload.headers, payload.rows)
+        const businesses = businessesFromRows(payload.headers, payload.rows, payload.ids)
         if (businesses.length) applyData(businesses, false)
       }
     } catch {}
@@ -490,8 +449,66 @@ async function ensureLoaded() {
   }
 }
 
+function adminCall(params) {
+  const query = new URLSearchParams({ ...params, code: state.adminCode })
+  return loadJsonp(`${EXEC_URL}?${query}`)
+}
+
+async function refreshLive() {
+  const businesses = await loadLiveWithRetry()
+  applyData(businesses, false)
+  try {
+    localStorage.setItem(CACHE_KEY, JSON.stringify(businesses))
+  } catch {}
+}
+
+async function runAdmin(params, business) {
+  if (params.action === "remove" && !confirm(`למחוק את "${business.name}" מהאתר?`)) return
+  gridEl.classList.add("is-busy")
+  try {
+    const result = await adminCall({ ...params, id: business.id, name: business.name })
+    if (!result.ok) {
+      alert(result.error === "stale" ? "הרשימה השתנתה. הדף יתרענן." : "הפעולה נכשלה.")
+    }
+    await refreshLive()
+  } catch {
+    alert("הפעולה נכשלה. נסו שוב.")
+  } finally {
+    gridEl.classList.remove("is-busy")
+  }
+}
+
+function updateAdminToggle() {
+  if (!adminToggleEl) return
+  adminToggleEl.textContent = state.adminCode ? "יציאה ממצב ניהול" : "ניהול"
+}
+
+async function toggleAdmin() {
+  if (state.adminCode) {
+    state.adminCode = ""
+    sessionStorage.removeItem("bizAdminCode")
+  } else {
+    const code = (prompt("קוד ניהול:") || "").trim()
+    if (!code) return
+    state.adminCode = code
+    try {
+      const result = await adminCall({ action: "check" })
+      if (!result.ok) throw new Error("bad code")
+      sessionStorage.setItem("bizAdminCode", code)
+    } catch {
+      state.adminCode = ""
+      alert("קוד שגוי.")
+    }
+  }
+  updateAdminToggle()
+  render()
+}
+
 function init() {
   if (!viewEl) return
+
+  updateAdminToggle()
+  adminToggleEl?.addEventListener("click", toggleAdmin)
 
   if (FORM_URL) setFormUrl(FORM_URL)
 

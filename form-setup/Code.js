@@ -141,42 +141,13 @@ function ensureSetup() {
   return collectConfig() || adoptExisting() || setupCommunityDirectory()
 }
 
-function doGet(event) {
-  const params = (event && event.parameter) || {}
-  const config = ensureSetup()
-  const form = FormApp.openById(config.formId)
-  if (form.getTitle() !== FORM_TITLE) form.setTitle(FORM_TITLE)
-  return dataResponse(params)
-}
+const ADMIN_CODE = "66"
+const ORDER_HEADER = "סדר"
+const DELETED_MARK = "נמחק"
+const APPROVED_VALUES = ["כן", "מאושר", "yes", "true", "v", "✓", "1"]
 
-function readResponses() {
-  const found = getResponsesSheet()
-  if (!found.sheet || found.sheet.getLastRow() < 2) return { headers: [], rows: [] }
-  const sheet = found.sheet
-  const values = sheet.getRange(1, 1, sheet.getLastRow(), sheet.getLastColumn()).getValues()
-  const headers = values[0].map((h) => String(h))
-  return { headers, rows: values.slice(1) }
-}
-
-function approvedRowsOnly() {
-  const { headers, rows } = readResponses()
-  const approvedCol = headers.indexOf(APPROVED_HEADER)
-  if (approvedCol < 0) return { headers, rows: [] }
-  const ok = ["כן", "מאושר", "yes", "true", "v", "✓", "1"]
-  return {
-    headers,
-    rows: rows.filter((r) => ok.includes(String(r[approvedCol]).trim().toLowerCase())),
-  }
-}
-
-function dataResponse(params) {
-  const config = collectConfig()
-  const { headers, rows } = approvedRowsOnly()
-  const payload = JSON.stringify({
-    formUrl: config ? config.publicUrl : "",
-    headers,
-    rows,
-  })
+function jsonOutput(object, params) {
+  const payload = JSON.stringify(object)
   const callback = params && params.callback
   if (callback && /^[A-Za-z_$][\w$]*$/.test(callback)) {
     return ContentService.createTextOutput(callback + "(" + payload + ");").setMimeType(
@@ -186,21 +157,112 @@ function dataResponse(params) {
   return ContentService.createTextOutput(payload).setMimeType(ContentService.MimeType.JSON)
 }
 
-function approveAllPending() {
-  const found = getResponsesSheet()
-  if (!found.sheet || found.sheet.getLastRow() < 2) return 0
-  const sheet = found.sheet
-  const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0]
-  const approvedCol = headers.indexOf(APPROVED_HEADER) + 1
-  if (!approvedCol) return 0
-  let count = 0
-  for (let r = 2; r <= sheet.getLastRow(); r += 1) {
-    if (!String(sheet.getRange(r, approvedCol).getValue()).trim()) {
-      sheet.getRange(r, approvedCol).setValue("כן")
-      count += 1
-    }
+function getFormUrl() {
+  const props = PropertiesService.getScriptProperties()
+  let url = props.getProperty("FORM_URL")
+  if (!url) {
+    url = (collectConfig() || ensureSetup()).publicUrl
+    props.setProperty("FORM_URL", url)
   }
-  return count
+  return url
+}
+
+function ensureColumn(sheet, header) {
+  const lastCol = sheet.getLastColumn()
+  const index = sheet.getRange(1, 1, 1, lastCol).getValues()[0].indexOf(header)
+  if (index >= 0) return index + 1
+  sheet.getRange(1, lastCol + 1).setValue(header)
+  return lastCol + 1
+}
+
+function entryOrder(entry, orderCol) {
+  const raw = orderCol >= 0 ? entry.values[orderCol] : ""
+  return raw !== "" && !isNaN(Number(raw)) ? Number(raw) : entry.row
+}
+
+function approvedEntries() {
+  const found = getResponsesSheet()
+  if (!found.sheet || found.sheet.getLastRow() < 2) return { headers: [], entries: [] }
+  const sheet = found.sheet
+  const values = sheet.getRange(1, 1, sheet.getLastRow(), sheet.getLastColumn()).getValues()
+  const headers = values[0].map(String)
+  const approvedCol = headers.indexOf(APPROVED_HEADER)
+  const orderCol = headers.indexOf(ORDER_HEADER)
+  const entries = values
+    .slice(1)
+    .map((rowValues, i) => ({ row: i + 2, values: rowValues }))
+    .filter(
+      (entry) =>
+        approvedCol >= 0 &&
+        APPROVED_VALUES.includes(String(entry.values[approvedCol]).trim().toLowerCase()),
+    )
+    .sort((a, b) => entryOrder(a, orderCol) - entryOrder(b, orderCol))
+  return { headers, entries }
+}
+
+function dataResponse(params) {
+  const { headers, entries } = approvedEntries()
+  return jsonOutput(
+    {
+      formUrl: getFormUrl(),
+      headers,
+      rows: entries.map((entry) => entry.values),
+      ids: entries.map((entry) => entry.row),
+    },
+    params,
+  )
+}
+
+function moveEntry(sheet, row, position) {
+  const orderCol = ensureColumn(sheet, ORDER_HEADER)
+  const { entries } = approvedEntries()
+  const from = entries.findIndex((entry) => entry.row === row)
+  if (from < 0) return
+
+  const [moved] = entries.splice(from, 1)
+  entries.splice(Math.min(Math.max(position - 1, 0), entries.length), 0, moved)
+
+  const lastRow = sheet.getLastRow()
+  const orderValues = sheet.getRange(2, orderCol, lastRow - 1, 1).getValues()
+  entries.forEach((entry, i) => {
+    orderValues[entry.row - 2][0] = i + 1
+  })
+  sheet.getRange(2, orderCol, lastRow - 1, 1).setValues(orderValues)
+}
+
+function adminResponse(params) {
+  if (params.code !== ADMIN_CODE) return jsonOutput({ ok: false, error: "code" }, params)
+  if (params.action === "check") return jsonOutput({ ok: true }, params)
+
+  const { sheet } = getResponsesSheet()
+  const row = parseInt(params.id, 10)
+  if (!sheet || !(row >= 2 && row <= sheet.getLastRow())) {
+    return jsonOutput({ ok: false, error: "row" }, params)
+  }
+  const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0].map(String)
+  const nameCol = headers.indexOf("שם העסק") + 1
+  if (!nameCol || String(sheet.getRange(row, nameCol).getValue()) !== params.name) {
+    return jsonOutput({ ok: false, error: "stale" }, params)
+  }
+
+  if (params.action === "remove") {
+    sheet.getRange(row, ensureColumn(sheet, APPROVED_HEADER)).setValue(DELETED_MARK)
+    return jsonOutput({ ok: true }, params)
+  }
+  if (params.action === "move") {
+    const position = parseInt(params.position, 10)
+    if (!(position >= 1)) return jsonOutput({ ok: false, error: "position" }, params)
+    moveEntry(sheet, row, position)
+    return jsonOutput({ ok: true }, params)
+  }
+  return jsonOutput({ ok: false, error: "action" }, params)
+}
+
+function doGet(event) {
+  const params = (event && event.parameter) || {}
+  if (!PropertiesService.getScriptProperties().getProperty("SHEET_ID")) ensureSetup()
+  if (params.action && params.action !== "data") return adminResponse(params)
+  return dataResponse(params)
 }
 
 function getResponsesSheet() {
@@ -247,24 +309,4 @@ function onFormSubmitShare(event) {
       spreadsheet.deleteSheet(candidate)
     }
   })
-}
-
-function markLastRowApproved() {
-  const { sheet } = getResponsesSheet()
-  if (!sheet || sheet.getLastRow() < 2) throw new Error("no responses yet")
-  const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0]
-  const approvedCol = headers.indexOf(APPROVED_HEADER) + 1
-  if (!approvedCol) throw new Error(APPROVED_HEADER + " column not found")
-  const lastRow = sheet.getLastRow()
-  sheet.getRange(lastRow, approvedCol).setValue("כן")
-  return { row: lastRow, name: sheet.getRange(lastRow, 2).getValue() }
-}
-
-function getStatus() {
-  const { sheet } = getResponsesSheet()
-  if (!sheet) return { responses: 0 }
-  return {
-    responses: sheet.getLastRow() - 1,
-    headers: sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0],
-  }
 }
