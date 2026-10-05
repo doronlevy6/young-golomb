@@ -34,6 +34,7 @@ const emptyEl = document.getElementById("biz-empty")
 const sampleNoteEl = document.getElementById("biz-sample-note")
 const addLinkEl = document.getElementById("biz-add-link")
 const adminToggleEl = document.getElementById("biz-admin-toggle")
+const adminHintEl = document.getElementById("biz-admin-hint")
 
 const state = {
   businesses: [],
@@ -41,6 +42,7 @@ const state = {
   query: "",
   loaded: false,
   adminCode: sessionStorage.getItem("bizAdminCode") || "",
+  drag: null,
 }
 
 function mapColumns(headers) {
@@ -105,6 +107,7 @@ function toInternationalPhone(raw) {
 function normalizeBusiness(source) {
   return {
     id: source.id || null,
+    stamp: source.stamp || "",
     name: String(source.name || "").trim(),
     category: String(source.category || "").trim() || "אחר",
     tagline: String(source.tagline || "").trim(),
@@ -149,7 +152,7 @@ function businessesFromRows(headers, rows, ids = []) {
   const columns = mapColumns(headers.map((header) => String(header).trim()))
   if (columns.name === undefined) return []
   return rows.map((row, i) => {
-    const source = { id: ids[i] }
+    const source = { id: ids[i], stamp: row[0] }
     Object.entries(columns).forEach(([field, index]) => {
       source[field] = row[index]
     })
@@ -283,27 +286,29 @@ function buildActions(business) {
   return actions
 }
 
-function buildAdminBar(business, index, total) {
-  const bar = el("div", "biz-admin-bar")
-  const canMove = !state.category && !state.query.trim()
-  const add = (label, handler, disabled, extra) => {
-    const button = el("button", `biz-admin-button ${extra || ""}`.trim(), label)
-    button.type = "button"
-    button.disabled = disabled
-    button.addEventListener("click", handler)
-    bar.append(button)
-  }
-  add("הקדם", () => runAdmin({ action: "move", position: index }, business), !canMove || index === 0)
-  add("אחר", () => runAdmin({ action: "move", position: index + 2 }, business), !canMove || index === total - 1)
-  add("מחק", () => runAdmin({ action: "remove" }, business), false, "is-danger")
-  return bar
+function buildDragHandle() {
+  const handle = el("span", "biz-drag-handle", "⋮⋮")
+  handle.title = "גררו לשינוי סדר"
+  handle.setAttribute("aria-hidden", "true")
+  return handle
+}
+
+function buildDeleteButton(business) {
+  const button = el("button", "biz-delete", "×")
+  button.type = "button"
+  button.title = "מחיקה"
+  button.setAttribute("aria-label", `מחיקת ${business.name}`)
+  button.addEventListener("click", () =>
+    runAdmin({ action: "remove", stamp: business.stamp }, business),
+  )
+  return button
 }
 
 function buildCard(business) {
   const card = el("article", "biz-card")
   if (state.adminCode && business.id) {
-    const index = state.businesses.indexOf(business)
-    card.append(buildAdminBar(business, index, state.businesses.length))
+    card.append(buildDeleteButton(business))
+    if (canReorder()) card.append(buildDragHandle())
   }
   card.append(buildMedia(business))
 
@@ -449,6 +454,75 @@ async function ensureLoaded() {
   }
 }
 
+function cardUnderPointer(x, y, exclude) {
+  for (const node of document.elementsFromPoint(x, y)) {
+    const card = node.closest(".biz-card")
+    if (card && card !== exclude && gridEl.contains(card)) return card
+  }
+  return null
+}
+
+function beginDrag(event, card) {
+  event.preventDefault()
+  const rect = card.getBoundingClientRect()
+  const ghost = card.cloneNode(true)
+  ghost.classList.add("is-ghost")
+  Object.assign(ghost.style, {
+    width: `${rect.width}px`,
+    height: `${rect.height}px`,
+    left: `${rect.left}px`,
+    top: `${rect.top}px`,
+  })
+  document.body.append(ghost)
+  card.classList.add("is-dragging")
+
+  const drag = {
+    card,
+    ghost,
+    offsetX: event.clientX - rect.left,
+    offsetY: event.clientY - rect.top,
+    pointerY: event.clientY,
+    target: null,
+    scroller: null,
+  }
+  drag.scroller = setInterval(() => {
+    if (drag.pointerY < 70) window.scrollBy(0, -14)
+    else if (drag.pointerY > window.innerHeight - 70) window.scrollBy(0, 14)
+  }, 16)
+  state.drag = drag
+}
+
+function moveDrag(event) {
+  const drag = state.drag
+  if (!drag) return
+  drag.pointerY = event.clientY
+  drag.ghost.style.left = `${event.clientX - drag.offsetX}px`
+  drag.ghost.style.top = `${event.clientY - drag.offsetY}px`
+  const target = cardUnderPointer(event.clientX, event.clientY, drag.card)
+  if (target !== drag.target) {
+    drag.target?.classList.remove("is-drop-target")
+    target?.classList.add("is-drop-target")
+    drag.target = target
+  }
+}
+
+function endDrag(commit) {
+  const drag = state.drag
+  if (!drag) return
+  state.drag = null
+  clearInterval(drag.scroller)
+  drag.ghost.remove()
+  drag.card.classList.remove("is-dragging")
+  drag.target?.classList.remove("is-drop-target")
+  if (!commit || !drag.target) return
+
+  const cards = [...gridEl.querySelectorAll(".biz-card")]
+  const from = cards.indexOf(drag.card)
+  const to = cards.indexOf(drag.target)
+  const business = state.businesses[from]
+  if (business && from !== to) runAdmin({ action: "move", position: to + 1 }, business)
+}
+
 function adminCall(params) {
   const query = new URLSearchParams({ ...params, code: state.adminCode })
   return loadJsonp(`${EXEC_URL}?${query}`)
@@ -462,25 +536,61 @@ async function refreshLive() {
   } catch {}
 }
 
-async function runAdmin(params, business) {
-  if (params.action === "remove" && !confirm(`למחוק את "${business.name}" מהאתר?`)) return
-  gridEl.classList.add("is-busy")
-  try {
-    const result = await adminCall({ ...params, id: business.id, name: business.name })
-    if (!result.ok) {
-      alert(result.error === "stale" ? "הרשימה השתנתה. הדף יתרענן." : "הפעולה נכשלה.")
-    }
-    await refreshLive()
-  } catch {
-    alert("הפעולה נכשלה. נסו שוב.")
-  } finally {
-    gridEl.classList.remove("is-busy")
+const ADMIN_HINT = "מצב ניהול: גררו כרטיסים לשינוי סדר, ולחצו על הכפתור האדום למחיקה"
+let adminQueue = Promise.resolve()
+let pendingAdmin = 0
+
+function setSaving(delta) {
+  pendingAdmin += delta
+  if (adminHintEl) adminHintEl.textContent = pendingAdmin ? "שומר שינויים..." : ADMIN_HINT
+}
+
+function runAdmin(params, business) {
+  if (
+    params.action === "remove" &&
+    !confirm(`למחוק לצמיתות את "${business.name}"? זה יסיר אותו גם מהגליון.`)
+  ) {
+    return
   }
+
+  const payload = { ...params, id: business.id, name: business.name, stamp: business.stamp }
+
+  if (params.action === "remove") {
+    state.businesses = state.businesses.filter((item) => item !== business)
+    state.businesses.forEach((item) => {
+      if (item.id > business.id) item.id -= 1
+    })
+  } else if (params.action === "move") {
+    const from = state.businesses.indexOf(business)
+    const [moved] = state.businesses.splice(from, 1)
+    state.businesses.splice(Math.max(params.position - 1, 0), 0, moved)
+  }
+  render()
+
+  adminQueue = adminQueue.then(async () => {
+    setSaving(1)
+    try {
+      const result = await adminCall(payload)
+      if (!result.ok) throw new Error(result.error)
+    } catch {
+      alert("הפעולה לא נשמרה. הרשימה תתרענן.")
+      await refreshLive().catch(() => {})
+    } finally {
+      setSaving(-1)
+      if (pendingAdmin === 0) refreshLive().catch(() => {})
+    }
+  })
+}
+
+function canReorder() {
+  return Boolean(state.adminCode) && !state.category && !state.query.trim()
 }
 
 function updateAdminToggle() {
-  if (!adminToggleEl) return
-  adminToggleEl.textContent = state.adminCode ? "יציאה ממצב ניהול" : "ניהול"
+  const active = Boolean(state.adminCode)
+  viewEl.classList.toggle("is-admin", active)
+  if (adminHintEl) adminHintEl.hidden = !active
+  if (adminToggleEl) adminToggleEl.textContent = active ? "יציאה ממצב ניהול" : "ניהול"
 }
 
 async function toggleAdmin() {
@@ -509,6 +619,18 @@ function init() {
 
   updateAdminToggle()
   adminToggleEl?.addEventListener("click", toggleAdmin)
+
+  gridEl.addEventListener("pointerdown", (event) => {
+    if (!canReorder() || event.button > 0 || event.target.closest("a, button")) return
+    const card = event.target.closest(".biz-card")
+    if (!card) return
+    const onHandle = Boolean(event.target.closest(".biz-drag-handle"))
+    if (!onHandle && event.pointerType !== "mouse") return
+    beginDrag(event, card)
+  })
+  document.addEventListener("pointermove", moveDrag)
+  document.addEventListener("pointerup", () => endDrag(true))
+  document.addEventListener("pointercancel", () => endDrag(false))
 
   if (FORM_URL) setFormUrl(FORM_URL)
 

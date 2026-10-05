@@ -2955,16 +2955,32 @@ button {
   pointer-events: none;
 }
 
+.biz-admin-row {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.8rem;
+}
+
+.biz-admin-hint {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.biz-admin-hint[hidden] {
+  display: none;
+}
+
 .biz-admin-toggle {
-  justify-self: center;
-  margin-top: 0.5rem;
-  padding: 0.3rem 0.8rem;
-  border: 0;
-  background: transparent;
+  padding: 0.3rem 0.85rem;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.7);
   color: var(--muted);
   font: inherit;
-  font-size: 0.8rem;
-  opacity: 0.55;
+  font-size: 0.82rem;
+  opacity: 0.7;
   cursor: pointer;
 }
 
@@ -2972,38 +2988,71 @@ button {
   opacity: 1;
 }
 
-.biz-admin-bar {
+.is-admin .biz-card {
+  cursor: grab;
+  user-select: none;
+}
+
+.biz-drag-handle {
+  position: absolute;
+  top: 0.6rem;
+  right: 0.6rem;
+  z-index: 2;
   display: flex;
-  gap: 0.4rem;
-  padding: 0.5rem 0.7rem;
-  background: rgba(176, 112, 43, 0.14);
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.9);
+  color: var(--muted);
+  font-size: 0.95rem;
+  letter-spacing: -0.15em;
+  cursor: grab;
+  touch-action: none;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
 }
 
-.biz-admin-button {
-  flex: 1;
-  padding: 0.35rem 0.5rem;
-  border: 1px solid var(--line);
-  border-radius: 10px;
-  background: #fff;
-  color: var(--accent-strong);
-  font: inherit;
-  font-size: 0.85rem;
-  font-weight: 700;
-  cursor: pointer;
-}
-
-.biz-admin-button:disabled {
-  opacity: 0.35;
-  cursor: default;
-}
-
-.biz-admin-button.is-danger {
-  border-color: #b03535;
+.biz-delete {
+  position: absolute;
+  top: 0.6rem;
+  left: 0.6rem;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
   background: #b03535;
   color: #fff;
+  font-size: 1.25rem;
+  line-height: 1;
+  cursor: pointer;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
 }
 
-.biz-grid.is-busy {
-  opacity: 0.5;
+.biz-delete:hover {
+  background: #8f2a2a;
+}
+
+.biz-card.is-dragging {
+  opacity: 0.35;
+}
+
+.biz-card.is-ghost {
+  position: fixed;
+  z-index: 1000;
+  margin: 0;
+  opacity: 0.92;
   pointer-events: none;
+  transform: rotate(1.5deg);
+  box-shadow: 0 24px 48px rgba(0, 0, 0, 0.28);
+}
+
+.biz-card.is-drop-target {
+  outline: 3px dashed var(--accent);
+  outline-offset: -3px;
 }

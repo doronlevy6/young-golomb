@@ -9,8 +9,8 @@ MESSAGE="${1:-$DEFAULT_MESSAGE}"
 ASSET_VERSION="$(date '+%Y%m%d%H%M%S')"
 PAGES_URL="https://doronlevy6.github.io/young-golomb/"
 
-node --check app.js
-node --check directory.js
+node --check --input-type=module < app.js
+node --check --input-type=module < directory.js
 bash -n "$0"
 
 DATA_ENDPOINT="https://script.google.com/macros/s/AKfycby2BP4KiA4I6GVrvRgY-OoCrw9JSsEmcI45Wxh91PXGOwHmI4w5y6E0hL2JekJfz7zu4Q/exec?action=data"

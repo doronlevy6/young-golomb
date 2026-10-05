@@ -146,8 +146,7 @@ const ORDER_HEADER = "סדר"
 const DELETED_MARK = "נמחק"
 const APPROVED_VALUES = ["כן", "מאושר", "yes", "true", "v", "✓", "1"]
 
-function jsonOutput(object, params) {
-  const payload = JSON.stringify(object)
+function textOutput(payload, params) {
   const callback = params && params.callback
   if (callback && /^[A-Za-z_$][\w$]*$/.test(callback)) {
     return ContentService.createTextOutput(callback + "(" + payload + ");").setMimeType(
@@ -155,6 +154,16 @@ function jsonOutput(object, params) {
     )
   }
   return ContentService.createTextOutput(payload).setMimeType(ContentService.MimeType.JSON)
+}
+
+function jsonOutput(object, params) {
+  return textOutput(JSON.stringify(object), params)
+}
+
+const CACHE_KEY = "directoryData"
+
+function clearDataCache() {
+  CacheService.getScriptCache().remove(CACHE_KEY)
 }
 
 function getFormUrl() {
@@ -201,16 +210,23 @@ function approvedEntries() {
 }
 
 function dataResponse(params) {
-  const { headers, entries } = approvedEntries()
-  return jsonOutput(
-    {
+  const cache = CacheService.getScriptCache()
+  let payload = cache.get(CACHE_KEY)
+  if (!payload) {
+    const { headers, entries } = approvedEntries()
+    payload = JSON.stringify({
       formUrl: getFormUrl(),
       headers,
       rows: entries.map((entry) => entry.values),
       ids: entries.map((entry) => entry.row),
-    },
-    params,
-  )
+    })
+    try {
+      cache.put(CACHE_KEY, payload, 60)
+    } catch (error) {
+      console.error("cache put failed: " + error)
+    }
+  }
+  return textOutput(payload, params)
 }
 
 function moveEntry(sheet, row, position) {
@@ -230,9 +246,46 @@ function moveEntry(sheet, row, position) {
   sheet.getRange(2, orderCol, lastRow - 1, 1).setValues(orderValues)
 }
 
+function deleteFormResponse(stamp) {
+  try {
+    const form = FormApp.openById(PropertiesService.getScriptProperties().getProperty("FORM_ID"))
+    const time = stamp instanceof Date ? stamp.getTime() : new Date(stamp).getTime()
+    form.getResponses().forEach((response) => {
+      if (Math.abs(response.getTimestamp().getTime() - time) < 2000) {
+        form.deleteResponse(response.getId())
+      }
+    })
+  } catch (error) {
+    console.error("deleteFormResponse: " + error)
+  }
+}
+
+function purgeMarkedRows(sheet) {
+  const lastRow = sheet.getLastRow()
+  if (lastRow < 2) return 0
+  const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0].map(String)
+  const approvedCol = headers.indexOf(APPROVED_HEADER) + 1
+  if (!approvedCol) return 0
+  const marks = sheet.getRange(2, approvedCol, lastRow - 1, 1).getValues()
+  let purged = 0
+  for (let i = marks.length - 1; i >= 0; i -= 1) {
+    if (String(marks[i][0]).trim() === DELETED_MARK) {
+      deleteFormResponse(sheet.getRange(i + 2, 1).getValue())
+      sheet.deleteRow(i + 2)
+      purged += 1
+    }
+  }
+  return purged
+}
+
 function adminResponse(params) {
   if (params.code !== ADMIN_CODE) return jsonOutput({ ok: false, error: "code" }, params)
   if (params.action === "check") return jsonOutput({ ok: true }, params)
+  if (params.action === "purge") {
+    const purged = purgeMarkedRows(getResponsesSheet().sheet)
+    clearDataCache()
+    return jsonOutput({ ok: true, purged }, params)
+  }
 
   const { sheet } = getResponsesSheet()
   const row = parseInt(params.id, 10)
@@ -246,13 +299,19 @@ function adminResponse(params) {
   }
 
   if (params.action === "remove") {
-    sheet.getRange(row, ensureColumn(sheet, APPROVED_HEADER)).setValue(DELETED_MARK)
+    const stamp = sheet.getRange(row, 1).getValue()
+    const stampText = stamp instanceof Date ? stamp.toISOString() : String(stamp)
+    if (stampText !== params.stamp) return jsonOutput({ ok: false, error: "stale" }, params)
+    deleteFormResponse(stamp)
+    sheet.deleteRow(row)
+    clearDataCache()
     return jsonOutput({ ok: true }, params)
   }
   if (params.action === "move") {
     const position = parseInt(params.position, 10)
     if (!(position >= 1)) return jsonOutput({ ok: false, error: "position" }, params)
     moveEntry(sheet, row, position)
+    clearDataCache()
     return jsonOutput({ ok: true }, params)
   }
   return jsonOutput({ ok: false, error: "action" }, params)
@@ -309,4 +368,5 @@ function onFormSubmitShare(event) {
       spreadsheet.deleteSheet(candidate)
     }
   })
+  clearDataCache()
 }
