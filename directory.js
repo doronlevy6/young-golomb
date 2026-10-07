@@ -372,17 +372,6 @@ function render() {
   renderChips()
 }
 
-const CACHE_KEY = "bizDirectoryCache2"
-
-function readCache() {
-  try {
-    const raw = localStorage.getItem(CACHE_KEY)
-    return raw ? JSON.parse(raw) : null
-  } catch {
-    return null
-  }
-}
-
 function applyData(businesses, isSample) {
   state.businesses = businesses.filter((b) => b.name)
   sampleNoteEl.hidden = !isSample
@@ -420,23 +409,12 @@ function showLoadError() {
   gridEl.replaceChildren(message, retry)
 }
 
-function showStaleNotice() {
-  if (document.getElementById("biz-stale-notice")) return
-  const notice = el(
-    "p",
-    "biz-sample-note",
-    "לא הצלחנו להתחבר לרשימה העדכנית (ייתכן חסימת רשת או תוסף חוסם). מוצגת הגרסה השמורה בדפדפן.",
-  )
-  notice.id = "biz-stale-notice"
-  const retry = el("button", "biz-chip", "נסו שוב")
-  retry.type = "button"
-  retry.style.marginRight = "0.6rem"
-  retry.addEventListener("click", () => {
-    notice.remove()
-    refreshLive().catch(() => showStaleNotice())
-  })
-  notice.append(retry)
-  sampleNoteEl.after(notice)
+async function loadBaked() {
+  const response = await fetch(STATIC_DATA_URL, { cache: "no-store" })
+  if (!response.ok) throw new Error(`baked snapshot ${response.status}`)
+  const payload = await response.json()
+  if (payload.formUrl) setFormUrl(payload.formUrl)
+  return businessesFromRows(payload.headers, payload.rows, payload.ids)
 }
 
 async function ensureLoaded() {
@@ -444,22 +422,6 @@ async function ensureLoaded() {
   state.loaded = true
   viewEl.classList.remove("is-sample")
   sampleNoteEl.hidden = true
-
-  const cached = DATA_URL ? readCache() : null
-  if (cached && cached.length) {
-    applyData(cached, false)
-  } else {
-    gridEl.replaceChildren(el("p", "biz-empty", "טוען עסקים..."))
-    try {
-      const response = await fetch(STATIC_DATA_URL)
-      if (response.ok) {
-        const payload = await response.json()
-        if (payload.formUrl) setFormUrl(payload.formUrl)
-        const businesses = businessesFromRows(payload.headers, payload.rows, payload.ids)
-        if (businesses.length) applyData(businesses, false)
-      }
-    } catch {}
-  }
 
   if (!DATA_URL) {
     try {
@@ -472,19 +434,23 @@ async function ensureLoaded() {
     return
   }
 
+  gridEl.replaceChildren(el("p", "biz-empty", "טוען עסקים..."))
+
+  // The baked snapshot is same-origin and refreshed every ~15 min by a
+  // GitHub Action, so it works even when a visitor's network blocks Google.
+  try {
+    const businesses = await loadBaked()
+    if (businesses.length) applyData(businesses, false)
+  } catch {}
+
   try {
     const businesses = await loadLiveWithRetry()
     applyData(businesses, false)
-    try {
-      localStorage.setItem(CACHE_KEY, JSON.stringify(businesses))
-    } catch {}
   } catch (error) {
-    console.error("live directory fetch failed:", error)
+    console.error("live directory refresh failed, keeping the baked snapshot:", error)
     if (!state.businesses.length) {
       state.loaded = false
       showLoadError()
-    } else {
-      showStaleNotice()
     }
   }
 }
@@ -566,9 +532,6 @@ function adminCall(params) {
 async function refreshLive() {
   const businesses = await loadLiveWithRetry()
   applyData(businesses, false)
-  try {
-    localStorage.setItem(CACHE_KEY, JSON.stringify(businesses))
-  } catch {}
 }
 
 const ADMIN_HINT = "מצב ניהול: גררו כרטיסים לשינוי סדר, ולחצו על הכפתור האדום למחיקה"
