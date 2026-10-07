@@ -128,19 +128,33 @@ function normalizeBusiness(source) {
   }
 }
 
-function loadJsonp(url) {
+function loadJsonp(url, timeoutMs = 12000) {
   return new Promise((resolve, reject) => {
     const callback = "__bizJsonp" + Math.random().toString(36).slice(2)
     const script = document.createElement("script")
-    window[callback] = (data) => {
-      resolve(data)
+    let settled = false
+    const cleanup = () => {
       delete window[callback]
       script.remove()
+      clearTimeout(timer)
+    }
+    const timer = setTimeout(() => {
+      if (settled) return
+      settled = true
+      cleanup()
+      reject(new Error("jsonp timeout"))
+    }, timeoutMs)
+    window[callback] = (data) => {
+      if (settled) return
+      settled = true
+      cleanup()
+      resolve(data)
     }
     script.onerror = () => {
+      if (settled) return
+      settled = true
+      cleanup()
       reject(new Error("jsonp failed"))
-      delete window[callback]
-      script.remove()
     }
     script.src = url + (url.includes("?") ? "&" : "?") + "callback=" + callback
     document.head.append(script)
@@ -406,6 +420,25 @@ function showLoadError() {
   gridEl.replaceChildren(message, retry)
 }
 
+function showStaleNotice() {
+  if (document.getElementById("biz-stale-notice")) return
+  const notice = el(
+    "p",
+    "biz-sample-note",
+    "לא הצלחנו להתחבר לרשימה העדכנית (ייתכן חסימת רשת או תוסף חוסם). מוצגת הגרסה השמורה בדפדפן.",
+  )
+  notice.id = "biz-stale-notice"
+  const retry = el("button", "biz-chip", "נסו שוב")
+  retry.type = "button"
+  retry.style.marginRight = "0.6rem"
+  retry.addEventListener("click", () => {
+    notice.remove()
+    refreshLive().catch(() => showStaleNotice())
+  })
+  notice.append(retry)
+  sampleNoteEl.after(notice)
+}
+
 async function ensureLoaded() {
   if (state.loaded) return
   state.loaded = true
@@ -446,10 +479,12 @@ async function ensureLoaded() {
       localStorage.setItem(CACHE_KEY, JSON.stringify(businesses))
     } catch {}
   } catch (error) {
-    console.error(error)
+    console.error("live directory fetch failed:", error)
     if (!state.businesses.length) {
       state.loaded = false
       showLoadError()
+    } else {
+      showStaleNotice()
     }
   }
 }
