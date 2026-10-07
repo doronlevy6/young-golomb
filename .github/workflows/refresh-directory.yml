@@ -1,0 +1,39 @@
+name: Refresh business directory snapshot
+
+on:
+  schedule:
+    - cron: "*/15 * * * *"
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+concurrency:
+  group: refresh-directory
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Fetch latest approved businesses
+        env:
+          DATA_ENDPOINT: https://script.google.com/macros/s/AKfycby2BP4KiA4I6GVrvRgY-OoCrw9JSsEmcI45Wxh91PXGOwHmI4w5y6E0hL2JekJfz7zu4Q/exec?action=data
+        run: |
+          curl -fsSL --max-time 90 "$DATA_ENDPOINT" -o data/businesses.json.tmp
+          python3 -c "import json; d=json.load(open('data/businesses.json.tmp')); assert isinstance(d.get('rows'), list)"
+          mv data/businesses.json.tmp data/businesses.json
+
+      - name: Commit snapshot if it changed
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add data/businesses.json
+          if git diff --cached --quiet; then
+            echo "No changes."
+          else
+            git commit -m "chore: refresh directory snapshot [skip ci]"
+            git push
+          fi
