@@ -410,7 +410,11 @@ function showLoadError() {
 }
 
 async function loadBaked() {
-  const response = await fetch(STATIC_DATA_URL, { cache: "no-store" })
+  // GitHub Pages caches this file for 10 minutes (cache-control: max-age=600)
+  // regardless of fetch options, so a changing query string is required to
+  // actually bypass that server-side cache, not just the browser's own.
+  const bustedUrl = `${STATIC_DATA_URL}?t=${Date.now()}`
+  const response = await fetch(bustedUrl, { cache: "no-store" })
   if (!response.ok) throw new Error(`baked snapshot ${response.status}`)
   const payload = await response.json()
   if (payload.formUrl) setFormUrl(payload.formUrl)
